@@ -1,0 +1,53 @@
+/* Singularity Light Theme - color definitions */
+
+/* Base palette */
+@define-color text_color #1a1a1a;
+@define-color window_bg #f6f5f4;
+@define-color panel_bg rgba(248, 248, 248, 0.85);
+@define-color panel_fg #1a1a1a;
+@define-color dock_bg rgba(240, 240, 240, 0.85);
+@define-color toolbar_bg #e0e0e0;
+
+/* Cards and borders */
+@define-color card_bg alpha(@text_color, 0.04);
+@define-color card_hover_bg alpha(@text_color, 0.07);
+@define-color border_color alpha(@text_color, 0.08);
+
+/* Shadows (softer in light mode) */
+@define-color shadow_color rgba(0, 0, 0, 0.45);
+
+/* Surfaces */
+@define-color surface_bg #ffffff;
+@define-color surface_dim #e8e8e8;
+@define-color surface_mid #f0f0f0;
+@define-color surface_raised #f5f5f5;
+@define-color surface_alt #ebebeb;
+@define-color surface_bright #f8f8f8;
+@define-color surface_overlay rgba(245, 245, 245, 0.85);
+@define-color surface_scrim rgba(240, 240, 240, 0.92);
+@define-color surface_scrim_heavy rgba(246, 246, 246, 0.96);
+@define-color panel_solid_bg #f5f5f5;
+@define-color overview_bg rgba(240, 240, 240, 0.85);
+@define-color hover_white alpha(@text_color, 0.06);
+
+/* Semantic colors */
+@define-color destructive_color #e01b24;
+@define-color destructive_hover #c01c28;
+@define-color success_color #2ec27e;
+@define-color error_color #e01b24;
+@define-color warning_color #e5a50a;
+@define-color link_color #1c71d8;
+@define-color link_active_color #1060d0;
+
+/* GTK token aliases */
+@define-color window_bg_color @window_bg;
+@define-color window_fg_color @text_color;
+@define-color view_bg_color @window_bg;
+@define-color card_bg_color @card_bg;
+@define-color card_shade_color rgba(0, 0, 0, 0.18);
+@define-color headerbar_bg_color @toolbar_bg;
+@define-color sidebar_bg_color @window_bg;
+@define-color secondary_sidebar_bg_color @window_bg;
+@define-color fg_color @text_color;
+@define-color borders alpha(@text_color, 0.1);
+@define-color window_tint alpha(@text_color, 0.03);

@@ -1,0 +1,5204 @@
+/* Singularity Structural Theme
+ *
+ * Color variables are defined in style.dark.css / style.light.css and
+ * prepended at load time. Accent colors are loaded at priority +1.
+ */
+
+* {
+    color: @text_color;
+}
+
+/* Base GTK4 widget reset 
+   With gtk_theme_name = "Empty", no Default theme CSS loads. We provide
+   base dark styling for all common GTK4 widgets using our color tokens.
+   Singularity-specific rules further below will override where needed. */
+
+window,
+.background {
+    background-color: @window_bg;
+    color: @text_color;
+}
+
+window.csd {
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 4px 14px alpha(@shadow_color, 0.55);
+}
+
+window.popup,
+window.tooltip {
+    border-radius: 6px;
+    box-shadow: none;
+}
+
+/* Headerbar */
+headerbar {
+    min-height: 46px;
+    background-color: @toolbar_bg;
+    border-bottom: 1px solid @border_color;
+    padding: 0 8px;
+    color: @text_color;
+}
+headerbar .title { font-weight: bold; }
+headerbar entry,
+headerbar spinbutton,
+headerbar button { margin-top: 6px; margin-bottom: 6px; }
+
+/* Generic button */
+button {
+    background-color: @card_bg;
+    border: 1px solid @border_color;
+    border-radius: 6px;
+    color: @text_color;
+    padding: 6px 12px;
+    box-shadow: none;
+}
+button:hover { background-color: @card_hover_bg; }
+button:active,
+button:checked { background-color: alpha(@text_color, 0.18); }
+button:disabled { opacity: 0.5; }
+
+/* Flat button */
+button.flat,
+button.sidebar-button {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+}
+button.flat:hover,
+button.sidebar-button:hover { background-color: @card_hover_bg; border-color: transparent; }
+button.flat:active,
+button.flat:checked,
+button.sidebar-button:active { background-color: @card_bg; border-color: transparent; }
+button.flat:disabled,
+button.sidebar-button:disabled { background: none; border-color: transparent; opacity: 0.5; }
+
+/* Suggested / destructive action buttons */
+button.suggested-action {
+    background-color: @accent_color;
+    border-color: @accent_color;
+    color: @accent_fg;
+}
+button.suggested-action:hover   { background-color: mix(@accent_color, white, 0.85); }
+button.suggested-action:active  { background-color: mix(@accent_color, black, 0.85); }
+button.suggested-action:disabled { opacity: 0.5; }
+
+button.destructive-action {
+    background-color: @destructive_hover;
+    border-color: @destructive_hover;
+    color: @text_color;
+}
+button.destructive-action:hover  { background-color: @destructive_hover; }
+button.destructive-action:active { background-color: shade(@destructive_color, 0.7); }
+button.destructive-action:disabled { opacity: 0.5; }
+
+/* Boxed list (PreferencesGroup cards) */
+.boxed-list {
+    border-radius: 8px;
+    border: 1px solid @border_color;
+    background-color: transparent;
+}
+.boxed-list > row {
+    border-bottom: 1px solid @border_color;
+    background-color: transparent;
+}
+.boxed-list > row:last-child { border-bottom: none; }
+.boxed-list > row:hover { background-color: @card_hover_bg; }
+.boxed-list > row:selected { background-color: mix(@accent_color, @window_bg, 0.25); }
+.boxed-list > row:first-child { border-radius: 8px 8px 0 0; }
+
+/* Listbox */
+listbox { background-color: transparent; }
+listbox row { background-color: transparent; }
+listbox row:hover { background-color: @card_hover_bg; }
+listbox row:selected { background-color: mix(@accent_color, @window_bg, 0.25); color: @text_color; }
+
+/* Entry / text input */
+entry,
+spinbutton {
+    background-color: @card_bg;
+    border: 1px solid @border_color;
+    border-radius: 6px;
+    color: @text_color;
+}
+entry:focus-within,
+spinbutton:focus-within { border-color: @accent_color; }
+entry:disabled,
+spinbutton:disabled { opacity: 0.5; }
+
+/* Textview */
+textview,
+textview > text {
+    background-color: @card_bg;
+    color: @text_color;
+}
+textview > text > selection { background-color: mix(@accent_color, @window_bg, 0.5); }
+
+/* Scrollbar */
+scrollbar { background-color: transparent; border: none; }
+scrollbar trough {
+    background-color: alpha(@text_color, 0.05);
+    border-radius: 4px;
+}
+scrollbar slider {
+    background-color: alpha(@text_color, 0.25);
+    border-radius: 4px;
+    min-width: 6px;
+    min-height: 6px;
+    margin: 2px;
+}
+scrollbar slider:hover  { background-color: alpha(@text_color, 0.45); }
+scrollbar slider:active { background-color: @accent_color; }
+
+/* Separator */
+separator {
+    background-color: @border_color;
+    min-height: 1px;
+    min-width: 1px;
+}
+
+/* Popover */
+popover.background {
+    background-color: @surface_raised;
+    border: 1px solid @border_color;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px alpha(@shadow_color, 0.45);
+    color: @text_color;
+}
+popover.background > contents { padding: 6px; }
+
+/* Tooltip */
+tooltip {
+    background-color: @surface_bright;
+    border: 1px solid @border_color;
+    border-radius: 4px;
+    color: @text_color;
+    padding: 4px 8px;
+}
+
+/* Label */
+label:disabled { opacity: 0.5; }
+label.dim-label { opacity: 0.55; }
+
+/* Check / Radio */
+checkbutton > check,
+radiobutton > radio {
+    border: 1.5px solid @border_color;
+    border-radius: 4px;
+    background-color: @card_bg;
+    min-width: 16px;
+    min-height: 16px;
+}
+check:checked,
+radio:checked {
+    background-color: @accent_color;
+    border-color: @accent_color;
+    color: @accent_fg;
+}
+
+/* Switch */
+switch {
+    background-color: alpha(@text_color, 0.15);
+    border-radius: 9999px;
+    border: 1px solid @border_color;
+    min-width: 40px;
+    min-height: 22px;
+}
+switch:checked { background-color: @accent_color; border-color: @accent_color; }
+switch slider {
+    background-color: @text_color;
+    border-radius: 9999px;
+    margin: 2px;
+}
+
+/* Progress bar */
+progressbar trough {
+    background-color: @card_bg;
+    border-radius: 4px;
+    min-height: 6px;
+}
+progressbar progress {
+    background-color: @accent_color;
+    border-radius: 4px;
+}
+
+/* Scale / slider */
+scale trough {
+    background-color: @card_bg;
+    border-radius: 4px;
+    min-height: 4px;
+    min-width: 4px;
+}
+scale trough highlight { background-color: @accent_color; }
+scale slider {
+    background-color: @accent_color;
+    border-radius: 9999px;
+    min-width: 18px;
+    min-height: 18px;
+    box-shadow: 0 1px 4px alpha(@shadow_color, 0.4);
+}
+scale.horizontal > marks.bottom { margin-top: 4px; }
+scale.horizontal > marks.top { margin-bottom: 4px; }
+scale.vertical > marks.bottom { margin-left: 4px; }
+scale.vertical > marks.top { margin-right: 4px; }
+scale.horizontal marks indicator {
+    background-color: currentColor;
+    min-height: 4px;
+    min-width: 1px;
+    opacity: 0.2;
+}
+scale.vertical marks indicator {
+    background-color: currentColor;
+    min-height: 1px;
+    min-width: 4px;
+    opacity: 0.2;
+}
+scale > value { opacity: 0.45; }
+
+/* View (icon/tree/list views) */
+.view,
+iconview {
+    background-color: @window_bg;
+    color: @text_color;
+}
+.view:selected,
+iconview:selected {
+    background-color: @accent_color;
+    color: @accent_fg;
+}
+
+/* Dialog / message dialog */
+dialog.background,
+messagedialog.background { background-color: @window_bg; }
+
+/* Window controls buttons */
+windowcontrols button {
+    background: none;
+    border: none;
+    box-shadow: none;
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0;
+}
+windowcontrols button > image {
+    border-radius: 9999px;
+    min-width: 24px;
+    min-height: 24px;
+}
+windowcontrols button:hover > image { background-color: @card_hover_bg; }
+windowcontrols button:active > image,
+windowcontrols button:checked > image { background-color: @card_bg; }
+
+/* Notebook / tabs */
+notebook > header { background-color: @toolbar_bg; border-bottom: 1px solid @border_color; }
+notebook > header > tabs > tab { padding: 6px 16px; border-radius: 4px 4px 0 0; }
+notebook > header > tabs > tab:checked { background-color: @window_bg; }
+notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hover_bg; }
+
+/* End base GTK4 widget reset */
+.panel-window {
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+}
+
+/* All elements inside the panel box get explicit white by default (dark bg
+   assumed). Specificity (0,2,0) beats the global * { color: @text_color }
+   (0,0,0) so inheritance chains within the panel work correctly. */
+.panel-window .panel * {
+    color: white;
+}
+
+/* Flat/maximized mode: known solid background, follow the theme fg. */
+.panel-window.flat-panel .panel * {
+    color: @panel_fg;
+}
+
+/* Bright wallpaper detected: switch to dark text. */
+.panel-window.light-bg .panel * {
+    color: #1a1a1a;
+}
+
+/* Active state always gets white text on accent bg regardless of mode. */
+.panel-window .activities-button:active *,
+.panel-window .clock-button:active *,
+.panel-window .notification-button:active *,
+.panel-window .system-pill-button:active * {
+    color: white;
+}
+
+.panel {
+    padding: 0;
+    min-height: 24px;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    margin: 0;
+    transition: background-color 180ms ease;
+}
+
+.panel.no-transition {
+    transition: none;
+}
+
+.panel.overview-mode {
+    background-color: @overview_bg;
+}
+
+.notification-button {
+    background-color: @surface_bg;
+    border-radius: 999px;
+    padding: 2px 6px;
+    margin: 2px;
+    transition: all 0.2s ease;
+    box-shadow: none;
+    font-weight: bold;
+    min-height: 28px;
+}
+
+.system-pill-button {
+    background-color: @surface_bg;
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin: 2px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px alpha(@shadow_color, 0.2);
+    font-weight: bold;
+    min-height: 28px;
+}
+
+.activities-button:hover,
+.clock-button:hover,
+.system-pill-button:hover {
+    background-color: alpha(@text_color, 0.15);
+    box-shadow: 0 2px 8px alpha(@shadow_color, 0.3);
+}
+
+.notification-button:hover {
+    background-color: alpha(@text_color, 0.15);
+    box-shadow: none;
+}
+
+.activities-button:active,
+.clock-button:active,
+.system-pill-button:active {
+    background-color: @accent_color;
+    color: white;
+}
+
+.notification-button:active {
+    background-color: @accent_color;
+    color: white;
+    box-shadow: none;
+}
+
+.notification-badge {
+    background-color: @destructive_color;
+    min-width: 6px;
+    min-height: 6px;
+    border-radius: 999px;
+    margin-top: 4px;
+    margin-right: 4px;
+    box-shadow: none;
+}
+
+.panel.overview-mode .activities-button,
+.panel.overview-mode .clock-button,
+.panel.overview-mode .notification-button,
+.panel.overview-mode .system-pill-button {
+    background-color: transparent;
+    box-shadow: none;
+    margin: 2px;
+}
+
+/* Flat panel mode: solid black background, no pill buttons */
+.flat-panel .panel {
+    background-color: @panel_solid_bg;
+}
+
+.flat-panel .activities-button,
+.flat-panel .clock-button,
+.flat-panel .notification-button,
+.flat-panel .system-pill-button {
+    background-color: transparent;
+    box-shadow: none;
+    border-radius: 4px;
+}
+
+/* Text and icon shadows in transparent (non-flat) panel mode - Pantheon-style contrast */
+.panel-window:not(.flat-panel):not(.light-bg) .panel label {
+    text-shadow: 0 1px 3px alpha(@shadow_color, 0.9), 0 0 6px alpha(@shadow_color, 0.6);
+}
+
+.panel-window:not(.flat-panel):not(.light-bg) .panel image {
+    filter: drop-shadow(0 1px 3px alpha(@shadow_color, 0.9));
+}
+
+/* On bright wallpapers: subtle dark shadow for legibility */
+.panel-window.light-bg .panel label {
+    text-shadow: 0 1px 2px alpha(white, 0.5);
+}
+
+.panel-window.light-bg .panel image {
+    filter: none;
+}
+
+.panel-window:not(.flat-panel) .notification-button label {
+    text-shadow: none;
+}
+
+.clock {
+    font-weight: bold;
+    font-size: 14px;
+    color: inherit;
+}
+
+.system-pill {
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+.system-pill image {
+    margin: 0 4px;
+    color: inherit;
+}
+
+.dock-window {
+    background-color: transparent;
+}
+
+/*
+ * When the compositor provides hardware background blur (SINGULARITY_BLUR_ENABLED),
+ * the dock background becomes translucent so the blur shows through.
+ * Without hardware blur, the opaque backdrop-filter: blur() CSS fallback is used.
+ */
+window.singularity-blur .dock-box,
+.singularity-blur .dock-box,
+window.singularity-blur .dock-window:backdrop .dock-box,
+.singularity-blur .dock-window:backdrop .dock-box {
+    background-color: @surface_overlay;
+    backdrop-filter: none;
+}
+
+.dock-box {
+    background-color: @surface_overlay;
+    border-radius: 16px;
+    padding: 7px 6px 2px 6px;
+    box-shadow: 0 4px 14px alpha(@shadow_color, 0.45), 0 1px 0 alpha(@text_color, 0.08) inset;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid alpha(@text_color, 0.18);
+    backdrop-filter: blur(12px);
+}
+
+.dock-window:backdrop .dock-box,
+.dock-box:backdrop {
+    background-color: @surface_overlay;
+    border: 1px solid alpha(@text_color, 0.18);
+    box-shadow: 0 4px 14px alpha(@shadow_color, 0.45), 0 1px 0 alpha(@text_color, 0.08) inset;
+}
+
+.dock-container {
+    margin: 4px 8px 0 8px;
+}
+
+.dock-panel-mode .dock-box {
+    background-color: transparent;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    padding: 0;
+}
+
+.dock-panel-mode .dock-container {
+    background-color: @panel_bg;
+    border-top: 1px solid alpha(@text_color, 0.08);
+    box-shadow: 0 -1px 8px alpha(@shadow_color, 0.3);
+    padding: 0 12px;
+    margin: 0;
+}
+
+.dock-start-area {
+    margin-right: 12px;
+}
+
+.dock-end-area {
+    margin-left: 12px;
+}
+
+.start-button {
+    margin: 3px 0;
+}
+
+.workspace-button {
+    color: @accent_color;
+}
+
+.workspace-button:hover {
+    background-color: alpha(@accent_color, 0.2);
+}
+
+.dock-clock-box,
+.dock-system-box {
+    background-color: @surface_overlay;
+    border-radius: 12px;
+    border: 1px solid alpha(@text_color, 0.1);
+    box-shadow: 0 2px 8px alpha(@shadow_color, 0.3);
+    padding: 4px 8px;
+    margin: 4px 0;
+}
+
+.dock-clock {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.dock-box.transparent {
+    background-color: alpha(@text_color, 0.08);
+    box-shadow: none;
+    border: 1px solid alpha(@text_color, 0.1);
+}
+
+.dock-item {
+    background-color: transparent;
+    border-radius: 8px;
+    padding: 2px;
+    transition: background-color 0.2s ease;
+    border: none;
+    box-shadow: none;
+}
+
+.dock-item:hover {
+    background-color: alpha(@text_color, 0.15);
+    background-image: none;
+    box-shadow: none;
+}
+
+/* With magnification active: no hover background square, no transitions on image size */
+.singularity.dock-window.magnify-active .dock-item:hover {
+    background-color: transparent;
+}
+.singularity.dock-window.magnify-active .dock-item image {
+    transition: none;
+}
+
+.dock-item.running {
+    background-image: none;
+}
+
+.dock-item.active {
+    background-color: alpha(@text_color, 0.18);
+    background-image: none;
+    box-shadow: inset 0 0 0 1px alpha(@text_color, 0.12);
+}
+
+/* Active app dot is brighter/larger */
+.dock-item-wrapper.active-wrapper .dock-indicator-dot {
+    background-color: white;
+    min-width: 5px;
+    min-height: 5px;
+    max-width: 5px;
+    max-height: 5px;
+}
+
+@keyframes dock-slide-bounce {
+    0%   { transform: translateY(110%); opacity: 0; }
+    55%  { transform: translateY(-8px); opacity: 1; }
+    72%  { transform: translateY(4px); }
+    86%  { transform: translateY(-2px); }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+.dock-container.dock-intro {
+    animation: dock-slide-bounce 560ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
+}
+
+@keyframes dock-pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.15);
+    }
+
+    70% {
+        transform: scale(0.96);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.dock-item-wrapper.launching {
+    animation: dock-pulse 0.35s ease-in-out 2;
+}
+
+.dock-item-wrapper {
+    background-color: transparent;
+}
+
+@keyframes screen-flash-out {
+    0% {
+        opacity: 0.75;
+    }
+
+    60% {
+        opacity: 0.55;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+/* The window itself must be transparent - the child box carries the visual */
+.screen-flash {
+    background: transparent;
+}
+
+.screen-flash-fill {
+    background: white;
+    animation: screen-flash-out 0.28s ease-out forwards;
+}
+
+.dock-indicator-row {
+    min-height: 4px;
+    margin-top: 1px;
+    margin-bottom: 0;
+}
+
+.dock-indicator-dot {
+    min-width: 3px;
+    min-height: 3px;
+    max-width: 3px;
+    max-height: 3px;
+    background-color: alpha(@text_color, 0.75);
+    border-radius: 2px;
+    margin: 0 1px;
+}
+
+.dock-item-extended {
+    min-width: 150px;
+    justify-content: start;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+.dock-item-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: @panel_fg;
+}
+
+.dock-item-quick-launch {
+    padding: 4px;
+}
+
+.dock-separator {
+    min-width: 1px;
+    background-color: alpha(@text_color, 0.1);
+    margin: 6px 4px;
+}
+
+.overview-window {
+    background-color: transparent;
+}
+
+@keyframes overview-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1.0); }
+}
+@keyframes overview-out {
+  from { opacity: 1; transform: scale(1.0); }
+  to   { opacity: 0; transform: scale(0.97); }
+}
+@keyframes ws-overview-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1.0); }
+}
+@keyframes ws-overview-out {
+  from { opacity: 1; transform: scale(1.0); }
+  to   { opacity: 0; transform: scale(0.97); }
+}
+
+.overview-box {
+    background-color: @overview_bg;
+}
+.overview-box.animating-in {
+    animation: overview-in 220ms ease-out forwards;
+}
+.overview-box.animating-out {
+    animation: overview-out 180ms ease-in forwards;
+}
+.workspace-overview-box.animating-in {
+    animation: ws-overview-in 220ms ease-out forwards;
+}
+.workspace-overview-box.animating-out {
+    animation: ws-overview-out 180ms ease-in forwards;
+}
+.hot-corner-window {
+    background-color: alpha(@shadow_color, 0.002);
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+}
+
+.hot-corner-screen {
+    border-radius: 8px;
+    border: 1px solid alpha(@card_shade_color, 0.5);
+}
+
+.hot-corner-bg {
+    background-color: alpha(@card_bg_color, 0.5);
+    border-radius: 7px;
+}
+
+.overview-background-wallpaper {
+    filter: blur(14px) brightness(0.4);
+    transition: opacity 0.3s ease;
+}
+
+.overview-content-box {
+    background-color: transparent;
+}
+
+.workspace-strip-container {
+    background-color: @overview_bg;
+    padding: 24px 0 12px 0;
+    border-bottom: 1px solid alpha(@text_color, 0.1);
+}
+
+.window-preview-item {
+    transition: transform 0.2s ease;
+}
+
+.window-preview-item:hover {
+    transform: scale(1.02);
+}
+
+.window-preview-thumbnail {
+    border-radius: 12px;
+}
+
+.window-preview-titlebar {
+    background-color: @surface_scrim_heavy;
+    border-radius: 20px;
+    padding: 4px 12px;
+    margin-bottom: 12px;
+    border: 1px solid alpha(@text_color, 0.15);
+}
+
+.window-preview-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: white;
+}
+
+.window-preview-icon {
+    margin-right: 2px;
+}
+
+.overview-ws-sidebar {
+    background-color: @surface_overlay;
+    border: 1px solid alpha(@text_color, 0.1);
+    border-radius: 24px;
+    padding: 12px 0;
+    box-shadow: 0 8px 20px alpha(@shadow_color, 0.4);
+    backdrop-filter: blur(8px);
+    min-width: 240px;
+    margin-right: 20px;
+}
+
+.panel.overview-mode {
+    background-color: @overview_bg;
+}
+
+.search-entry {
+    background-color: alpha(@text_color, 0.08);
+    border: 1px solid alpha(@text_color, 0.1);
+    border-radius: 999px;
+    padding: 4px 12px;
+    color: @text_color;
+    caret-color: @accent_color;
+    min-height: 32px;
+    min-width: 400px;
+    font-size: 15px;
+    box-shadow: 0 4px 12px alpha(@shadow_color, 0.2);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.search-entry text {
+    border-radius: 999px;
+}
+
+.search-results-list {
+    background-color: @surface_overlay;
+    border: 1px solid alpha(@text_color, 0.1);
+    border-radius: 16px;
+    padding: 8px;
+    box-shadow: 0 10px 30px alpha(@shadow_color, 0.4);
+}
+
+.search-result-row {
+    background-color: transparent;
+    border-radius: 8px;
+    margin-bottom: 2px;
+    transition: all 0.2s ease;
+    color: white;
+}
+
+.search-result-row:hover {
+    background-color: alpha(@text_color, 0.1);
+}
+
+.search-result-row:active {
+    background-color: @accent_color;
+}
+
+.search-result-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.search-result-description {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.search-result-provider {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    opacity: 0.4;
+    letter-spacing: 0.5px;
+}
+
+.quick-settings-grid {
+    padding: 0;
+}
+
+/* Quick-setting grouped pill (tile + nav fused) */
+.quick-setting-group {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 16px;
+    transition: all 0.15s ease;
+}
+
+/* Tile part: transparent over group bg, rounded on left only */
+.quick-setting-group .quick-setting-tile {
+    background-color: transparent;
+    border-radius: 16px 0 0 16px;
+    border: none;
+    box-shadow: none;
+    min-height: 42px;
+    transition: background-color 0.15s ease;
+}
+
+.quick-setting-group .quick-setting-tile:hover {
+    background-color: alpha(@text_color, 0.07);
+}
+
+.quick-setting-group .quick-setting-tile.active {
+    background-color: @accent_color;
+    border-radius: 16px 0 0 16px;
+}
+
+.quick-setting-group .quick-setting-tile.active:hover {
+    background-color: alpha(@accent_color, 0.85);
+}
+
+.quick-setting-group .quick-setting-tile.active:focus {
+    background-color: @accent_color;
+}
+
+.quick-setting-group .quick-setting-tile.active .tile-subtitle {
+    color: alpha(@text_color, 0.8);
+}
+
+.quick-setting-group .quick-setting-tile.active .tile-icon {
+    background-color: alpha(@text_color, 0.2);
+    color: white;
+}
+
+/* Nav button: transparent, rounded on right, thin divider */
+.quick-setting-group .quick-setting-nav-btn {
+    background-color: transparent;
+    border-radius: 0 16px 16px 0;
+    border: none;
+    border-left: 1px solid alpha(@text_color, 0.1);
+    padding: 0 10px;
+    min-width: 30px;
+    color: alpha(@text_color, 0.45);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.quick-setting-group .quick-setting-nav-btn:hover {
+    background-color: alpha(@text_color, 0.1);
+    color: alpha(@text_color, 0.9);
+}
+
+/* When tile is active, nav button inherits accent (slightly darker) */
+.quick-setting-group .quick-setting-tile.active~.quick-setting-nav-btn {
+    background-color: shade(@accent_color, 0.82);
+    border-left-color: alpha(@text_color, 0.2);
+    color: alpha(@text_color, 0.8);
+}
+
+.quick-setting-group .quick-setting-tile.active~.quick-setting-nav-btn:hover {
+    background-color: shade(@accent_color, 0.72);
+    color: white;
+}
+
+/* Standalone tile (no group wrapper) keeps full pill */
+.quick-setting-tile {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 16px;
+    padding: 0;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    box-shadow: none;
+    min-height: 42px;
+}
+
+.quick-setting-tile:hover {
+    background-color: alpha(@text_color, 0.12);
+}
+
+.quick-setting-tile.active {
+    background-color: @accent_color;
+    color: white;
+}
+
+.quick-setting-tile.active:hover {
+    background-color: alpha(@accent_color, 0.85);
+}
+
+.quick-setting-tile.active:focus {
+    background-color: @accent_color;
+}
+
+.quick-setting-tile.active .tile-subtitle {
+    color: alpha(@text_color, 0.8);
+}
+
+.quick-setting-tile.active .tile-icon {
+    color: white;
+}
+
+/* 3-state intermediate (e.g. "balanced" in power profile) */
+.quick-setting-tile.state-partial {
+    background-color: alpha(@accent_color, 0.25);
+    color: @text_color;
+}
+
+.quick-setting-tile.state-partial:hover {
+    background-color: alpha(@accent_color, 0.35);
+}
+
+/* grouped variants */
+.quick-setting-group .quick-setting-tile.state-partial {
+    background-color: alpha(@accent_color, 0.25);
+}
+
+.quick-setting-group .quick-setting-tile.state-partial~.quick-setting-nav-btn {
+    background-color: alpha(@accent_color, 0.15);
+    border-left-color: alpha(@text_color, 0.15);
+}
+
+.tile-title {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.tile-subtitle {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.tile-icon {
+    background-color: alpha(@text_color, 0.1);
+    padding: 4px;
+    border-radius: 999px;
+}
+
+/* Audio device chips */
+.audio-device-chips {
+    margin-top: 6px;
+    margin-bottom: 4px;
+}
+
+.audio-device-chip {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 20px;
+    padding: 4px 10px;
+    border: none;
+    font-size: 12px;
+    transition: background-color 0.15s;
+}
+
+.audio-device-chip:hover {
+    background-color: alpha(@text_color, 0.14);
+}
+
+.audio-device-chip.active {
+    background-color: @accent_color;
+    color: white;
+}
+
+.search-results-list {
+    background-color: alpha(@text_color, 0.05);
+    border-radius: 16px;
+    border: 1px solid alpha(@text_color, 0.1);
+}
+
+.search-preview-pane {
+    background-color: alpha(@text_color, 0.05);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid alpha(@text_color, 0.1);
+    valign: center;
+}
+
+.preview-content-box {
+    background-color: alpha(@shadow_color, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.preview-image {
+    object-fit: cover;
+}
+
+.preview-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+}
+
+.preview-subtitle {
+    font-size: 13px;
+    opacity: 0.6;
+    color: white;
+}
+
+.search-result-row:selected {
+    background-color: @accent_color;
+}
+
+.app-grid-item {
+    background-color: transparent;
+    background-image: none;
+    border-radius: 24px;
+    padding: 20px;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    box-shadow: none;
+    margin: 10px;
+    color: white;
+    width: 160px;
+    height: 160px;
+}
+
+.app-grid-item.app-item-hidden {
+    opacity: 0;
+}
+
+@keyframes app-item-enter {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.app-grid-item.app-item-entering {
+    animation: app-item-enter 170ms ease-out forwards;
+}
+
+.app-grid-item:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+
+/* Folder items use inner .folder-button-box:hover - skip outer highlight */
+.app-grid-item.folder-grid-item:hover {
+    background-color: transparent;
+}
+
+.app-grid-item label {
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 0;
+    text-shadow: 0 1px 2px alpha(@shadow_color, 0.5);
+}
+
+.app-grid {
+    padding: 40px;
+    padding-bottom: 120px;
+}
+
+/* App Folders */
+
+.folder-button-box {
+    min-width: 96px;
+    min-height: 96px;
+    border-radius: 22px;
+    background-color: alpha(@text_color, 0.13);
+    padding: 6px;
+    transition: background-color 0.15s;
+}
+.folder-button-box:hover {
+    background-color: alpha(@text_color, 0.22);
+}
+.folder-button-box.drag-over {
+    background-color: alpha(@text_color, 0.32);
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.8);
+}
+.folder-button-label {
+    color: white;
+    font-size: 12px;
+    text-shadow: 0 1px 3px alpha(@shadow_color, 0.6);
+    margin-top: 4px;
+}
+
+/* Folder overlay (iOS-style popup) */
+.folder-overlay-dimmer {
+    background-color: alpha(@shadow_color, 0.45);
+}
+.folder-overlay-card {
+    background-color: @window_tint;
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 8px 40px alpha(@shadow_color, 0.5);
+    min-width: 340px;
+    min-height: 280px;
+}
+.folder-name-entry {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+    padding: 4px 8px;
+    margin-bottom: 12px;
+}
+.folder-name-entry:focus {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 8px;
+}
+.folder-inner-grid {
+    padding: 8px 0;
+}
+.folder-inner-grid .app-grid-item label {
+    color: white;
+}
+
+/* Drag placeholder in overview grid - just empty space, no visual noise */
+.app-grid-placeholder {
+    border-radius: 16px;
+    background-color: alpha(@text_color, 0.06);
+    border: none;
+}
+
+/* Disable all transitions during DnD to prevent re-animation of siblings */
+.app-grid.dnd-active *,
+.app-grid.no-animate * {
+    transition: none;
+    animation: none;
+}
+
+/* Remove GTK default drag-over border on the FlowBox container */
+.app-grid:drop(active) {
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+.app-grid > flowboxchild:drop(active) {
+    border: none;
+    box-shadow: none;
+}
+
+/* Icon dimming when dragging over (folder creation hint) */
+.app-grid-item.dragging {
+    opacity: 0;
+}
+.app-grid-item.drop-target-hover {
+    background-color: alpha(@accent_color, 0.3);
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.8);
+}
+
+.clock-button,
+.system-pill-button {
+    background-color: alpha(@text_color, 0.15);
+    border: none;
+    box-shadow: none;
+    padding: 4px 12px;
+    margin: 0 4px;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.clock-button:hover,
+.system-pill-button:hover {
+    background-color: alpha(@text_color, 0.20);
+    background-image: none;
+    color: white;
+    box-shadow: none;
+}
+
+.sidebar {
+    background-color: @window_tint;
+    border: 1px solid @border_color;
+    border-radius: 16px;
+    font-family: 'Inter', sans-serif;
+    padding: 0 12px;
+}
+
+.warning-box {
+    background-color: rgba(255, 165, 0, 0.1);
+    border: 1px solid rgba(255, 165, 0, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 8px 0;
+}
+
+.warning-box image {
+    color: orange;
+}
+
+.warning-box label {
+    font-size: 13px;
+    color: alpha(@text_color, 0.8);
+}
+
+.sidebar-window .settings-page-content {
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-window .page-header {
+    margin-top: 0;
+    padding: 8px 12px 4px;
+    min-height: 44px;
+}
+
+.sidebar-window .page-header .page-title {
+    font-size: 17px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.sidebar-window .settings-page-content .toolbar-spacer {
+    opacity: 0;
+    min-height: 0;
+    min-width: 0;
+}
+
+.navigation-sidebar {
+    background-color: transparent;
+    padding: 0;
+}
+
+/* Shared sidebar category/section label used in Files, Store, etc. */
+.sidebar-section-label {
+    margin-top: 12px;
+    margin-bottom: 2px;
+    margin-start: 4px;
+}
+
+.sidebar-section-label label {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    opacity: 0.55;
+}
+
+/* Force sidebar ScrolledWindow to not expand beyond its requested size */
+.window-sidebar {
+    min-width: 0;
+    max-width: 180px;
+    border-right: 1px solid @border_color;
+}
+
+.sidebar-row {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    transition: background-color 0.2s;
+    color: white;
+}
+
+.sidebar-row:hover {
+    background-color: @card_bg;
+}
+
+.sidebar-row:selected {
+    background-color: @accent_bg;
+    color: @accent_fg;
+}
+
+.sidebar-row label {
+    font-weight: 500;
+}
+
+.settings-group {
+    background-color: @card_bg;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    border: 1px solid @border_color;
+    padding: 8px;
+}
+
+.preferences-row {
+    transition: background-color 0.2s;
+    border-radius: 8px;
+    margin-bottom: 2px;
+}
+
+.preferences-row:hover {
+    background-color: @card_hover_bg;
+}
+
+.preferences-row:selected {
+    background-color: @accent_bg;
+    color: @accent_fg;
+}
+
+.singularity {
+    font-family: 'Inter', sans-serif;
+    color: @text_color;
+}
+
+/* CSD app window root: transparent background so the inner frame's rounded
+   corners show through. box-shadow here is intentional: GTK4 reads the
+   shadow extents on the window CSS node (when client_decorated=true) to call
+   gdk_surface_set_shadow_width(), extending the Wayland surface so the shadow
+   renders outside the window geometry. background: transparent + box-shadow
+   is valid CSS - the shadow is cast from the border-box regardless of fill. */
+.singularity-app {
+    background: transparent;
+    box-shadow: 0 8px 28px alpha(@shadow_color, 0.5), 0 2px 6px alpha(@shadow_color, 0.3);
+    transition: box-shadow 0.15s ease;
+}
+
+/* Inner visual frame: background, border-radius, border.
+   RoundedOverlay.snapshot() pushes a GskRoundedClipNode so children are
+   also clipped to the rounded rect (CSS border-radius alone would only
+   round the widget's own background paint, not its children). */
+.singularity-app-frame {
+    background-color: @window_tint;
+    border: 1px solid @border_color;
+    border-radius: 12px;
+    transition: border-radius 0.15s ease;
+}
+
+/* Remove shadow on tiled/maximised/SSD states */
+.singularity-app.no-rounded-corners,
+.singularity-app.maximized,
+.singularity-app.fullscreen,
+.singularity-app.tiled,
+.singularity-app.tiled-left,
+.singularity-app.tiled-right,
+.singularity-app.tiled-top,
+.singularity-app.tiled-bottom,
+.singularity-app.ssd-mode {
+    box-shadow: none;
+}
+
+/* Remove visual decoration from frame on tiled/maximised/SSD states */
+.singularity-app.no-rounded-corners .singularity-app-frame,
+.singularity-app.maximized .singularity-app-frame,
+.singularity-app.fullscreen .singularity-app-frame,
+.singularity-app.tiled .singularity-app-frame,
+.singularity-app.tiled-left .singularity-app-frame,
+.singularity-app.tiled-right .singularity-app-frame,
+.singularity-app.tiled-top .singularity-app-frame,
+.singularity-app.tiled-bottom .singularity-app-frame,
+.singularity-app.ssd-mode .singularity-app-frame {
+    border-radius: 0;
+    border: none;
+}
+
+window.singularity .dock-window,
+window.singularity .panel-window,
+.singularity.window .dock-window,
+.singularity.window .panel-window {
+    background-color: transparent;
+}
+
+.singularity button {
+    background-color: @card_bg;
+    background-image: none;
+    color: white;
+    border: none;
+    outline: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    box-shadow: none;
+    text-shadow: none;
+    transition: all 0.2s ease;
+}
+
+.singularity button:hover {
+    background-color: @card_hover_bg;
+    background-image: none;
+}
+
+.singularity button:active {
+    background-color: @accent_color;
+    color: white;
+}
+
+.singularity button:disabled {
+    background-color: alpha(@text_color, 0.05);
+    color: alpha(@text_color, 0.3);
+}
+
+.singularity .page-header {
+    min-height: 48px;
+    padding: 0 12px;
+    margin-bottom: 8px;
+}
+
+.singularity .page-header .page-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.singularity .snapshot-tool {
+    background-color: @window_tint;
+    border: 1px solid @border_color;
+    border-radius: 16px;
+    padding: 8px;
+    box-shadow: 0 8px 24px alpha(@shadow_color, 0.4);
+}
+
+.singularity button.navigation-button {
+    background-color: transparent;
+    background-image: none;
+    border-radius: 8px;
+    padding: 8px;
+    min-width: 32px;
+    min-height: 32px;
+    outline: none;
+    box-shadow: none;
+    border: none;
+}
+
+.singularity button.navigation-button:hover {
+    background-color: @card_hover_bg;
+    background-image: none;
+}
+
+.singularity .app-grid-item {
+    background-color: transparent;
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: none;
+    outline: none;
+    margin: 10px;
+    width: 160px;
+    height: 160px;
+}
+
+.singularity .app-grid-item:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+
+.singularity .app-grid-item:active {
+    background-color: alpha(@text_color, 0.2);
+}
+
+.singularity .dock-item {
+    background-color: transparent;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: none;
+    outline: none;
+}
+
+.singularity .dock-item:hover {
+    background-color: alpha(@text_color, 0.15);
+}
+
+.singularity button.clock-button,
+.singularity button.system-pill-button,
+.singularity button.activities-button {
+    background-color: transparent;
+    box-shadow: none;
+    padding: 4px 12px;
+    outline: none;
+}
+
+.singularity button.clock-button:hover,
+.singularity button.system-pill-button:hover,
+.singularity button.activities-button:hover {
+    background-color: @hover_white;
+    color: @text_color;
+}
+
+.singularity button.circular-button {
+    border-radius: 999px;
+    background-color: @card_bg;
+    padding: 8px;
+    min-width: 32px;
+    min-height: 32px;
+    outline: none;
+}
+
+.singularity button.circular-button:hover {
+    background-color: @hover_white;
+    color: @text_color;
+}
+
+.singularity button.quick-toggle {
+    background-color: @card_bg;
+    border-radius: 24px;
+    padding: 8px;
+    outline: none;
+}
+
+.singularity button.quick-toggle:hover {
+    background-color: @card_hover_bg;
+}
+
+.singularity button.quick-toggle.active {
+    background-color: @accent_bg;
+    color: @accent_fg;
+}
+
+.singularity button.quick-toggle.active:hover {
+    background-color: alpha(@accent_bg, 0.85);
+}
+
+.singularity button.quick-toggle.active:focus {
+    background-color: @accent_bg;
+}
+
+.singularity entry {
+    background-color: alpha(@text_color, 0.06);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: none;
+    caret-color: @accent_color;
+    outline: none;
+}
+
+.singularity entry:focus {
+    background-color: alpha(@text_color, 0.09);
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.4);
+}
+
+.singularity entry selection {
+    background-color: @accent_color;
+    color: white;
+}
+
+.singularity spinbutton {
+    background-color: alpha(@text_color, 0.06);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0;
+    box-shadow: none;
+}
+
+.singularity spinbutton text {
+    background-color: transparent;
+    color: white;
+    padding: 8px;
+}
+
+.singularity spinbutton button {
+    background-color: transparent;
+    color: white;
+    border-radius: 4px;
+    margin: 2px;
+    padding: 2px 6px;
+    min-height: 24px;
+    min-width: 24px;
+}
+
+.singularity spinbutton button:hover {
+    background-color: alpha(@text_color, 0.1);
+}
+
+.singularity spinbutton button:active {
+    background-color: @accent_color;
+}
+
+.singularity combobox {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+
+.singularity combobox button.combo {
+    background-color: @card_bg;
+    color: white;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    padding-right: 20px;
+}
+
+.singularity combobox button.combo:hover {
+    background-color: @card_hover_bg;
+}
+
+.singularity-toolbar {
+    background-color: @toolbar_bg;
+    border-radius: 12px;
+    margin: 8px 12px;
+    padding: 0 4px;
+    min-height: 46px;
+    max-height: 46px;
+    box-shadow: 0 2px 8px alpha(@shadow_color, 0.2);
+    border: 1px solid alpha(@text_color, 0.05);
+}
+
+.singularity-toolbar.ssd-mode {
+    border-radius: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid alpha(@text_color, 0.05);
+    box-shadow: none;
+}
+
+.singularity-toolbar.toolbar-scroll-under {
+    background-color: @toolbar_bg;
+    border-bottom: 1px solid alpha(@text_color, 0.07);
+}
+
+.singularity-toolbar.browser-toolbar {
+    transition: margin-top 280ms ease-out, opacity 200ms ease;
+}
+
+.singularity-toolbar.browser-toolbar.toolbar-hidden {
+    margin-top: -64px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.singularity-toolbar.browser-toolbar.toolbar-approaching {
+    margin-top: -64px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.singularity-toolbar.browser-toolbar.toolbar-visible {
+    margin-top: 8px;
+    min-height: 46px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Browser pill - shown when toolbar is hidden/approaching */
+.browser-pill {
+    background-color: @surface_scrim;
+    border: 1px solid alpha(@text_color, 0.15);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-top: 8px;
+    min-height: 28px;
+    box-shadow: 0 2px 12px alpha(@shadow_color, 0.45);
+    /* Smooth spring transition for the magnetic pull */
+    transition: margin-top 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 150ms ease,
+        transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity: 1;
+    transform: scale(1.0);
+}
+
+/* No .pill-hidden needed since we use pill.visible = false */
+.browser-pill.pill-approaching {
+    opacity: 1;
+    transform: scale(1.04);
+}
+
+.browser-pill label {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.browser-pill .secure {
+    color: @success_color;
+}
+
+.browser-pill .insecure {
+    color: @error_color;
+}
+
+/* Progress bar */
+.browser-progress {
+    min-height: 2px;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.browser-progress>trough {
+    min-height: 2px;
+    border-radius: 0;
+    background-color: transparent;
+    padding: 0;
+}
+
+.browser-progress>trough>progress {
+    background-color: @accent_color;
+    border-radius: 0;
+    min-height: 2px;
+}
+
+/* Download bar */
+.browser-download-bar {
+    background-color: @surface_scrim_heavy;
+    padding: 6px 12px;
+    border-top: 1px solid alpha(@text_color, 0.08);
+}
+
+.browser-download-item {
+    border-radius: 8px;
+    padding: 6px 10px;
+    background-color: alpha(@text_color, 0.05);
+}
+
+/* URL bar */
+.url-entry {
+    border-radius: 20px;
+    padding: 0 12px;
+}
+
+.url-secure {
+    color: @success_color;
+}
+
+.url-insecure {
+    color: @error_color;
+}
+
+.incognito-toolbar {
+    background: linear-gradient(to bottom, #3d2066, #2d1850);
+    border-color: #4a2a7a;
+}
+
+.incognito-window {
+    background-color: #1a0f2e;
+}
+
+.singularity-toolbar label.title {
+    font-weight: bold;
+    font-size: 15px;
+}
+
+/* All toolbar buttons: consistent height filling the toolbar, no extra padding variation */
+.singularity-toolbar button,
+.singularity-toolbar button.flat {
+    min-height: 34px;
+    min-width: 34px;
+    padding: 0 8px;
+    border-radius: 8px;
+}
+
+/* SegmentedControl inside toolbar: no vertical margin so toolbar stays 46px */
+.singularity-toolbar .segmented-control {
+    margin: 0 4px;
+}
+.singularity-toolbar .segmented-inner {
+    min-height: 30px;
+}
+.singularity-toolbar .segmented-button {
+    padding: 3px 14px;
+}
+
+.singularity-toolbar button:hover,
+.singularity-toolbar button.flat:hover {
+    min-height: 34px;
+    padding: 0 8px;
+}
+
+.singularity-toolbar button image,
+.singularity-toolbar button.flat image {
+    min-width: 16px;
+    min-height: 16px;
+}
+
+.singularity-toolbar entry {
+    min-height: 0;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.singularity-toolbar windowcontrols {
+    margin-left: 12px;
+}
+
+.singularity-toolbar windowcontrols button {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0 2px;
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 999px;
+    color: alpha(@text_color, 0.7);
+}
+
+.singularity-toolbar windowcontrols button:hover {
+    background-color: @hover_white;
+    color: @text_color;
+}
+
+.singularity-toolbar windowcontrols button:active {
+    background-color: alpha(@text_color, 0.2);
+}
+
+.singularity combobox window {
+    background-color: @window_tint;
+    color: white;
+    border: 1px solid alpha(@text_color, 0.1);
+}
+
+.singularity switch {
+    border: none;
+    background-color: alpha(@text_color, 0.1);
+    border-radius: 999px;
+    color: transparent;
+    outline: none;
+}
+
+.singularity switch:checked {
+    background-color: @accent_color;
+}
+
+.singularity switch slider {
+    background-color: white;
+    border-radius: 999px;
+    margin: 2px;
+    min-width: 20px;
+    min-height: 20px;
+    box-shadow: 0 2px 4px alpha(@shadow_color, 0.2);
+    border: none;
+    outline: none;
+}
+
+.singularity checkbutton check {
+    background-color: alpha(@text_color, 0.1);
+    border: 1px solid alpha(@text_color, 0.3);
+    border-radius: 4px;
+    color: white;
+    min-width: 18px;
+    min-height: 18px;
+    transition: all 0.2s;
+}
+
+.singularity checkbutton check:checked {
+    background-color: @accent_color;
+    border-color: @accent_color;
+    color: white;
+}
+
+.singularity checkbutton:hover check {
+    border-color: white;
+}
+
+.singularity scale trough {
+    background-color: alpha(@text_color, 0.1);
+    border-radius: 999px;
+    min-height: 6px;
+    border: none;
+    outline: none;
+}
+
+.singularity scale highlight {
+    background-color: @accent_color;
+    border-radius: 999px;
+    border: none;
+    outline: none;
+    min-height: 6px;
+    min-width: 6px;
+}
+
+.singularity scale slider {
+    background-color: white;
+    border-radius: 999px;
+    min-width: 16px;
+    min-height: 16px;
+    margin: -5px;
+    box-shadow: 0 2px 4px alpha(@shadow_color, 0.2);
+    border: none;
+    outline: none;
+}
+
+/* Global Menu Bar (custom GlobalMenuBar widget) */
+.singularity .global-menu-bar {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.singularity .global-menu-item {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    border-radius: 6px;
+    padding: 2px 8px;
+    min-height: 0;
+    color: inherit;
+    transition: background-color 0.1s;
+}
+
+.singularity .global-menu-item:hover,
+.singularity .global-menu-item.active {
+    background-color: alpha(@text_color, 0.12);
+    box-shadow: none;
+    border: none;
+    outline: none;
+}
+
+.singularity .global-menu-item:focus,
+.singularity .global-menu-item:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border: none;
+}
+
+/* Dropdown popover from GlobalMenuBar */
+.singularity popover.global-menu-popover {
+    padding: 0;
+}
+
+.singularity popover {
+    background-color: @surface_raised;
+    border: 1px solid alpha(@text_color, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px alpha(@shadow_color, 0.5);
+    padding: 0;
+}
+
+.singularity modelbutton {
+    border-radius: 6px;
+    padding: 5px 10px;
+    min-height: 0;
+    color: white;
+    transition: background-color 0.1s;
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+
+.singularity modelbutton:hover,
+.singularity modelbutton:focus,
+.singularity modelbutton:focus-visible {
+    background-color: alpha(@text_color, 0.1);
+    box-shadow: none;
+    outline: none;
+    border: none;
+}
+
+.singularity modelbutton:checked {
+    background-color: alpha(@text_color, 0.08);
+    box-shadow: none;
+    border: none;
+}
+
+/* Separator inside dropdown menus */
+.singularity popover separator,
+.singularity popover.menu separator {
+    background-color: alpha(@text_color, 0.08);
+    min-height: 1px;
+    margin: 3px 8px;
+    border: none;
+    box-shadow: none;
+}
+
+/* Sub-menu arrow indicator */
+.singularity modelbutton.has-submenu>arrow {
+    min-width: 14px;
+    min-height: 14px;
+}
+
+.osd-toolbar {
+    background-color: alpha(@shadow_color, 0.7);
+    border-bottom: 1px solid alpha(@text_color, 0.1);
+    transition: opacity 0.3s ease;
+    border-radius: 0 0 12px 12px;
+    margin: 0 20px;
+    border: none;
+}
+
+.osd-controls {
+    background-color: alpha(@shadow_color, 0.7);
+    border-radius: 24px;
+    padding: 16px;
+    transition: opacity 0.3s ease;
+    border: 1px solid alpha(@text_color, 0.1);
+}
+
+.large-button {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    border-radius: 999px;
+}
+
+.large-button image {
+    -gtk-icon-size: 24px;
+}
+
+/* Context Menu (ContextMenu widget / MenuRow) */
+.menu-row,
+button.menu-row,
+button.flat.menu-row,
+popover .menu-row {
+    border: none;
+    box-shadow: none;
+    outline: none;
+    border-radius: 6px;
+    padding: 0 4px;
+    min-height: 28px;
+    min-width: 160px;
+    transition: background-color 0.1s;
+}
+
+/* Override GTK4 Adwaita default button padding with high specificity */
+.singularity popover.context-menu button.flat.menu-row,
+.singularity popover.context-menu .menu-row {
+    padding: 0 4px;
+    min-height: 28px;
+}
+
+.singularity popover.context-menu button.flat.menu-row > box,
+.singularity popover.context-menu .menu-row > box,
+.singularity popover.context-menu button.flat.menu-row > *,
+.singularity popover.context-menu .menu-row > * {
+    margin: 0;
+    padding: 0 2px;
+}
+
+.menu-row:hover,
+button.menu-row:hover,
+button.flat.menu-row:hover,
+popover .menu-row:hover {
+    background-color: @accent_color;
+    color: white;
+    box-shadow: none;
+}
+
+/* Labels and images inside hovered menu rows must also be white */
+.menu-row:hover *,
+button.menu-row:hover *,
+button.flat.menu-row:hover *,
+popover .menu-row:hover * {
+    color: white;
+}
+
+.menu-row:focus,
+button.menu-row:focus,
+button.flat.menu-row:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.menu-row label,
+button.menu-row label,
+button.flat.menu-row label {
+    font-weight: 400;
+    font-size: 13px;
+    text-shadow: none;
+}
+
+/* GlobalMenuBar popover items – override theme text-shadow with higher specificity */
+.global-menu-popover .menu-row label {
+    text-shadow: none;
+}
+
+.singularity popover.context-menu {
+    padding: 4px;
+}
+
+.singularity popover.context-menu>contents {
+    padding: 0;
+}
+
+.singularity popover.context-menu separator {
+    background-color: alpha(@text_color, 0.08);
+    min-height: 1px;
+    margin: 3px 4px;
+    border: none;
+    box-shadow: none;
+}
+
+.singularity popover.context-menu .menu-row.selected {
+    background-color: alpha(@accent_color, 0.2);
+}
+
+/* Override any gridview/flowbox button padding for context menu items */
+gridview popover.context-menu button.menu-row,
+flowbox popover.context-menu button.menu-row {
+    padding: 0 4px;
+    min-height: 28px;
+    min-width: 0;
+    font-size: 13px;
+}
+
+.singularity separator {
+    background-color: alpha(@text_color, 0.08);
+    min-height: 1px;
+    border: none;
+}
+
+.singularity scrollbar trough {
+    background-color: transparent;
+    border: none;
+}
+
+.singularity scrollbar slider {
+    background-color: alpha(@text_color, 0.2);
+    border-radius: 999px;
+    min-width: 6px;
+    min-height: 6px;
+    margin: 2px;
+    border: none;
+}
+
+.singularity scrollbar slider:hover {
+    background-color: alpha(@text_color, 0.4);
+}
+
+.singularity scrollbar.hovering slider {
+    background-color: alpha(@text_color, 0.3);
+}
+
+.singularity .wallpaper-gallery {
+    background-color: @card_bg;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.singularity .wallpaper-item {
+    padding: 4px;
+    border-radius: 8px;
+    background-color: transparent;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.singularity .wallpaper-item:hover {
+    background-color: @card_hover_bg;
+}
+
+.singularity .wallpaper-item:active,
+.singularity .wallpaper-item:checked {
+    background-color: @accent_color;
+    border-color: @accent_color;
+}
+
+.singularity .wallpaper-image {
+    border-radius: 6px;
+}
+
+.singularity .suggested-action {
+    background-color: @accent_color;
+    color: white;
+}
+
+.singularity .suggested-action:hover {
+    background-color: alpha(@accent_color, 0.9);
+}
+
+.singularity .preview-frame {
+    border-radius: 12px;
+    padding: 0;
+    border: none;
+    background-color: transparent;
+}
+
+.singularity .wallpaper-preview {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px alpha(@shadow_color, 0.3);
+}
+
+.singularity .delete-button {
+    background-color: alpha(@shadow_color, 0.6);
+    color: white;
+    border-radius: 999px;
+    padding: 4px;
+    min-width: 24px;
+    min-height: 24px;
+    border: none;
+    box-shadow: none;
+}
+
+.singularity .delete-button:hover {
+    background-color: @destructive_color;
+}
+
+.toggles-grid {
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+}
+
+.singularity .toggle-tile {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 999px;
+    padding: 4px 10px;
+    transition: all 200ms ease;
+    min-height: 0;
+    border: none;
+    margin: 3px;
+    color: alpha(@text_color, 0.9);
+    box-shadow: none;
+}
+
+.singularity .toggle-tile:hover {
+    background-color: alpha(@text_color, 0.15);
+}
+
+.singularity .toggle-tile.active {
+    background-color: @accent_color;
+    color: white;
+}
+
+.singularity .toggle-tile.active:hover {
+    filter: brightness(1.1);
+}
+
+.singularity .toggle-tile image {
+    margin-right: 8px;
+}
+
+.singularity .toggle-tile label {
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.singularity popover>contents {
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 5px;
+}
+
+.singularity popover arrow {
+    background-color: transparent;
+    border: none;
+}
+
+.singularity .flat {
+    background-color: transparent;
+}
+
+.singularity .tab-bar {
+    padding: 0 4px;
+    margin: 0 4px;
+    border-bottom: none;
+}
+
+.singularity .tab-button {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin: 1px 2px;
+    min-width: 80px;
+    min-height: 0;
+    color: alpha(@text_color, 0.5);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.singularity .tab-button:hover {
+    background-color: alpha(@text_color, 0.08);
+    color: white;
+}
+
+.singularity .tab-button:active {
+    background-color: alpha(@text_color, 0.12);
+    color: white;
+    box-shadow: none;
+}
+
+.singularity .tab-button.active {
+    background-color: alpha(@text_color, 0.15);
+    color: white;
+    font-weight: 600;
+    box-shadow: none;
+    border-radius: 6px;
+}
+
+/* Single tab mode: no background, no hover highlight */
+.singularity .tab-button.single-tab,
+.singularity .tab-button.single-tab:hover,
+.singularity .tab-button.single-tab:active {
+    background-color: transparent;
+    box-shadow: none;
+    color: white;
+    font-weight: 600;
+}
+
+.singularity button.tab-close-button {
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 20px;
+    max-height: 20px;
+    padding: 2px;
+    margin-left: 4px;
+    background: none;
+    border: none;
+    box-shadow: none;
+    color: alpha(@text_color, 0.5);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    border-radius: 50%;
+}
+
+.singularity button.tab-close-button image {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+}
+
+.singularity .tab-button:hover button.tab-close-button {
+    opacity: 1;
+}
+
+.singularity button.tab-close-button:hover {
+    background-color: alpha(@text_color, 0.2);
+    color: white;
+    border-radius: 50%;
+}
+
+.singularity columnview header button {
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+    min-height: 24px;
+    padding: 4px 8px;
+    margin: 0;
+}
+
+.singularity columnview header button:hover {
+    background-color: alpha(@text_color, 0.05);
+}
+
+.singularity columnview header {
+    border-bottom: 1px solid @border_color;
+    background-color: transparent;
+    color: alpha(@text_color, 0.7);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 0;
+    margin: 0;
+}
+
+.singularity .file-picker-scroll {
+    border: 1px solid @border_color;
+    border-radius: 12px;
+    background-color: transparent;
+}
+
+.singularity .file-picker-scroll columnview,
+.singularity .file-picker-scroll listview,
+.singularity .file-picker-scroll gridview {
+    background-color: transparent;
+}
+
+.singularity .file-picker-scroll columnview row,
+.singularity .file-picker-scroll listview row {
+    background-color: transparent;
+}
+
+.singularity .file-picker-scroll columnview header {
+    background-color: alpha(@text_color, 0.03);
+    border-bottom: 1px solid @border_color;
+}
+
+.singularity .file-picker-scroll columnview header button:first-child {
+    border-top-left-radius: 12px;
+}
+
+.singularity .file-picker-scroll columnview header button:last-child {
+    border-top-right-radius: 12px;
+}
+
+.singularity .places-sidebar {
+    background-color: transparent;
+    border-right: 1px solid @border_color;
+}
+
+.singularity .places-sidebar list {
+    background-color: transparent;
+}
+
+.singularity .places-sidebar row {
+    padding: 0;
+    margin: 4px 8px;
+    border-radius: 8px;
+}
+
+.singularity-shell .places-sidebar row:selected {
+    background-color: alpha(@text_color, 0.1);
+}
+
+.singularity-shell .places-sidebar row:hover {
+    background-color: alpha(@text_color, 0.05);
+}
+
+/* Force native GTK4 view widgets to use our dark background */
+.singularity gridview,
+.singularity listview,
+.singularity columnview,
+.singularity .view {
+    background-color: @window_bg;
+    color: @text_color;
+}
+
+/* Viewport itself is transparent so it inherits the parent frame background
+ * (@window_tint on app-frame). Data views above set their own solid color. */
+.singularity scrolledwindow > viewport {
+    background-color: transparent;
+    color: @text_color;
+}
+
+.singularity .file-grid {
+    background-color: transparent;
+    padding: 12px;
+    padding-top: 60px;
+}
+
+.singularity .file-grid gridview > child {
+    margin: 2px 6px;
+    padding: 0;
+    max-height: 90px;
+    min-height: 90px;
+}
+
+.singularity .file-grid-item {
+    padding: 8px;
+    border-radius: 10px;
+    margin: 0;
+    width: 100px;
+    height: 74px;
+    overflow: hidden;
+}
+
+.singularity .file-grid-item:hover {
+    background-color: alpha(@text_color, 0.05);
+}
+
+/* Suppress default GTK square selection highlight on the gridview child node */
+.singularity gridview>child:selected {
+    background: none;
+    box-shadow: none;
+    outline: none;
+}
+
+/* Rounded accent selection on the item itself */
+.singularity .file-grid-item:selected,
+gridview>child:selected>.file-grid-item,
+columnview row:selected {
+    background-color: alpha(@accent_color, 0.2);
+    border-radius: 10px;
+    color: inherit;
+}
+
+/* Suppress default GTK square selection on list rows */
+columnview row:selected:focus,
+columnview row:selected {
+    outline: none;
+    box-shadow: none;
+}
+
+.singularity .file-grid-item label {
+    font-size: 12px;
+    color: alpha(@text_color, 0.9);
+}
+
+/* Cut visual feedback - dim the item and show scissors badge */
+.singularity .file-grid-item.cut {
+    opacity: 0.4;
+}
+
+.singularity columnview row .cut {
+    opacity: 0.4;
+}
+
+.cut-badge {
+    margin: 2px;
+    opacity: 0.85;
+}
+
+.properties-dialog {
+    min-width: 350px;
+}
+
+.properties-dialog grid {
+    padding: 8px 0;
+}
+
+.dialog-titlebar {
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    min-height: 40px;
+}
+
+.dialog-titlebar .title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+button.circular-button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px;
+    border-radius: 50%;
+    background: alpha(@text_color, 0.05);
+}
+
+button.circular-button:hover {
+    background-color: @hover_white;
+}
+
+button.circular-button:active {
+    background: alpha(@text_color, 0.15);
+}
+
+.close-button,
+.dialog button.close-button,
+button.close-button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: alpha(@text_color, 0.08);
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    color: alpha(@text_color, 0.9);
+}
+
+.close-button:hover,
+.dialog .close-button:hover,
+.dialog button.close-button:hover,
+button.close-button:hover {
+    background: alpha(@text_color, 0.15);
+    background-image: none;
+    box-shadow: none;
+    color: white;
+}
+
+.close-button:active,
+.dialog .close-button:active,
+.dialog button.close-button:active,
+button.close-button:active {
+    background: alpha(@text_color, 0.2);
+    background-image: none;
+    box-shadow: none;
+}
+
+.close-button:checked,
+button.close-button:checked,
+togglebutton.close-button:checked {
+    background: @accent_color;
+    background-image: none;
+    box-shadow: none;
+    color: white;
+}
+
+.desktop-icons {
+    background: transparent;
+}
+
+.desktop-icon {
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 200ms ease;
+}
+
+.desktop-icon:hover {
+    background: alpha(@text_color, 0.15);
+}
+
+.desktop-icon:active {
+    background: alpha(@text_color, 0.2);
+}
+
+.desktop-icon image {
+    border-radius: 4px;
+    -gtk-icon-shadow: 0 2px 4px alpha(@shadow_color, 0.4);
+}
+
+.desktop-icon-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+    text-shadow: 0 1px 3px alpha(@shadow_color, 0.9), 0 0 8px alpha(@shadow_color, 0.6);
+}
+
+.desktop-icon-placeholder {
+    background: alpha(@text_color, 0.2);
+    border: 2px dashed alpha(@text_color, 0.5);
+    border-radius: 8px;
+}
+
+.preview-dialog {
+    background: @window_tint;
+    border-radius: 16px;
+    padding: 0;
+}
+
+.preview-area {
+    background: alpha(@shadow_color, 0.2);
+    border-radius: 8px;
+}
+
+.preview-image {
+    border-radius: 8px;
+}
+
+.preview-text-scroll {
+    background: white;
+    border-radius: 8px;
+    color: black;
+}
+
+.preview-text-scroll textview {
+    background: transparent;
+    color: black;
+}
+
+.preview-icon {
+    opacity: 0.8;
+}
+
+.singularity .settings-row {
+    min-height: 40px;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.singularity .settings-row:hover {
+    background-color: alpha(@text_color, 0.05);
+}
+
+.singularity .close-button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    border-radius: 999px;
+    background-color: alpha(@text_color, 0.1);
+    color: white;
+    border: none;
+    box-shadow: none;
+    transition: all 0.2s;
+}
+
+.singularity .close-button:hover {
+    background-color: alpha(@text_color, 0.2);
+}
+
+.singularity .close-button:active,
+.singularity .close-button:checked {
+    background-color: @hover_white;
+    color: white;
+}
+
+.dim-label {
+    opacity: 0.6;
+    font-size: 13px;
+}
+
+.dialog-title {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.dialog-subtitle {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+window.singularity.dock-window,
+window.singularity.panel-window,
+window.singularity.desktop-icons,
+.singularity.window.dock-window,
+.singularity.window.panel-window,
+.singularity.window.desktop-icons {
+    background-color: transparent;
+}
+
+.singularity.dialog {
+    background-color: @window_tint;
+    color: @text_color;
+    border-radius: 16px;
+    border: 1px solid @border_color;
+    padding: 16px;
+}
+
+/* Full-screen overlay dialogs: dim the whole screen, card is in content_box */
+.singularity.dialog.dialog-overlay {
+    background-color: alpha(@shadow_color, 0.55);
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+}
+.singularity.dialog.dialog-overlay .dialog-content {
+    background-color: @window_tint;
+    border-radius: 20px;
+    border: 1px solid alpha(white, 0.10);
+    box-shadow: 0 12px 48px alpha(@shadow_color, 0.55);
+}
+
+.singularity.dialog.transparent {
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+}
+
+.singularity .workspace-preview {
+    background-color: transparent;
+    margin: 4px 12px;
+    padding: 0;
+    transition: all 250ms ease;
+    border: none;
+    border-radius: 16px;
+}
+
+.singularity .workspace-clipper {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px alpha(@shadow_color, 0.4);
+    border: 1px solid transparent;
+    transition: all 250ms ease;
+    overflow: hidden;
+    /* Forza il clipping dei figli */
+}
+
+.singularity .workspace-clipper picture,
+.singularity .workspace-clipper image,
+.singularity .workspace-clipper .workspace-preview-content {
+    border-radius: 12px;
+    /* Arrotonda anche il contenuto interno */
+}
+
+.singularity .workspace-preview:hover .workspace-clipper {
+    border-color: alpha(@text_color, 0.2);
+    box-shadow: 0 8px 24px alpha(@shadow_color, 0.5);
+    background-color: alpha(@text_color, 0.05);
+}
+
+.singularity .workspace-preview.active .workspace-clipper {
+    border-color: alpha(@accent_color, 0.4);
+    box-shadow: 0 0 0 1px alpha(@accent_color, 0.2), 0 8px 32px alpha(@shadow_color, 0.4);
+}
+
+.singularity .workspace-preview.selected .workspace-clipper {
+    border-color: @accent_color;
+    border-width: 2px;
+    box-shadow: 0 0 0 1px @accent_color, 0 0 15px alpha(@accent_color, 0.4), 0 8px 32px alpha(@shadow_color, 0.6);
+}
+
+.singularity .workspace-preview.drag-over .workspace-clipper {
+    border-color: white;
+    box-shadow: 0 0 15px alpha(@text_color, 0.4);
+    background-color: alpha(@text_color, 0.15);
+}
+
+.singularity .workspace-card-label-box {
+    background-color: alpha(@shadow_color, 0.5);
+    border-radius: 6px;
+    padding: 2px 8px;
+    border: 1px solid alpha(@text_color, 0.05);
+    margin: 6px;
+}
+
+.singularity .workspace-card-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: white;
+    opacity: 0.8;
+}
+
+.singularity .ghost-workspace .workspace-clipper {
+    background-color: alpha(@text_color, 0.03);
+    border: 1px dashed alpha(@text_color, 0.15);
+    box-shadow: none;
+}
+
+.singularity .ghost-workspace:hover .workspace-clipper {
+    background-color: alpha(@text_color, 0.08);
+    border-color: alpha(@text_color, 0.3);
+    border-style: solid;
+}
+
+.singularity .ghost-workspace image {
+    opacity: 0.4;
+    transition: all 0.2s ease;
+}
+
+.singularity .ghost-workspace:hover image {
+    opacity: 1.0;
+    transform: scale(1.1);
+}
+
+.singularity .workspace-window-preview {
+    background-color: alpha(@text_color, 0.1);
+    border-radius: 4px;
+    border: 1px solid alpha(@text_color, 0.1);
+    overflow: hidden;
+}
+
+.singularity .workspace-window-preview image {
+    border-radius: 4px;
+}
+
+.singularity .ghost-workspace:hover {
+    background-color: alpha(@text_color, 0.1);
+    border-color: alpha(@text_color, 0.4);
+}
+
+.singularity .heading {
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 4px;
+    opacity: 0.9;
+}
+
+.singularity .preferences-group {
+    background-color: @card_bg;
+    border: 1px solid @border_color;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    padding: 0;
+}
+
+.singularity .preferences-row {
+    background-color: transparent;
+    border-bottom: 1px solid alpha(@text_color, 0.05);
+    min-height: 50px;
+    padding: 0;
+    transition: background-color 0.2s;
+}
+
+.singularity .preferences-row:last-child {
+    border-bottom: none;
+}
+
+.singularity .preferences-row:hover {
+    background-color: alpha(@text_color, 0.05);
+}
+
+.singularity .preferences-row:first-child {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.singularity .preferences-row:last-child {
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.singularity .preferences-row .title {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.singularity .preferences-row .subtitle {
+    font-size: 12px;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
+.singularity .expander-content {
+    background-color: alpha(@shadow_color, 0.2);
+    border-top: 1px solid alpha(@text_color, 0.05);
+    padding: 12px;
+}
+
+.singularity .page-header {
+    min-height: 48px;
+    padding: 12px 12px 0 12px;
+    margin-bottom: 16px;
+}
+
+.singularity .preferences-row .circular-button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px;
+    margin: 0;
+}
+
+.singularity-calendar {
+    padding: 10px;
+    background-color: transparent;
+}
+
+.calendar-day-btn {
+    border-radius: 50%;
+    padding: 0;
+    min-width: 32px;
+    min-height: 32px;
+    color: @text_color;
+    background-color: transparent;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.calendar-day-btn:hover {
+    background-color: alpha(@text_color, 0.1);
+}
+
+.calendar-day-btn.today {
+    background-color: @accent_color;
+    color: white;
+    font-weight: bold;
+}
+
+.calendar-day-btn.dim-label {
+    opacity: 0.3;
+}
+
+.event-dot {
+    background-color: @accent_color;
+    border-radius: 50%;
+    min-width: 4px;
+    min-height: 4px;
+    margin-top: 2px;
+}
+
+.calendar-day-btn.today .event-dot {
+    background-color: black;
+}
+
+/* Notification Bubbles (live popup display) */
+window.notification-display {
+    background: transparent;
+}
+
+.notification-bubble {
+    background-color: @surface_scrim_heavy;
+    border-radius: 16px;
+    border: 1px solid alpha(@text_color, 0.10);
+    box-shadow: 0 4px 24px alpha(@shadow_color, 0.55);
+    min-width: 340px;
+    max-width: 400px;
+    margin: 4px;
+}
+
+.notification-header {
+    /* no extra background */
+}
+
+.notification-app-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: alpha(white, 0.50);
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    min-width: 20px;
+    min-height: 20px;
+    border-radius: 50%;
+    color: alpha(white, 0.35);
+}
+
+.notification-close:hover {
+    background-color: alpha(white, 0.12);
+    color: white;
+}
+
+.notification-icon {
+    opacity: 0.95;
+}
+
+.notification-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+}
+
+.notification-body {
+    font-size: 12px;
+    color: alpha(white, 0.65);
+}
+
+.notification-actions-box {
+    padding: 0 12px 12px 12px;
+}
+
+.notification-action {
+    background-color: alpha(@text_color, 0.10);
+    border: none;
+    box-shadow: none;
+    border-radius: 99px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    margin: 2px 3px;
+}
+
+.notification-action:hover {
+    background-color: alpha(@text_color, 0.18);
+}
+
+.notification-action:active {
+    background-color: alpha(@text_color, 0.25);
+}
+
+/* Notification Item Card */
+.notification-item-card {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 16px;
+    border: 1px solid alpha(@text_color, 0.05);
+    transition: background-color 0.2s;
+}
+
+.notification-item-card:hover {
+    background-color: alpha(@text_color, 0.12);
+}
+
+.notification-item-card .bold {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.notification-item-card .caption {
+    font-size: 12px;
+}
+
+.notification-group {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 16px;
+    border: 1px solid alpha(@text_color, 0.05);
+    overflow: hidden;
+    padding: 0;
+}
+
+.notification-group-header {
+    border-radius: 16px;
+}
+
+.notification-group-header:hover {
+    background-color: alpha(@text_color, 0.06);
+}
+
+.notification-group-badge {
+    background-color: @accent_color;
+    color: white;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0;
+}
+
+.notification-group-badge-text {
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0;
+    margin: 0;
+}
+
+.notification-group-appname {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.notification-group-preview {
+    font-size: 11px;
+    opacity: 0.55;
+}
+
+.notification-group-sep {
+    margin: 0 8px;
+    opacity: 0.3;
+}
+
+.notification-group-item {
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid alpha(@text_color, 0.05);
+}
+
+.notification-group-item:last-child {
+    border-radius: 0 0 16px 16px;
+}
+
+/* Page Specifics */
+.calendar-notifications-page {
+    background-color: transparent;
+}
+
+.calendar-notifications-page .h3 {
+    font-weight: 800;
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.singularity .avatar {
+    border-radius: 100%;
+    background-color: @card_bg;
+    border: 2px solid transparent;
+}
+
+.auth-dim-window {
+    background-color: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.auth-dim-overlay {
+    background-color: alpha(@shadow_color, 0.5);
+}
+
+/* auth-dialog now uses ShellDialog full-overlay - card styled like power-card */
+window.auth-dialog .dialog-overlay-bg {
+    background-color: alpha(@shadow_color, 0.55);
+}
+window.auth-dialog .dialog-content {
+    background-color: @window_bg;
+    border-radius: 20px;
+    border: 1px solid alpha(@text_color, 0.10);
+    box-shadow: 0 12px 48px alpha(@shadow_color, 0.55);
+}
+window.auth-dialog .power-card {
+    min-width: 360px;
+}
+
+.password-reveal-button {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 999px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    outline: none;
+}
+
+.password-reveal-button:hover {
+    background-color: transparent;
+    background-image: none;
+    opacity: 0.4;
+    box-shadow: none;
+}
+
+.password-reveal-button:active {
+    background-color: transparent;
+    background-image: none;
+    opacity: 1.0;
+    box-shadow: none;
+}
+
+.file-view columnview row {
+    min-height: 36px;
+}
+
+.singularity .col-browser-wrapper,
+.singularity .col-browser-wrapper > scrolledwindow > viewport {
+    background-color: transparent;
+}
+
+.singularity columnview.file-view,
+.singularity columnview.file-view > listview {
+    background-color: transparent;
+}
+
+.file-view,
+.file-grid {
+    padding-top: 60px;
+}
+
+.calculator-app {
+    background-color: @surface_raised;
+}
+
+.calculator-display {
+    background-color: @surface_raised;
+    padding: 24px;
+    padding-top: 60px;
+}
+
+.history-text {
+    font-size: 16px;
+    color: alpha(@text_color, 0.5);
+}
+
+.display-text {
+    font-size: 48px;
+    font-weight: 300;
+    color: @text_color;
+}
+
+.input-row {
+    padding: 0 24px;
+    margin-bottom: 12px;
+}
+
+.cursor {
+    color: @link_color;
+    font-size: 24px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.backspace-btn {
+    color: @text_color;
+    min-height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+}
+
+.calculator-keypad {
+    background-color: @surface_dim;
+    padding: 16px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+}
+
+.calc-btn {
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: 500;
+    min-height: 54px;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.num-btn {
+    background-color: @surface_bright;
+    color: @text_color;
+}
+
+.num-btn:hover {
+    background-color: @surface_bright;
+}
+
+.num-btn:active {
+    background-color: @surface_alt;
+}
+
+.op-btn {
+    background-color: @surface_alt;
+    color: @text_color;
+}
+
+.op-btn:hover {
+    background-color: @surface_bright;
+}
+
+.func-btn {
+    background-color: @surface_alt;
+    color: @text_color;
+}
+
+.func-btn:hover {
+    background-color: @surface_bright;
+}
+
+.accent-btn {
+    background-color: @link_color;
+    color: @text_color;
+    font-size: 28px;
+}
+
+.accent-btn:hover {
+    background-color: lighter(@accent_color);
+}
+
+.accent-btn:active {
+    background-color: @accent_color;
+}
+
+.singularity .monitor-preview-container {
+    background-color: @surface_overlay;
+    border-radius: 12px;
+    margin: 0;
+    padding: 0;
+    box-shadow: 0 4px 12px alpha(@shadow_color, 0.3);
+    border: 1px solid alpha(@text_color, 0.1);
+}
+
+/* HoverControls widget */
+
+.singularity-hover-controls {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+.singularity-hover-overlay:hover .singularity-hover-controls,
+.singularity-hover-controls:hover {
+    opacity: 1;
+}
+.singularity-hover-btn,
+button.singularity-hover-btn,
+button.flat.singularity-hover-btn {
+    min-width: 28px;
+    min-height: 28px;
+    max-width: 28px;
+    max-height: 28px;
+    padding: 4px;
+    border-radius: 99px;
+    background: alpha(@shadow_color, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 8px alpha(@shadow_color, 0.55);
+    color: rgba(255, 255, 255, 0.9);
+}
+.singularity-hover-btn image,
+button.singularity-hover-btn image,
+button.flat.singularity-hover-btn image {
+    -gtk-icon-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+}
+.singularity-hover-btn:hover,
+button.singularity-hover-btn:hover,
+button.flat.singularity-hover-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+    box-shadow: 0 2px 8px alpha(@shadow_color, 0.55);
+}
+.singularity-hover-btn:hover image,
+button.singularity-hover-btn:hover image,
+button.flat.singularity-hover-btn:hover image {
+    color: white;
+}
+.singularity-hover-sep {
+    min-width: 1px;
+    max-width: 1px;
+    background-color: alpha(@text_color, 0.08);
+    margin: 2px 0;
+}
+
+.media-player-card {
+    border-radius: 12px;
+    margin-top: 12px;
+    overflow: hidden;
+    background-color: @card_bg;
+    min-height: 88px;
+}
+
+/* The snapshot() always draws a darkened album-art background, so all
+   text and icons must be white regardless of the theme mode. */
+.media-player-card * {
+    color: white;
+}
+
+.media-player-card .album-art {
+    background-color: @window_tint;
+    border: 1px solid @border_color;
+    border-radius: 16px;
+}
+
+.media-player-card .title {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.media-player-card .artist {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.media-player-card .accent-button {
+    background-color: @accent_color;
+    color: white;
+}
+
+.media-player-card .accent-button:hover {
+    background-color: alpha(@accent_color, 0.8);
+}
+
+.media-player-card button.flat:hover,
+.media-player-card button.circular-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.media-player-card .media-small-btn {
+    padding: 4px;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 6px;
+}
+
+.media-player-card .album-art {
+    border-radius: 8px;
+    min-width: 64px;
+    min-height: 64px;
+    max-width: 64px;
+    max-height: 64px;
+}
+
+.featured-card {
+    background: linear-gradient(180deg, #8B0000 0%, #4a0000 100%);
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.featured-card:hover {
+    box-shadow: 0 4px 12px alpha(@shadow_color, 0.4);
+}
+
+.featured-icon {
+    -gtk-icon-shadow: 0 2px 8px alpha(@shadow_color, 0.4);
+}
+
+.carousel-dot {
+    background-color: alpha(@text_color, 0.3);
+    border-radius: 50%;
+    min-width: 8px;
+    min-height: 8px;
+}
+
+.carousel-dot.active {
+    background-color: alpha(@text_color, 0.9);
+}
+
+.screenshot-carousel-frame {
+    border-radius: 12px;
+    overflow: hidden;
+    background: alpha(@shadow_color, 0.06);
+}
+
+.screenshot-carousel-nav {
+    background: alpha(@shadow_color, 0.45);
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 50%;
+    transition: background 150ms ease;
+}
+
+.screenshot-carousel-nav:hover {
+    background: alpha(@shadow_color, 0.65);
+}
+
+.category-button {
+    border-radius: 12px;
+    border: none;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+.category-button:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 8px alpha(@shadow_color, 0.3);
+}
+
+.app-card {
+    border-radius: 12px;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.app-card:hover {
+    background-color: @card_hover_bg;
+    box-shadow: 0 2px 8px alpha(@shadow_color, 0.2);
+}
+
+.pill {
+    border-radius: 999px;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+/* OSD overlay pill (volume, brightness, locks) */
+.osd-pill {
+    background-color: @dock_bg;
+    border-radius: 20px;
+    border: 1px solid @border_color;
+    box-shadow: 0 4px 24px alpha(@shadow_color, 0.45);
+    padding: 12px 16px;
+    min-width: 280px;
+}
+
+.osd-pill progressbar trough {
+    border-radius: 4px;
+    min-height: 6px;
+    background-color: @card_bg;
+    border: none;
+}
+
+.osd-pill progressbar progress {
+    border-radius: 4px;
+    min-height: 6px;
+    background-color: @accent_color;
+    border: none;
+}
+
+/* Greeter Styles */
+window.greeter-window {
+    background-color: #1a1a2e;
+}
+
+.greeter-bg-clip {
+    overflow: hidden;
+}
+
+.greeter-bg {
+    margin: -40px;
+    filter: blur(32px) brightness(0.45) saturate(1.3);
+}
+
+.greeter-scrim {
+    background: linear-gradient(
+        to bottom,
+        alpha(@shadow_color, 0.2) 0%,
+        alpha(@shadow_color, 0.35) 100%
+    );
+}
+
+.greeter-clock {
+    font-size: 88pt;
+    font-weight: 200;
+    color: white;
+    text-shadow: 0 4px 24px alpha(@shadow_color, 0.5);
+    margin: 0;
+    padding: 0;
+    letter-spacing: -2px;
+}
+
+.greeter-date {
+    font-size: 18pt;
+    font-weight: 300;
+    color: alpha(@text_color, 0.85);
+    text-shadow: 0 2px 10px alpha(@shadow_color, 0.4);
+    margin-top: -8px;
+    letter-spacing: 0.5px;
+}
+
+.greeter-card {
+    background: @surface_scrim;
+    border-radius: 24px;
+    border: 1px solid alpha(@text_color, 0.10);
+    box-shadow:
+        0 24px 80px alpha(@shadow_color, 0.55),
+        0 1px 0 alpha(@text_color, 0.06) inset;
+    padding: 24px 32px 32px 32px;
+    min-width: 300px;
+}
+
+.greeter-avatar {
+    border-radius: 9999px;
+    border: 3px solid alpha(@text_color, 0.90);
+    box-shadow: 0 8px 24px alpha(@shadow_color, 0.45);
+    background: @surface_scrim_heavy;
+}
+
+.greeter-username {
+    font-size: 18pt;
+    font-weight: 500;
+    color: white;
+    text-shadow: 0 1px 4px alpha(@shadow_color, 0.4);
+    margin-bottom: 4px;
+}
+
+.greeter-password-entry {
+    background: alpha(@text_color, 0.10);
+    border: 1px solid alpha(@text_color, 0.18);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: white;
+    caret-color: @accent_color;
+    transition: all 200ms ease;
+    min-height: 0;
+    font-size: 13pt;
+}
+
+.greeter-password-entry:focus {
+    background: alpha(@text_color, 0.14);
+    border-color: alpha(@accent_color, 0.8);
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.28);
+}
+
+.greeter-password-entry.error {
+    border-color: rgba(255, 80, 80, 0.8);
+    box-shadow: 0 0 0 2px rgba(255, 80, 80, 0.25);
+    animation: greeter-shake 300ms ease;
+}
+
+@keyframes greeter-shake {
+    0%   { margin-left: 0; }
+    25%  { margin-left: -8px; }
+    50%  { margin-left: 8px; }
+    75%  { margin-left: -8px; }
+    100% { margin-left: 0; }
+}
+
+.greeter-status {
+    color: rgba(255, 100, 100, 0.9);
+    font-size: 10pt;
+    text-align: center;
+}
+
+.greeter-session-pill {
+    background: alpha(@text_color, 0.10);
+    border: 1px solid alpha(@text_color, 0.18);
+    border-radius: 9999px;
+    color: alpha(@text_color, 0.80);
+    padding: 6px 18px;
+    font-size: 10pt;
+    transition: all 150ms ease;
+}
+
+.greeter-session-pill:checked,
+.greeter-session-pill:active {
+    background: @accent_color;
+    border-color: @accent_color;
+    color: white;
+}
+
+.greeter-session-pill:hover {
+    background: alpha(@text_color, 0.15);
+}
+
+.greeter-panel {
+    background-color: alpha(@shadow_color, 0.35);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid alpha(@text_color, 0.06);
+}
+
+.shadow-text {
+    text-shadow: 0 2px 4px alpha(@shadow_color, 0.5);
+    color: white;
+}
+
+/* App Switcher (Alt+Tab) */
+window.app-switcher-overlay {
+    background-color: alpha(@shadow_color, 0.45);
+}
+
+.app-switcher-card {
+    background-color: @surface_scrim_heavy;
+    border-radius: 16px;
+    border: 1px solid alpha(@text_color, 0.12);
+    box-shadow: 0 8px 40px alpha(@shadow_color, 0.6);
+    padding: 4px;
+    min-width: 320px;
+}
+
+.app-switcher-items {
+    /* container - vertical in list mode, horizontal in grid mode */
+}
+
+.app-switcher-item {
+    border-radius: 10px;
+    padding: 8px 10px;
+    transition: background-color 0.08s;
+}
+
+.app-switcher-item.selected {
+    background-color: alpha(@accent_color, 0.28);
+}
+
+.app-switcher-item:hover:not(.selected) {
+    background-color: alpha(@text_color, 0.07);
+}
+
+.app-switcher-item .caption {
+    font-size: 11px;
+    opacity: 0.80;
+}
+
+/* Grid mode thumbnails */
+.switcher-thumbnail-box {
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: alpha(@shadow_color, 0.35);
+    min-height: 130px;
+    max-height: 130px;
+    min-width: 200px;
+    max-width: 200px;
+}
+
+.switcher-thumbnail {
+    border-radius: 8px;
+    min-height: 130px;
+    max-height: 130px;
+}
+
+.switcher-thumbnail-fallback {
+    opacity: 0.6;
+}
+
+.switcher-thumbnail-icon {
+    filter: drop-shadow(0 1px 3px alpha(@shadow_color, 0.8));
+}
+
+/* App Menu - visual style lives on the window node itself (like Sidebar),
+   so the compositor handles alpha/rounded corners correctly */
+.app-menu-window {
+    border-radius: 24px;
+    border: 1px solid alpha(@text_color, 0.1);
+    box-shadow: 0 8px 24px alpha(@shadow_color, 0.5);
+    background-color: @surface_scrim;
+    backdrop-filter: blur(16px);
+    min-width: 640px;
+    min-height: 500px;
+}
+
+.app-menu-window decoration {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.app-menu-box {
+    border-radius: 24px;
+    border: 1px solid alpha(@text_color, 0.1);
+    box-shadow: 0 8px 24px alpha(@shadow_color, 0.5);
+    background-color: @surface_scrim;
+    backdrop-filter: blur(16px);
+}
+
+.app-menu-window scrolledwindow {
+    padding: 0 12px 12px 12px;
+    background: transparent;
+}
+
+.app-menu-window scrolledwindow > viewport {
+    background: transparent;
+}
+
+.app-menu-window .app-grid {
+    padding: 10px;
+    margin: 0;
+}
+
+.app-menu-window .app-grid-item {
+    width: 100px;
+    height: 100px;
+    padding: 10px;
+    margin: 4px;
+}
+
+.app-menu-window .app-grid-item label {
+    font-size: 11px;
+}
+
+.app-menu-window .search-entry {
+    min-width: unset;
+}
+
+/* GTK4 native widget accent color overrides */
+/* These ensure standard GTK widgets (check, switch, scale, progress, button)
+   use @accent_color from our dynamic CSS provider, instead of the hardcoded
+   Adwaita theme values. Users keep full theming ability - the variable itself
+   is what gets swapped via the desktop accent-color setting. */
+
+/* Checkbutton */
+.singularity check,
+.singularity-app check {
+    border-color: alpha(@text_color, 0.3);
+}
+
+.singularity checkbutton:checked check,
+.singularity-app checkbutton:checked check,
+.singularity checkbutton check:checked,
+.singularity-app checkbutton check:checked {
+    background-color: @accent_color;
+    border-color: @accent_color;
+    color: white;
+}
+
+/* Radio button */
+.singularity radio,
+.singularity-app radio {
+    border-color: alpha(@text_color, 0.3);
+}
+
+.singularity radiobutton:checked radio,
+.singularity-app radiobutton:checked radio,
+.singularity radiobutton radio:checked,
+.singularity-app radiobutton radio:checked {
+    background-color: @accent_color;
+    border-color: @accent_color;
+}
+
+/* Switch */
+.singularity switch,
+.singularity-app switch {
+    background-color: alpha(@text_color, 0.15);
+}
+
+.singularity switch:checked,
+.singularity-app switch:checked {
+    background-color: @accent_color;
+}
+
+.singularity switch slider,
+.singularity-app switch slider {
+    background-color: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px alpha(@shadow_color, 0.4);
+}
+
+/* Suggested-action button */
+.singularity button.suggested-action,
+.singularity-app button.suggested-action {
+    background-color: @accent_color;
+    color: white;
+}
+
+.singularity button.suggested-action:hover,
+.singularity-app button.suggested-action:hover {
+    background-color: mix(@accent_color, white, 0.15);
+}
+
+.singularity button.suggested-action:active,
+.singularity-app button.suggested-action:active {
+    background-color: mix(@accent_color, black, 0.15);
+}
+
+/* Scale (slider) */
+.singularity scale trough highlight,
+.singularity-app scale trough highlight {
+    background-color: @accent_color;
+}
+
+.singularity scale slider,
+.singularity-app scale slider {
+    background-color: @accent_color;
+    border-color: @accent_color;
+}
+
+/* ProgressBar */
+.singularity progressbar progress,
+.singularity-app progressbar progress {
+    background-color: @accent_color;
+}
+
+/* Text selection */
+.singularity text selection,
+.singularity-app text selection {
+    background-color: alpha(@accent_color, 0.4);
+}
+
+/* Focus ring */
+.singularity *:focus-visible,
+.singularity-app *:focus-visible {
+    outline-color: @accent_color;
+}
+
+/* Entry focus border */
+.singularity entry:focus,
+.singularity-app entry:focus {
+    background-color: alpha(@text_color, 0.09);
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.35);
+}
+
+/* SpinButton */
+.singularity spinbutton:focus,
+.singularity-app spinbutton:focus {
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.35);
+}
+
+/* Link */
+.singularity link,
+.singularity-app link {
+    color: @accent_color;
+}
+
+
+
+/* Edit App */
+.edit-find-bar {
+    background-color: alpha(@shadow_color, 0.3);
+    padding: 8px 12px;
+    border-top: 1px solid alpha(@text_color, 0.1);
+}
+
+.edit-find-bar entry {
+    min-width: 200px;
+}
+
+.edit-statusbar {
+    background-color: alpha(@shadow_color, 0.4);
+    padding: 2px 12px;
+    font-size: 11px;
+}
+
+.edit-statusbar label {
+    opacity: 0.7;
+}
+
+.edit-statusbar separator {
+    margin: 2px 8px;
+}
+
+.edit-sidebar {
+    border-right: 1px solid alpha(@text_color, 0.08);
+}
+
+.edit-sidebar-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 0;
+}
+
+.edit-sidebar-tab:checked {
+    background-color: alpha(@accent_color, 0.2);
+    color: @accent_color;
+}
+
+.edit-file-row {
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.edit-file-row:hover {
+    background-color: alpha(@text_color, 0.07);
+}
+
+.edit-file-row.directory {
+    font-weight: 600;
+}
+
+/* Photos App */
+.photo-grid {
+    padding: 8px;
+}
+
+.photo-grid-item {
+    border-radius: 8px;
+    padding: 6px;
+}
+
+.photo-grid-item:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+
+.photo-grid-item:selected {
+    background-color: alpha(@accent_color, 0.3);
+}
+
+.photo-grid-item image {
+    border-radius: 6px;
+}
+
+.photo-month-header {
+    font-weight: bold;
+    font-size: 13px;
+    margin: 12px 8px 4px 8px;
+}
+
+.photo-viewer-overlay {
+    background-color: @surface_scrim_heavy;
+}
+
+.photo-viewer-controls {
+    background-color: alpha(@shadow_color, 0.6);
+    border-radius: 12px;
+    padding: 8px 16px;
+}
+
+.photo-sidebar-item {
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.photo-sidebar-item:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+
+.photo-sidebar-item.selected {
+    background-color: alpha(@accent_color, 0.2);
+    color: @accent_color;
+}
+
+.photo-thumb {
+    border-radius: 6px;
+}
+
+/* Viewer rotation helpers */
+.rotate-90 {
+    transform: rotate(90deg);
+}
+
+.rotate-180 {
+    transform: rotate(180deg);
+}
+
+.rotate-270 {
+    transform: rotate(270deg);
+}
+
+/* Store App */
+.store-hero-card {
+    border-radius: 16px;
+    min-height: 160px;
+    min-width: 220px;
+    padding: 20px 16px 16px 16px;
+    background: linear-gradient(160deg, alpha(@accent_color, 0.25), alpha(@accent_color, 0.08));
+    border: 1px solid alpha(@accent_color, 0.15);
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.store-hero-card:hover {
+    background: linear-gradient(160deg, alpha(@accent_color, 0.35), alpha(@accent_color, 0.12));
+    border-color: alpha(@accent_color, 0.25);
+}
+
+.store-app-card {
+    border-radius: 12px;
+    background: alpha(@text_color, 0.06);
+    border-bottom: 1px solid alpha(@text_color, 0.05);
+    padding: 14px 16px;
+    margin: 4px 8px;
+    transition: background 0.15s ease;
+}
+
+.store-app-card:hover {
+    background: alpha(@text_color, 0.10);
+}
+
+.store-app-icon {
+    border-radius: 14px;
+}
+
+.store-install-btn {
+    border-radius: 20px;
+    padding: 5px 18px;
+    background-color: alpha(@accent_color, 0.18);
+    color: @accent_color;
+    font-weight: 700;
+    font-size: 13px;
+    min-width: 64px;
+}
+
+.store-install-btn:hover {
+    background-color: alpha(@accent_color, 0.30);
+}
+
+.store-install-btn.installed {
+    background-color: alpha(@text_color, 0.10);
+    color: @window_fg_color;
+}
+
+.store-section-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 16px 0 8px 0;
+}
+
+.store-sidebar-item {
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.store-sidebar-item:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+
+.store-sidebar-item.selected {
+    background-color: alpha(@accent_color, 0.2);
+    color: @accent_color;
+}
+
+.store-rating {
+    color: @accent_color;
+}
+
+/* Terminal App */
+.term-pane-focused {}
+
+.term-pane-unfocused {}
+
+.ssh-sidebar {
+    border-right: 1px solid alpha(@text_color, 0.08);
+    min-width: 200px;
+}
+
+.ssh-session-row {
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+
+.ssh-session-row:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+
+.ssh-sidebar-title {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 12px 12px 4px 12px;
+    opacity: 0.7;
+}
+
+.term-search-bar {
+    background-color: alpha(@shadow_color, 0.4);
+    border-top: 1px solid alpha(@text_color, 0.1);
+}
+
+/* Terminal Tiling Headers (Tilix-style) */
+.tile-header {
+    min-height: 24px;
+    padding: 0 4px;
+    background-color: alpha(@shadow_color, 0.35);
+    border-bottom: 1px solid alpha(@text_color, 0.07);
+}
+
+.tile-header-focused {
+    background-color: alpha(@text_color, 0.06);
+    border-bottom: 1px solid alpha(@accent_color, 0.4);
+}
+
+.tile-header-unfocused {
+    background-color: alpha(@shadow_color, 0.3);
+    border-bottom: 1px solid alpha(@text_color, 0.05);
+}
+
+.tile-header-title {
+    font-size: 11px;
+    opacity: 0.8;
+    padding: 0 4px;
+}
+
+.tile-header-btn {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 1px;
+    opacity: 0.6;
+}
+
+.tile-header-btn:hover {
+    opacity: 1.0;
+}
+
+/* Store Search */
+.store-search,
+.store-search-entry {
+    background: transparent;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    outline: none;
+    min-width: 280px;
+}
+
+.store-search:focus,
+.store-search-entry:focus {
+    background: transparent;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+
+/* Override the inner entry/text nodes that inherit dark background */
+/* Override inner nodes of .store-search SearchEntry */
+.store-search entry,
+.store-search text,
+.store-search>text {
+    background: transparent;
+    background-color: transparent;
+    background-image: none;
+    color: inherit;
+}
+
+/* Flat searchentry in our toolbars - strip Adwaita pill */
+.singularity-toolbar searchentry,
+.singularity-toolbar searchentry:focus,
+.singularity-toolbar searchentry:focus-within,
+.singularity-toolbar searchentry:not(.flat),
+searchentry.flat,
+searchentry.flat:focus,
+searchentry.flat:focus-within,
+searchentry.store-search,
+searchentry.store-search:focus,
+searchentry.store-search:focus-within {
+    background: transparent;
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+
+.singularity-toolbar searchentry text,
+.singularity-toolbar searchentry entry,
+searchentry.flat text,
+searchentry.flat entry,
+searchentry.store-search text,
+searchentry.store-search entry {
+    background: transparent;
+    background-color: transparent;
+    background-image: none;
+}
+
+/* Store card typography */
+.store-app-name {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.store-app-developer {
+    font-size: 11px;
+    opacity: 0.5;
+}
+
+.store-app-summary {
+    font-size: 12px;
+    opacity: 0.65;
+}
+
+.store-app-category {
+    font-size: 10px;
+    border-radius: 8px;
+    padding: 2px 8px;
+    background: alpha(@text_color, 0.1);
+    opacity: 0.7;
+}
+
+/* Sidebar active state */
+.sidebar-nav-active {
+    background: alpha(@accent_color, 0.15);
+    color: @accent_color;
+}
+
+/* Store Reviews */
+.store-review-card {
+    background-color: alpha(@text_color, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid alpha(@text_color, 0.08);
+}
+
+.accent-label {
+    color: @accent_color;
+}
+
+/* Tiled Terminals */
+.tiled-terminal {
+    border-radius: 12px;
+    border: 1px solid alpha(@text_color, 0.1);
+    box-shadow: 0 4px 12px alpha(@shadow_color, 0.3);
+    margin: 4px;
+    background-color: @window_bg;
+    overflow: hidden;
+}
+
+.terminal-overlay {
+    border-radius: 12px;
+}
+
+.terminal-close-button {
+    background-color: alpha(@text_color, 0.1);
+    border-radius: 999px;
+    padding: 0;
+    margin: 8px;
+    min-width: 24px;
+    min-height: 24px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    color: white;
+}
+
+.terminal-overlay:hover .terminal-close-button {
+    opacity: 1.0;
+}
+
+.terminal-close-button:hover {
+    background-color: @destructive_color;
+}
+
+.terminal-paned separator {
+    background-color: transparent;
+    min-width: 8px;
+    min-height: 8px;
+}
+
+
+/* Segmented Control */
+.segmented-control {
+    margin: 12px;
+    padding: 0;
+    min-width: 140px;
+    min-height: 36px;
+}
+
+.segmented-inner {
+    background-color: alpha(@text_color, 0.08);
+    border-radius: 12px;
+    padding: 3px;
+    border: 1px solid alpha(@text_color, 0.1);
+    min-width: 140px;
+    min-height: 32px;
+}
+
+.segmented-button {
+    border-radius: 8px;
+    padding: 6px 20px;
+    font-size: 13px;
+    font-weight: bold;
+    color: white;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+    min-width: 60px;
+}
+
+.segmented-button:hover {
+    background-color: alpha(@text_color, 0.05);
+    opacity: 0.9;
+}
+
+.segmented-button.active {
+    background-color: alpha(@text_color, 0.15);
+    opacity: 1.0;
+    color: white;
+    box-shadow: 0 2px 6px alpha(@shadow_color, 0.2);
+}
+/* System Monitor */
+
+.monitor-card {
+    background-color: @card_bg;
+    border-radius: 14px;
+    border: 1px solid alpha(@text_color, 0.07);
+    min-height: 160px;
+}
+
+.monitor-card-title {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.monitor-card-value {
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.monitor-card-sub {
+    font-size: 11px;
+    opacity: 0.5;
+    font-variant-numeric: tabular-nums;
+}
+
+.monitor-chart-wrap {
+    background: transparent;
+}
+
+.monitor-proc-view {
+    background: transparent;
+}
+
+.monitor-proc-view row {
+    padding: 4px 8px;
+}
+
+.monitor-high {
+    color: @error_color;
+    font-weight: 700;
+}
+
+.monitor-med {
+    color: @warning_color;
+    font-weight: 600;
+}
+
+.monitor-vsep {
+    min-width: 1px;
+    background-color: alpha(@text_color, 0.07);
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Write app - widgets + page layout
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Ruler */
+.write-ruler {
+    background-color: @surface_bg;
+    border-top: 1px solid alpha(@text_color, 0.05);
+    border-bottom: 1px solid alpha(@text_color, 0.07);
+    min-height: 22px;
+}
+
+/* Page Canvas */
+.write-page-canvas {
+    background-color: @surface_mid;
+}
+.write-canvas-outer {
+    background-color: @surface_mid;
+    padding: 0;
+}
+.write-page {
+    background-color: @text_color;
+    color: @surface_dim;
+    border-radius: 2px;
+    box-shadow: 0 4px 32px alpha(@shadow_color, 0.6), 0 1px 4px alpha(@shadow_color, 0.4);
+}
+
+/* Document text view */
+.write-doc-text {
+    background-color: transparent;
+    color: @surface_dim;
+    font-size: 12pt;
+    font-family: "Liberation Serif", "Georgia", serif;
+    caret-color: @link_active_color;
+}
+.write-doc-text text {
+    background-color: transparent;
+    color: @surface_dim;
+}
+.write-doc-text selection {
+    background-color: alpha(@accent_color, 0.25);
+}
+
+/* Floating format bar */
+.write-format-bar {
+    background-color: @surface_raised;
+    border: 1px solid alpha(@text_color, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 4px 18px alpha(@shadow_color, 0.55);
+    padding: 0;
+}
+.write-format-bar > * {
+    padding: 0;
+}
+
+/* Find/Replace bar */
+.write-find-bar {
+    background-color: transparent;
+}
+.write-find-bar-inner {
+    background-color: @surface_bg;
+    border-top: 1px solid alpha(@text_color, 0.08);
+    padding: 2px 0;
+}
+
+/* Outline sidebar */
+.write-sidebar {
+    background-color: @surface_bg;
+    border-right: 1px solid alpha(@text_color, 0.07);
+    min-width: 160px;
+}
+.write-outline-header {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: alpha(@fg_color, 0.45);
+}
+.write-outline-list button.write-outline-row {
+    border-radius: 4px;
+    margin: 1px 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: alpha(@fg_color, 0.75);
+}
+.write-outline-list button.write-outline-row:hover {
+    background-color: alpha(@text_color, 0.08);
+    color: @fg_color;
+}
+.write-outline-h1 { font-weight: 700; }
+.write-outline-h2 { font-weight: 600; }
+.write-outline-h3 { font-weight: 500; }
+.write-outline-h4 { font-weight: 400; }
+
+/* Style chooser */
+.style-chooser {
+    min-width: 120px;
+}
+.style-chooser-list {
+    padding: 4px 0;
+    min-width: 160px;
+}
+.style-chooser-list button.style-chooser-item {
+    border-radius: 4px;
+    margin: 1px 4px;
+    padding: 5px 10px;
+}
+.style-chooser-list button.style-item-h1 { font-size: 18px; font-weight: 700; }
+.style-chooser-list button.style-item-h2 { font-size: 15px; font-weight: 700; }
+.style-chooser-list button.style-item-h3 { font-size: 13px; font-weight: 600; }
+.style-chooser-list button.style-item-h4 { font-size: 12px; font-weight: 600; }
+.style-chooser-list button.style-item-quote { font-style: italic; color: alpha(@text_color, 0.6); }
+.style-chooser-list button.style-item-code  { font-family: monospace; font-size: 11px; }
+
+/* Color picker button */
+.color-picker-button {
+    padding: 3px;
+    min-width: 28px;
+    min-height: 28px;
+}
+
+/* Tables */
+.write-table {
+    border: 1px solid alpha(@shadow_color, 0.2);
+    margin: 4px 0;
+}
+.write-table-cell {
+    border: 1px solid alpha(@shadow_color, 0.15);
+    padding: 2px 4px;
+    min-width: 80px;
+    min-height: 28px;
+    background-color: @text_color;
+    color: @surface_dim;
+}
+.write-table-header {
+    background-color: #f0ece0;
+    font-weight: 600;
+}
+
+/* Images */
+.write-image {
+    display: block;
+    margin: 6px 0;
+    max-width: 100%;
+}
+
+/* Footnotes */
+.write-footnote-anchor {
+    font-size: 9px;
+    padding: 0 2px;
+    min-height: 0;
+    vertical-align: super;
+    color: @link_active_color;
+}
+.write-footnote-editor {
+    background-color: @text_color;
+    color: @surface_dim;
+    font-size: 11px;
+    padding: 4px;
+}
+
+/* Screenshot Tool */
+.screenshot-tool.singularity.dialog {
+    padding: 0;
+    border-radius: 14px;
+}
+.screenshot-tool .shutter-button {
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 999px;
+    background-color: @accent_color;
+    color: white;
+    padding: 0;
+    transition: background-color 0.15s ease;
+}
+.screenshot-tool .shutter-button:hover {
+    background-color: mix(@accent_color, white, 0.15);
+}
+.screenshot-tool .shutter-button:active {
+    background-color: mix(@accent_color, black, 0.1);
+}
+.screenshot-tool .screenshot-option {
+    min-height: 28px;
+    border-radius: 8px;
+}
+
+/* Run Dialog */
+.run-dialog.singularity.dialog {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+}
+.run-dialog .run-entry {
+    background-color: @window_tint;
+    border: 1px solid alpha(white, 0.12);
+    border-radius: 16px 16px 0 0;
+    padding: 14px 18px;
+    font-size: 15px;
+    min-height: 0;
+    box-shadow: 0 8px 32px alpha(@shadow_color, 0.5);
+}
+.run-dialog .run-entry:focus {
+    border-color: @accent_color;
+}
+.run-dialog .run-hint {
+    background-color: alpha(@window_tint, 0.85);
+    border: 1px solid alpha(white, 0.08);
+    border-top: none;
+    border-radius: 0 0 16px 16px;
+    padding: 6px 18px 8px;
+    box-shadow: 0 8px 32px alpha(@shadow_color, 0.5);
+}
+
+.run-dialog .run-error {
+    background-color: alpha(@error_color, 0.18);
+    border: 1px solid alpha(@error_color, 0.35);
+    border-top: none;
+    padding: 6px 18px;
+    font-size: 12px;
+    color: @error_color;
+}
+
+.run-dialog .run-suggestions {
+    background-color: alpha(@window_tint, 0.97);
+    border: 1px solid alpha(white, 0.10);
+    border-top: none;
+    border-radius: 0;
+}
+
+.run-dialog .run-suggestions row {
+    padding: 0;
+}
+
+.run-dialog .run-suggestions row:selected {
+    background-color: alpha(@accent_color, 0.28);
+}
+
+
+/* WelcomePage widget (libsingularity) */
+.welcome-page {
+    background-color: @window_bg_color;
+}
+
+.welcome-page-icon {
+    margin-bottom: 4px;
+    opacity: 0.85;
+}
+
+/* Split container */
+.welcome-page-split {
+    background-color: @window_bg_color;
+}
+
+/* Right pane gets a visible divider in wide/horizontal mode */
+.welcome-page-right {
+    border-left: 1px solid alpha(@borders, 0.7);
+}
+
+/* Card layout (1-2 actions): stacked horizontal cards */
+.welcome-page-card {
+    border-radius: 12px;
+    border: 1px solid alpha(@text_color, 0.08);
+    background-color: alpha(@text_color, 0.05);
+    box-shadow: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.welcome-page-card:hover {
+    background-color: alpha(@text_color, 0.10);
+    border-color: alpha(@accent_color, 0.35);
+}
+.welcome-page-card:active {
+    background-color: alpha(@accent_color, 0.12);
+}
+
+/* List layout (3+ actions): grouped list like iOS Settings */
+.welcome-page-list {
+    border-radius: 12px;
+    border: 1px solid alpha(@text_color, 0.08);
+    overflow: hidden;
+    background-color: alpha(@text_color, 0.04);
+    box-shadow: none;
+}
+.welcome-page-row {
+    border-radius: 0;
+    background-color: transparent;
+    transition: background-color 0.12s ease;
+}
+.welcome-page-row:hover {
+    background-color: alpha(@text_color, 0.06);
+}
+.welcome-page-row:active {
+    background-color: alpha(@accent_color, 0.12);
+}
+.welcome-page-row + .welcome-page-row {
+    border-top: 1px solid alpha(@text_color, 0.06);
+}
+
+/* Write start page */
+.write-start-page {
+    background-color: @window_bg_color;
+}
+.write-start-card {
+    border-radius: 12px;
+    border: 1px solid alpha(@borders, 0.5);
+    background-color: alpha(@card_bg_color, 0.6);
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+    min-width: 200px;
+}
+.write-start-card:hover {
+    background-color: @card_bg_color;
+    border-color: alpha(@accent_color, 0.5);
+}
+.write-start-card:active {
+    background-color: mix(@card_bg_color, @accent_color, 0.08);
+}
+.write-recent-list {
+    border-radius: 10px;
+    border: 1px solid alpha(@borders, 0.4);
+    overflow: hidden;
+}
+.write-recent-row {
+    border-radius: 0;
+    background-color: transparent;
+    transition: background-color 0.1s ease;
+}
+.write-recent-row:hover {
+    background-color: alpha(@accent_color, 0.08);
+}
+.write-recent-row + .write-recent-row {
+    border-top: 1px solid alpha(@borders, 0.3);
+}
+
+/* Write markdown mode switcher (compact, fits 46px toolbar) */
+.write-md-switcher {
+    background-color: alpha(white, 0.08);
+    border-radius: 8px;
+    border: 1px solid alpha(white, 0.1);
+    padding: 2px;
+}
+.write-md-tab {
+    border-radius: 6px;
+    padding: 2px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: alpha(white, 0.55);
+    min-height: 0;
+    min-width: 0;
+    transition: all 0.15s ease;
+}
+.write-md-tab:hover {
+    color: alpha(white, 0.85);
+    background-color: alpha(white, 0.05);
+}
+.write-md-tab.active {
+    background-color: alpha(white, 0.15);
+    color: white;
+    box-shadow: 0 1px 4px alpha(black, 0.2);
+}
+
+/* Chip / ChipBar */
+.chip-bar {
+    background-color: alpha(@shadow_color, 0.25);
+    border-top: 1px solid alpha(@text_color, 0.07);
+    min-height: 34px;
+}
+
+.chip {
+    border-radius: 20px;
+    background-color: alpha(@accent_color, 0.18);
+    border: 1px solid alpha(@accent_color, 0.25);
+    transition: background-color 0.12s ease;
+}
+
+.chip:hover {
+    background-color: alpha(@accent_color, 0.28);
+}
+
+.chip.active {
+    background-color: alpha(@accent_color, 0.45);
+    border-color: alpha(@accent_color, 0.6);
+}
+
+.chip-body {
+    padding: 2px 8px 2px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: alpha(white, 0.75);
+    min-height: 0;
+    border-radius: 20px 0 0 20px;
+}
+
+.chip.active .chip-body {
+    color: white;
+}
+
+.chip-close {
+    padding: 2px 6px 2px 2px;
+    min-height: 0;
+    min-width: 0;
+    border-radius: 0 20px 20px 0;
+    color: alpha(white, 0.5);
+}
+
+.chip-close:hover {
+    color: white;
+    background-color: alpha(white, 0.1);
+}
+
+/* Monitor OSD (displays page) */
+window.monitor-osd {
+    background-color: transparent;
+}
+.monitor-osd-number {
+    font-size: 120px;
+    font-weight: 900;
+    color: white;
+    text-shadow: 0 4px 24px alpha(@shadow_color, 0.8);
+    opacity: 0.85;
+}
+
+/* Column browser (Miller columns) */
+.col-browser {
+    background-color: transparent;
+}
+.col-browser-pane {
+    min-width: 240px;
+    background-color: transparent;
+}
+.col-browser-sep {
+    min-width: 1px;
+    background-color: @border_color;
+}
+.col-browser-list {
+    background-color: transparent;
+}
+.col-browser-row {
+    border-radius: 0;
+    min-height: 28px;
+}
+.col-browser-row:hover {
+    background-color: alpha(@accent_color, 0.08);
+}
+.col-browser-row:selected,
+.col-browser-row:selected:hover {
+    background-color: alpha(@accent_color, 0.18);
+    color: @text_color;
+}
+
+/* Disk usage level bar */
+.disk-usage-bar {
+    min-height: 4px;
+    border-radius: 2px;
+    margin: 2px 0;
+}
+.disk-usage-bar trough {
+    border-radius: 2px;
+    min-height: 4px;
+}
+.disk-usage-bar block.filled {
+    background: @accent_color;
+    border-radius: 2px;
+}
+.disk-usage-bar.disk-usage-high block.filled {
+    background: @error_color;
+}
+.disk-usage-bar.disk-usage-moderate block.filled {
+    background: @warning_color;
+}
+
+/* Disk cards in Disks page */
+button.disk-card {
+    border-radius: 10px;
+    padding: 0;
+    min-width: 160px;
+    min-height: 160px;
+}
+button.disk-card:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+flowbox .disk-card-child,
+flowboxchild:has(button.disk-card) {
+    background: none;
+    border: none;
+    padding: 0;
+    min-width: 0;
+}
+flowboxchild:has(button.disk-card):selected,
+flowboxchild:has(button.disk-card):focus {
+    background: none;
+    outline: none;
+    box-shadow: none;
+}
+
+/* Sidebar file picker */
+.file-picker-shortcuts {
+    margin-top: 4px;
+}
+.file-picker-shortcut {
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+.file-picker-shortcut label.caption {
+    font-size: 0.7em;
+}
+.file-picker-row {
+    border-radius: 6px;
+}
+.file-picker-list row {
+    border-radius: 6px;
+}
+
+/* Hot corner visual hints - dedicated overlay windows per corner */
+.corner-hint-window {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+.corner-hint {
+    min-width: 96px;
+    min-height: 96px;
+    opacity: 0;
+    transition: opacity 220ms ease, transform 220ms ease;
+}
+.corner-hint.visible {
+    opacity: 1;
+}
+.corner-hint-tl {
+    transform: scale(0.6);
+    background: radial-gradient(circle at 0% 0%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+}
+.corner-hint-tl.visible {
+    transform: scale(1);
+}
+.corner-hint-tr {
+    transform: scale(0.6);
+    background: radial-gradient(circle at 100% 0%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+}
+.corner-hint-tr.visible {
+    transform: scale(1);
+}
+.corner-hint-bl {
+    transform: scale(0.6);
+    background: radial-gradient(circle at 0% 100%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+}
+.corner-hint-bl.visible {
+    transform: scale(1);
+}
+.corner-hint-br {
+    transform: scale(0.6);
+    background: radial-gradient(circle at 100% 100%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+}
+.corner-hint-br.visible {
+    transform: scale(1);
+}
+
+/* Debug HUD Overlay */
+.debug-hud {
+    background-color: alpha(@window_bg_color, 0.92);
+    border-radius: 12px;
+    border: 1px solid alpha(@accent_color, 0.45);
+    box-shadow: 0 4px 24px alpha(black, 0.4);
+    min-width: 230px;
+}
+
+.debug-hud-title {
+    font-weight: bold;
+    color: @accent_color;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+}
+
+.debug-hud-row {
+    font-family: monospace;
+    font-size: 11px;
+    color: @window_fg_color;
+    opacity: 0.9;
+}
+
+
+/* Calendar Widgets */
+
+/* Nav picker (sidebar) */
+.cal-nav-picker {
+    padding: 8px 6px;
+}
+
+.cal-nav-month-label {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.cal-nav-day-btn {
+    font-size: 12px;
+    min-width: 28px;
+    min-height: 26px;
+    padding: 0 2px;
+    border-radius: 13px;
+}
+
+.cal-nav-day-btn.today {
+    background-color: @accent_color;
+    color: white;
+    font-weight: bold;
+}
+
+.cal-nav-day-btn.selected:not(.today) {
+    background-color: alpha(@accent_color, 0.18);
+}
+
+/* Day-of-week header row */
+.cal-dow-header {
+    border-bottom: 1px solid alpha(@borders, 0.55);
+    background-color: alpha(@headerbar_bg_color, 0.35);
+}
+
+.cal-dow-label {
+    font-size: 11px;
+    font-weight: bold;
+    opacity: 0.6;
+    padding: 7px 0;
+}
+
+/* Month view */
+.cal-month-view {
+    background-color: transparent;
+}
+
+.cal-month-grid {
+    border-top: none;
+    background-color: transparent;
+}
+
+.cal-day-cell {
+    border-right: 1px solid alpha(@text_color, 0.08);
+    border-bottom: 1px solid alpha(@text_color, 0.08);
+    min-height: 90px;
+    min-width: 80px;
+    background-color: transparent;
+}
+
+.cal-day-cell:last-child {
+    border-right: none;
+}
+
+.cal-day-cell.out-of-month {
+    background-color: transparent;
+    opacity: 0.35;
+}
+
+.cal-day-cell.today {
+    background-color: alpha(@accent_color, 0.07);
+}
+
+.cal-day-num {
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.cal-today-badge {
+    background-color: @accent_color;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    border-radius: 12px;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 2px 4px;
+}
+
+.cal-more-label {
+    font-size: 11px;
+    opacity: 0.55;
+}
+
+/* Event chips */
+.cal-event-chip {
+    font-size: 11px;
+    border-radius: 5px;
+    padding: 2px 0;
+    min-height: 18px;
+    background-color: alpha(@accent_color, 0.12);
+}
+
+.cal-event-chip:hover {
+    background-color: alpha(@accent_color, 0.22);
+}
+
+.cal-event-chip.compact {
+    min-height: 16px;
+    padding: 1px 0;
+}
+
+.cal-timed-event {
+    border-radius: 5px;
+    padding: 3px 5px;
+    background-color: alpha(@accent_color, 0.18);
+    font-size: 11px;
+}
+
+.cal-timed-event:hover {
+    background-color: alpha(@accent_color, 0.28);
+}
+
+.cal-event-time {
+    font-size: 10px;
+    opacity: 0.75;
+}
+
+/* Week / Day views */
+.cal-week-view,
+.cal-day-view {
+    background-color: transparent;
+}
+
+.cal-week-header {
+    border-bottom: 1px solid alpha(@text_color, 0.08);
+    background-color: alpha(@text_color, 0.03);
+}
+
+.cal-week-day-num {
+    font-size: 20px;
+    font-weight: 300;
+    opacity: 0.9;
+}
+
+.cal-day-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.cal-time-gutter {
+    min-width: 56px;
+}
+
+.cal-time-label {
+    font-size: 10px;
+    opacity: 0.55;
+    min-width: 50px;
+    padding-right: 6px;
+    color: @window_fg_color;
+}
+
+.cal-hour-even {
+    border-bottom: 1px solid alpha(@text_color, 0.08);
+}
+
+.cal-hour-odd {
+    border-bottom: 1px dashed alpha(@text_color, 0.05);
+}

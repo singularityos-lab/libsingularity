@@ -1,0 +1,52 @@
+* {
+    border-width: 1px;
+    border-style: solid;
+    border-color: #ffffff;
+}
+window,
+.background {
+    background-color: #000000;
+    color: #ffffff;
+}
+label,
+button,
+entry {
+    color: #ffffff;
+    background-color: #000000;
+}
+button:hover {
+    background-color: #333333;
+    border-color: #ffff00;
+    color: #ffff00;
+}
+button:active {
+    background-color: #ffffff;
+    color: #000000;
+}
+.singularity-toolbar {
+    background-color: #000000;
+    border: 2px solid #ffffff;
+}
+.sidebar {
+    background-color: #000000;
+    border-left: 2px solid #ffffff;
+}
+.card,
+.workspace-preview {
+    border: 2px solid #ffffff;
+    background-color: #000000;
+}
+.accent-btn {
+    background-color: #0000ff;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+}
+.destructive-btn {
+    background-color: #ff0000;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+}
+*:focus {
+    outline: 2px solid #ffff00;
+    outline-offset: 2px;
+}
