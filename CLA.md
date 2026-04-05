@@ -8,10 +8,8 @@ By submitting a contribution (e.g., pull request, commit), you agree to this CLA
 
 3. This license is granted solely to ensure the stability, continuity, and long-term maintainability of the project.
 
-4. Your contribution will remain licensed under the project license (LGPL-2.1-only).
+4. Your contribution will remain licensed under the project license (LGPL-2.1-only), forever.
 
 5. The project owner has final decision-making authority on contributions and project direction, solely to resolve conflicts, avoid fragmentation, and maintain a consistent vision for the project.
 
 6. You confirm that you have the right to submit this contribution.
-
-
