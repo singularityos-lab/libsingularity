@@ -44,6 +44,7 @@ namespace Singularity.Widgets {
             tab_scroll.margin_end = 8;
             tab_scroll.add_css_class("terminal-tab-scroll");
             tab_scroll.add_css_class("flat");
+            append(tab_scroll);
             append(notebook);
             notebook.page_added.connect((p, n) => {
                 update_tab_scroll_visibility();
