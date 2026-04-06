@@ -167,7 +167,7 @@ namespace Singularity.Widgets {
         private Box main_box;
         private Box prefix_box;
         private Box suffix_box;
-        private Box labels_box;
+        protected Box labels_box;
         private Label title_label;
         private Label? subtitle_label;
         private Image? icon_image;
@@ -376,17 +376,13 @@ namespace Singularity.Widgets {
             arrow_icon = new Image.from_icon_name("go-down-symbolic");
             add_suffix(arrow_icon);
             var internal_box = new Box(Orientation.VERTICAL, 0);
+            internal_box.hexpand = true;
             var header = this.get_child();
             if (header != null) {
                 this.set_child(null);
                 header.valign = Align.CENTER;
                 header.vexpand = true;
                 internal_box.append(header);
-                var gesture = new GestureClick();
-                gesture.released.connect(() => {
-                    expanded = !expanded;
-                });
-                header.add_controller(gesture);
             }
             revealer = new Revealer();
             revealer.transition_type = RevealerTransitionType.SLIDE_DOWN;
@@ -396,6 +392,11 @@ namespace Singularity.Widgets {
             internal_box.append(revealer);
             this.set_child(internal_box);
             this.activatable = false;
+            var gesture = new GestureClick();
+            gesture.released.connect(() => {
+                expanded = !expanded;
+            });
+            this.add_controller(gesture);
         }
 
         public void add_row(Widget row) {
@@ -432,15 +433,23 @@ namespace Singularity.Widgets {
         public EntryRow(string title, string? icon_name = null) {
             base(title, null, icon_name);
 
+            // Tighten vertical margins — row has title + entry stacked
+            var mb = this.get_child() as Box;
+            if (mb != null) {
+                mb.margin_top = 6;
+                mb.margin_bottom = 6;
+            }
+            labels_box.spacing = 0;
+            labels_box.valign = Align.CENTER;
+
             entry = new Entry();
             entry.placeholder_text = title;
-            entry.valign = Align.CENTER;
             entry.hexpand = true;
             entry.has_frame = false;
             entry.add_css_class("flat");
-            entry.add_css_class("preferences-entry"); // For specific styling if needed
-
-            add_suffix(entry);
+            entry.add_css_class("preferences-entry");
+            entry.margin_top = 3;
+            labels_box.append(entry);
 
             status_icon = new Image();
             status_icon.pixel_size = 16;
@@ -450,7 +459,6 @@ namespace Singularity.Widgets {
             entry.changed.connect(() => { entry_changed(); });
             entry.activate.connect(() => { entry_activated(); });
 
-            // Allow clicking the row to focus the entry
             this.activated.connect(() => {
                 entry.grab_focus();
             });
@@ -466,12 +474,18 @@ namespace Singularity.Widgets {
             entry.visibility = false;
             entry.input_purpose = InputPurpose.PASSWORD;
             reveal_btn = new Button.from_icon_name("view-reveal-symbolic");
-            reveal_btn.add_css_class("password-reveal-button");
             reveal_btn.valign = Align.CENTER;
+            reveal_btn.add_css_class("flat");
+            reveal_btn.add_css_class("circular");
             reveal_btn.clicked.connect(() => {
                 _show_password = !_show_password;
                 entry.visibility = _show_password;
                 reveal_btn.icon_name = _show_password ? "view-conceal-symbolic" : "view-reveal-symbolic";
+                if (_show_password) {
+                    reveal_btn.add_css_class("accent");
+                } else {
+                    reveal_btn.remove_css_class("accent");
+                }
             });
             add_suffix(reveal_btn);
         }
@@ -654,26 +668,32 @@ namespace Singularity.Widgets {
         }
 
         private void init_ui() {
-            var container = new Box(Orientation.VERTICAL, 12);
-            container.margin_top = 12;
-            container.margin_bottom = 12;
-            container.margin_start = 12;
-            container.margin_end = 12;
+            var container = new Box(Orientation.VERTICAL, 0);
             int count = (options != null) ? options.size : (int)items.length();
             if (count > 5) {
+                var se_wrap = new Box(Orientation.VERTICAL, 0);
+                se_wrap.margin_top = 8;
+                se_wrap.margin_bottom = 4;
+                se_wrap.margin_start = 12;
+                se_wrap.margin_end = 12;
                 search_entry = new Singularity.Widgets.SearchEntry();
                 search_entry.placeholder_text = "Search...";
                 search_entry.search_changed.connect(filter_list);
-                container.append(search_entry);
+                se_wrap.append(search_entry);
+                container.append(se_wrap);
             }
             var scrolled = new ScrolledWindow();
-            scrolled.set_size_request(-1, 200);
-            scrolled.propagate_natural_height = true;
+            scrolled.min_content_height = 200;
+            scrolled.max_content_height = 320;
+            scrolled.hscrollbar_policy = PolicyType.NEVER;
             list_box = new ListBox();
             list_box.selection_mode = SelectionMode.NONE;
             scrolled.child = list_box;
             container.append(scrolled);
             add_row(container);
+            // Pre-populate so the ScrolledWindow has content before the Revealer
+            // calculates its target height — prevents the "10px tall" collapse.
+            populate_list();
             this.notify["expanded"].connect(() => {
                 if (expanded) {
                     populate_list();
@@ -741,6 +761,9 @@ namespace Singularity.Widgets {
                 row.add_suffix(new Image.from_icon_name("object-select-symbolic"));
             }
             var gesture = new GestureClick();
+            gesture.pressed.connect((n, x, y) => {
+                gesture.set_state(EventSequenceState.CLAIMED);
+            });
             gesture.released.connect(() => {
                 current_value = id;
                 selected(id);
