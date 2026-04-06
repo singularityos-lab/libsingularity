@@ -308,13 +308,15 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
     color: white;
 }
 
-/* Flat/maximized mode: known solid background, follow the theme fg. */
+/* Flat/maximized mode: always dark background, always white text regardless
+   of light/dark mode (the flat panel is always black for logo legibility).
+   this way the vendor does not have to fight with logo contrast. */
 .panel-window.flat-panel .panel * {
-    color: @panel_fg;
+    color: white;
 }
 
 /* Bright wallpaper detected: switch to dark text. */
-.panel-window.light-bg .panel * {
+.panel-window.light-bg:not(.flat-panel) .panel * {
     color: #1a1a1a;
 }
 
@@ -433,12 +435,12 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
     filter: drop-shadow(0 1px 3px alpha(@shadow_color, 0.9));
 }
 
-/* On bright wallpapers: subtle dark shadow for legibility */
-.panel-window.light-bg .panel label {
+/* On bright wallpapers (non-flat): subtle dark shadow for legibility */
+.panel-window.light-bg:not(.flat-panel) .panel label {
     text-shadow: 0 1px 2px alpha(white, 0.5);
 }
 
-.panel-window.light-bg .panel image {
+.panel-window.light-bg:not(.flat-panel) .panel image {
     filter: none;
 }
 
