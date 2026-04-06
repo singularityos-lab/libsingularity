@@ -396,7 +396,11 @@ namespace Singularity.Widgets {
             gesture.released.connect(() => {
                 expanded = !expanded;
             });
-            this.add_controller(gesture);
+            if (header != null) {
+                header.add_controller(gesture);
+            } else {
+                this.add_controller(gesture);
+            }
         }
 
         public void add_row(Widget row) {
