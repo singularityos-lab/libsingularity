@@ -51,6 +51,7 @@ libsingularity_sources = files(
   'src/ui/editor/page_canvas.vala',
   'src/ui/navigation/menu_row.vala',
   'src/ui/navigation/context_menu.vala',
+  'src/ui/navigation/app_sidebar.vala',
   'src/shell/shell_dialog.vala',
   'src/ui/navigation/sidebar_section_label.vala',
   'src/shell/global_menu_bar.vala',
