@@ -877,11 +877,12 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 }
 
 .search-results-list {
-    background-color: @surface_overlay;
-    border: 1px solid alpha(@text_color, 0.08);
-    border-radius: 16px;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
     padding: 6px;
-    box-shadow: 0 10px 40px alpha(@shadow_color, 0.5);
+    margin: 4px 0 16px 0;
+    box-shadow: none;
 }
 
 .search-result-row {
