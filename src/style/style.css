@@ -71,6 +71,12 @@ button.flat:checked,
 button.sidebar-button:active { background-color: @card_bg; border-color: transparent; }
 button.flat:disabled,
 button.sidebar-button:disabled { background: none; border-color: transparent; opacity: 0.5; }
+button.flat.sidebar-nav-active,
+button.flat.sidebar-nav-active:hover,
+button.flat.sidebar-nav-active:focus {
+    background-color: alpha(@accent_color, 0.15);
+    border-color: transparent;
+}
 
 /* Suggested / destructive action buttons */
 button.suggested-action {
@@ -178,6 +184,39 @@ tooltip {
 /* Label */
 label:disabled { opacity: 0.5; }
 label.dim-label { opacity: 0.55; }
+
+/* ── Typography scale ────────────────────────────────────────────────────────
+   Defined here because Singularity does NOT inherit Adwaita — these classes
+   would otherwise be unstyled (tiny default font, no weight). */
+.title-1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+.title-2 {
+    font-size: 22px;
+    font-weight: 700;
+}
+.title-3 {
+    font-size: 18px;
+    font-weight: 600;
+}
+.title-4 {
+    font-size: 15px;
+    font-weight: 600;
+}
+.heading {
+    font-size: 8px;
+    font-weight: 500;
+    opacity: 0.65;
+}
+.caption {
+    font-size: 12px;
+    opacity: 0.65;
+}
+.body {
+    font-size: 14px;
+}
 
 /* Check / Radio */
 checkbutton > check,
@@ -839,44 +878,73 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 
 .search-results-list {
     background-color: @surface_overlay;
-    border: 1px solid alpha(@text_color, 0.1);
+    border: 1px solid alpha(@text_color, 0.08);
     border-radius: 16px;
-    padding: 8px;
-    box-shadow: 0 10px 30px alpha(@shadow_color, 0.4);
+    padding: 6px;
+    box-shadow: 0 10px 40px alpha(@shadow_color, 0.5);
 }
 
 .search-result-row {
     background-color: transparent;
-    border-radius: 8px;
+    border-radius: 10px;
     margin-bottom: 2px;
-    transition: all 0.2s ease;
-    color: white;
+    transition: background-color 0.15s ease;
 }
 
-.search-result-row:hover {
-    background-color: alpha(@text_color, 0.1);
+.search-result-row:hover,
+.search-result-row:selected {
+    background-color: alpha(@text_color, 0.08);
 }
 
-.search-result-row:active {
-    background-color: @accent_color;
+.search-result-row:selected {
+    background-color: alpha(@accent_color, 0.15);
 }
 
 .search-result-title {
     font-weight: 600;
     font-size: 14px;
+    color: white;
 }
 
 .search-result-description {
     font-size: 12px;
-    opacity: 0.6;
+    opacity: 0.55;
+    color: white;
 }
 
 .search-result-provider {
     font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    opacity: 0.35;
+    letter-spacing: 0.5px;
+    color: white;
+}
+
+.search-category-header {
+    font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
-    opacity: 0.4;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.08em;
+    opacity: 0.45;
+    color: white;
+    padding: 8px 12px 4px 12px;
+    margin-top: 6px;
+}
+
+.search-preview-inline {
+    background-color: alpha(@shadow_color, 0.2);
+    border-radius: 10px;
+    margin: 4px 12px 8px 52px;
+    padding: 8px;
+    overflow: hidden;
+}
+
+.search-preview-text {
+    font-family: monospace;
+    font-size: 12px;
+    opacity: 0.8;
+    color: white;
 }
 
 .quick-settings-grid {
@@ -1051,44 +1119,8 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     color: white;
 }
 
-.search-results-list {
-    background-color: alpha(@text_color, 0.05);
-    border-radius: 16px;
-    border: 1px solid alpha(@text_color, 0.1);
-}
-
-.search-preview-pane {
-    background-color: alpha(@text_color, 0.05);
-    border-radius: 16px;
-    padding: 24px;
-    border: 1px solid alpha(@text_color, 0.1);
-    valign: center;
-}
-
-.preview-content-box {
-    background-color: alpha(@shadow_color, 0.2);
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-.preview-image {
-    object-fit: cover;
-}
-
-.preview-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: white;
-}
-
-.preview-subtitle {
-    font-size: 13px;
-    opacity: 0.6;
-    color: white;
-}
-
 .search-result-row:selected {
-    background-color: @accent_color;
+    background-color: alpha(@accent_color, 0.15);
 }
 
 .app-grid-item {
@@ -1308,6 +1340,28 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     padding: 0;
 }
 
+/* Zero out GTK ListBoxRow's built-in padding so .sidebar-row controls it */
+.navigation-sidebar row {
+    padding: 0;
+    background: transparent;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.navigation-sidebar row:hover {
+    background-color: alpha(@accent_color, 0.1);
+}
+
+.navigation-sidebar row:selected {
+    background-color: alpha(@accent_color, 0.15);
+}
+
+.navigation-sidebar row:selected label,
+.navigation-sidebar row:selected image {
+    color: @accent_color;
+    font-weight: 600;
+}
+
 /* Shared sidebar category/section label used in Files, Store, etc. */
 .sidebar-section-label {
     margin-top: 12px;
@@ -1333,16 +1387,15 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     border-radius: 8px;
     margin-bottom: 4px;
     transition: background-color 0.2s;
-    color: white;
 }
 
 .sidebar-row:hover {
-    background-color: @card_bg;
+    background-color: alpha(@accent_color, 0.1);
 }
 
 .sidebar-row:selected {
-    background-color: @accent_bg;
-    color: @accent_fg;
+    background-color: alpha(@accent_color, 0.15);
+    color: @accent_color;
 }
 
 .sidebar-row label {
@@ -2937,7 +2990,7 @@ window.singularity.desktop-icons,
 .singularity .expander-content {
     background-color: alpha(@shadow_color, 0.2);
     border-top: 1px solid alpha(@text_color, 0.05);
-    padding: 12px;
+    padding: 0;
 }
 
 .singularity .page-header {
@@ -3195,6 +3248,31 @@ window.auth-dialog .power-card {
     min-width: 360px;
 }
 
+/* placeholder dimmed in preferences entry rows */
+.singularity .preferences-entry > text > placeholder {
+    opacity: 0.4;
+}
+
+/* Flat entry inside a row: no background, no padding so text aligns with title */
+.singularity .preferences-entry {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    min-height: 0;
+    outline: none;
+}
+
+.singularity .preferences-entry > text {
+    padding: 0;
+}
+
+.singularity .preferences-entry:focus {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* password-reveal-button kept for backward compat but now uses flat+circular */
 .password-reveal-button {
     background-color: transparent;
     background-image: none;
@@ -4298,8 +4376,20 @@ searchentry.store-search entry {
 }
 
 /* Sidebar active state */
-.sidebar-nav-active {
-    background: alpha(@accent_color, 0.15);
+/* Sidebar active state — applied programmatically to Button widgets in Files etc. */
+button.sidebar-nav-active,
+button.sidebar-nav-active:hover,
+button.sidebar-nav-active:focus {
+    background-color: alpha(@accent_color, 0.15);
+    border-radius: 8px;
+}
+
+.sidebar-nav-active label {
+    color: @accent_color;
+    font-weight: 600;
+}
+
+.sidebar-nav-active image {
     color: @accent_color;
 }
 
@@ -4699,7 +4789,7 @@ searchentry.store-search entry {
 }
 
 .welcome-page-icon {
-    margin-bottom: 4px;
+    margin-bottom: 12px;
     opacity: 0.85;
 }
 
