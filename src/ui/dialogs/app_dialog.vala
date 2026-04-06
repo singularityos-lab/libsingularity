@@ -14,6 +14,16 @@ namespace Singularity.Widgets {
         public Box content_box;
         private Box titlebar_box;
         private Label title_label;
+        private CloseButton _close_btn;
+
+        /**
+         * Whether the close button is visible in the title bar (default: true).
+         * Set to false for dialogs that must be dismissed via an explicit action.
+         */
+        public bool closable {
+            get { return _close_btn.visible; }
+            set { _close_btn.visible = value; }
+        }
 
         /**
          * Creates a new dialog window.
@@ -38,9 +48,9 @@ namespace Singularity.Widgets {
             var end_spacer = new Box(Orientation.HORIZONTAL, 0);
             end_spacer.hexpand = true;
             titlebar_box.append(end_spacer);
-            var close_btn = new Singularity.Widgets.CloseButton();
-            close_btn.clicked.connect(() => close_dialog());
-            titlebar_box.append(close_btn);
+            _close_btn = new Singularity.Widgets.CloseButton();
+            _close_btn.clicked.connect(() => close_dialog());
+            titlebar_box.append(_close_btn);
             var handle = new WindowHandle();
             handle.set_child(titlebar_box);
             set_titlebar(handle);
