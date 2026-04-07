@@ -4786,7 +4786,7 @@ button.sidebar-nav-active:focus {
 
 /* WelcomePage widget (libsingularity) */
 .welcome-page {
-    background-color: @window_bg_color;
+    background: transparent;
 }
 
 .welcome-page-icon {
@@ -4796,7 +4796,7 @@ button.sidebar-nav-active:focus {
 
 /* Split container */
 .welcome-page-split {
-    background-color: @window_bg_color;
+    background: transparent;
 }
 
 /* Right pane gets a visible divider in wide/horizontal mode */

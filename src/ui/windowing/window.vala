@@ -90,15 +90,44 @@ namespace Singularity.Widgets {
         /** Primary content area; fills all available horizontal and vertical space. */
         public Box content_area { get; private set; }
 
-    /**
-     * Sidebar area container. Populate it via `set_sidebar()` and
-     * show/hide it with `set_sidebar_visible()`.
-     */
+        /**
+         * Sidebar area container. Populate it via `set_sidebar()` and
+         * show/hide it with `set_sidebar_visible()`.
+         */
         public Box sidebar_area { get; private set; }
+
+        /**
+         * Flat mode: hides the toolbar and replaces it with an invisible drag
+         * strip at the top and a close button overlay at the top-right corner.
+         *
+         * Use for content-first apps (Music, Videos, Photos) that show their
+         * own hover-activated controls and don't need a persistent toolbar bar.
+         * Has no effect in SSD mode (server-side decorations).
+         */
+        public bool flat {
+            get { return _flat; }
+            set {
+                _flat = value;
+                _update_flat_mode();
+            }
+        }
+
+        public bool show_close {
+            get { return _show_close; }
+            set {
+                _show_close = value;
+                _update_flat_mode();
+            }
+        }
 
         private Revealer sidebar_revealer;
         private ScrolledWindow sidebar_scroll_wrap;
         private GLib.Settings desktop_settings;
+        private bool _flat = false;
+        private bool _show_close = true;
+        private bool _force_ssd = false;
+        private WindowHandle? _flat_drag_handle  = null;
+        private Button?       _flat_close_btn    = null;
         private ulong _rounded_corners_handler = 0;
         private ulong _toolbar_static_handler  = 0;
         private ulong _map_restore_handler     = 0;
@@ -115,9 +144,9 @@ namespace Singularity.Widgets {
             add_css_class("singularity-app");
 
             desktop_settings = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
-            bool force_ssd = desktop_settings.get_boolean("force-ssd");
+            _force_ssd = desktop_settings.get_boolean("force-ssd");
 
-            if (force_ssd) {
+            if (_force_ssd) {
                 add_css_class("ssd-mode");
             }
 
@@ -126,7 +155,7 @@ namespace Singularity.Widgets {
                 _apply_rounded_corners_setting
             );
 
-            if (!force_ssd) {
+            if (!_force_ssd) {
                 var hidden_titlebar = new Box(Orientation.VERTICAL, 0);
                 hidden_titlebar.visible = false;
                 set_titlebar(hidden_titlebar);
@@ -147,7 +176,7 @@ namespace Singularity.Widgets {
             overlay.set_child(outer_box);
 
             toolbar = new ToolBar();
-            if (force_ssd) {
+            if (_force_ssd) {
                 toolbar.set_ssd_mode(true);
                 toolbar.add_css_class("ssd-mode");
                 outer_box.append(toolbar);
@@ -182,11 +211,34 @@ namespace Singularity.Widgets {
             content_area.vexpand = true;
             main_container.append(content_area);
 
-            if (!force_ssd) {
+            if (!_force_ssd) {
+                // Regular toolbar overlay (drag handle = toolbar itself)
                 var handle = new WindowHandle();
                 handle.set_child(toolbar);
                 handle.valign = Align.START;
                 overlay.add_overlay(handle);
+
+                // Flat-mode: invisible drag strip at the very top
+                _flat_drag_handle = new WindowHandle();
+                var drag_strip = new Box(Orientation.HORIZONTAL, 0);
+                drag_strip.add_css_class("flat-drag-strip");
+                drag_strip.set_size_request(-1, 24);
+                _flat_drag_handle.set_child(drag_strip);
+                _flat_drag_handle.valign = Align.START;
+                _flat_drag_handle.hexpand = true;
+                _flat_drag_handle.visible = false;
+                overlay.add_overlay(_flat_drag_handle);
+
+                // Flat-mode: close button at top-right corner
+                _flat_close_btn = new Singularity.Widgets.CloseButton();
+                _flat_close_btn.add_css_class("flat-close-btn");
+                _flat_close_btn.valign = Align.START;
+                _flat_close_btn.halign = Align.END;
+                _flat_close_btn.margin_top = 8;
+                _flat_close_btn.margin_end = 8;
+                _flat_close_btn.visible = false;
+                _flat_close_btn.clicked.connect(() => close());
+                overlay.add_overlay(_flat_close_btn);
             }
 
             _toolbar_static_handler = toolbar.notify["is-static"].connect(update_layout);
@@ -324,8 +376,16 @@ namespace Singularity.Widgets {
 
         // ── Layout / helpers ──────────────────────────────────────────
 
+        private void _update_flat_mode() {
+            if (_force_ssd) return;
+            toolbar.visible = !_flat;
+            if (_flat) main_container.margin_top = 0;
+            if (_flat_drag_handle != null) _flat_drag_handle.visible = _flat;
+            if (_flat_close_btn  != null) _flat_close_btn.visible  = _flat && _show_close;
+        }
+
         private void update_layout() {
-            if (desktop_settings.get_boolean("force-ssd")) {
+            if (_force_ssd) {
                 main_container.margin_top = 0;
                 return;
             }
