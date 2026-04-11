@@ -37,6 +37,7 @@ libsingularity_sources = files(
   'src/ui/controls/circular_button.vala',
   'src/ui/controls/close_button.vala',
   'src/ui/dialogs/app_dialog.vala',
+  'src/ui/dialogs/confirm_dialog.vala',
   'src/ui/preferences/preferences.vala',
   'src/ui/preferences/preferences_window.vala',
   'src/ui/preferences/preferences_page.vala',
