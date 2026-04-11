@@ -48,8 +48,16 @@ namespace Singularity.Core {
         /** GSettings value type (`"boolean"`, `"int"`, `"string"`, ..). */
         public string setting_type { get; set; }
 
-        /** Widget type hint (`"toggle"`, `"slider"`, `"combo"`, `"entry"`, ..). */
+        /** Widget type hint (`"toggle"`, `"slider"`, `"combo"`, `"entry"`, `"color-scheme-selector"`, ..). */
         public string widget { get; set; }
+
+        /**
+         * Theme set hint for color-scheme-selector widgets.
+         * Valid values: `"terminal"`, `"leafs"`, `"edit"`, `"write"`.
+         * If omitted, the provider is chosen by matching the current value
+         * against all available theme sets.
+         */
+        public string theme_set { get; set; }
 
         /** Minimum value for slider widgets. */
         public double min { get; set; }
@@ -151,6 +159,7 @@ namespace Singularity.Core {
                             if (obj.has_member("label")) item.label = obj.get_string_member("label");
                             if (obj.has_member("type")) item.setting_type = obj.get_string_member("type");
                             if (obj.has_member("widget")) item.widget = obj.get_string_member("widget");
+                            if (obj.has_member("theme-set")) item.theme_set = obj.get_string_member("theme-set");
                             if (obj.has_member("min")) item.min = obj.get_double_member("min");
                             if (obj.has_member("max")) item.max = obj.get_double_member("max");
                             if (obj.has_member("options")) {
