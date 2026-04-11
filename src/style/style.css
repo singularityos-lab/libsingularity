@@ -185,7 +185,7 @@ tooltip {
 label:disabled { opacity: 0.5; }
 label.dim-label { opacity: 0.55; }
 
-/* ── Typography scale ────────────────────────────────────────────────────────
+/* Typography scale
    Defined here because Singularity does NOT inherit Adwaita — these classes
    would otherwise be unstyled (tiny default font, no weight). */
 .title-1 {
@@ -638,8 +638,6 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     background-color: white;
     min-width: 5px;
     min-height: 5px;
-    max-width: 5px;
-    max-height: 5px;
 }
 
 @keyframes dock-slide-bounce {
@@ -713,8 +711,6 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 .dock-indicator-dot {
     min-width: 3px;
     min-height: 3px;
-    max-width: 3px;
-    max-height: 3px;
     background-color: alpha(@text_color, 0.75);
     border-radius: 2px;
     margin: 0 1px;
@@ -1379,7 +1375,6 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 /* Force sidebar ScrolledWindow to not expand beyond its requested size */
 .window-sidebar {
     min-width: 0;
-    max-width: 180px;
     border-right: 1px solid @border_color;
 }
 
@@ -1718,7 +1713,6 @@ window.singularity .panel-window,
     margin: 8px 12px;
     padding: 0 4px;
     min-height: 46px;
-    max-height: 46px;
     box-shadow: 0 2px 8px alpha(@shadow_color, 0.2);
     border: 1px solid alpha(@text_color, 0.05);
 }
@@ -2416,8 +2410,6 @@ flowbox popover.context-menu button.menu-row {
 .singularity button.tab-close-button {
     min-width: 20px;
     min-height: 20px;
-    max-width: 20px;
-    max-height: 20px;
     padding: 2px;
     margin-left: 4px;
     background: none;
@@ -2547,7 +2539,6 @@ flowbox popover.context-menu button.menu-row {
 .singularity .file-grid gridview > child {
     margin: 2px 6px;
     padding: 0;
-    max-height: 90px;
     min-height: 90px;
 }
 
@@ -3060,7 +3051,6 @@ window.notification-display {
     border: 1px solid alpha(@text_color, 0.10);
     box-shadow: 0 4px 24px alpha(@shadow_color, 0.55);
     min-width: 340px;
-    max-width: 400px;
     margin: 4px;
 }
 
@@ -3461,8 +3451,6 @@ button.singularity-hover-btn,
 button.flat.singularity-hover-btn {
     min-width: 28px;
     min-height: 28px;
-    max-width: 28px;
-    max-height: 28px;
     padding: 4px;
     border-radius: 99px;
     background: alpha(@shadow_color, 0.6);
@@ -3490,7 +3478,6 @@ button.flat.singularity-hover-btn:hover image {
 }
 .singularity-hover-sep {
     min-width: 1px;
-    max-width: 1px;
     background-color: alpha(@text_color, 0.08);
     margin: 2px 0;
 }
@@ -3550,8 +3537,6 @@ button.flat.singularity-hover-btn:hover image {
     border-radius: 8px;
     min-width: 64px;
     min-height: 64px;
-    max-width: 64px;
-    max-height: 64px;
 }
 
 .featured-card {
@@ -3831,15 +3816,12 @@ window.app-switcher-overlay {
     overflow: hidden;
     background-color: alpha(@shadow_color, 0.35);
     min-height: 130px;
-    max-height: 130px;
     min-width: 200px;
-    max-width: 200px;
 }
 
 .switcher-thumbnail {
     border-radius: 8px;
     min-height: 130px;
-    max-height: 130px;
 }
 
 .switcher-thumbnail-fallback {
@@ -4687,7 +4669,6 @@ button.sidebar-nav-active:focus {
 .write-image {
     display: block;
     margin: 6px 0;
-    max-width: 100%;
 }
 
 /* Footnotes */
@@ -5294,4 +5275,26 @@ flowboxchild:has(button.disk-card):focus {
 
 .cal-hour-odd {
     border-bottom: 1px dashed alpha(@text_color, 0.05);
+}
+
+/* Window flat mode */
+
+/* Transparent drag strip — invisible but grabbable */
+.flat-drag-strip {
+    background: transparent;
+    min-height: 24px;
+}
+
+/* Close button shown in flat mode (must be visible on any background) */
+.flat-close-btn {
+    background-color: rgba(0, 0, 0, 0.35);
+    color: white;
+    border-radius: 50%;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+}
+
+.flat-close-btn:hover {
+    background-color: rgba(0, 0, 0, 0.55);
 }
