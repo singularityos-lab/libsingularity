@@ -40,24 +40,24 @@ namespace Singularity.Shell {
         /**
          * Creates a basic shell dialog with no anchors.
          *
-         * @param app The owning Gtk.Application.
+         * @param app The owning application, or null.
          */
-        public ShellDialog(Gtk.Application app) {
-            Object(application: app);
+        public ShellDialog(GLib.Application? app = null) {
+            Object(application: app as Gtk.Application);
         }
 
         /**
          * Creates a shell dialog with explicit anchor settings.
          *
-         * @param app    The owning application, or `null`.
+         * @param app    The owning application, or null.
          * @param top    Anchor to top edge.
          * @param bottom Anchor to bottom edge.
          * @param left   Anchor to left edge.
          * @param right  Anchor to right edge.
          */
-        public ShellDialog.anchored(Gtk.Application? app, bool top, bool bottom, bool left, bool right) {
+        public ShellDialog.anchored(GLib.Application? app, bool top, bool bottom, bool left, bool right) {
             Object(
-                application: app,
+                application: app as Gtk.Application,
                 anchor_top: top,
                 anchor_bottom: bottom,
                 anchor_left: left,
@@ -68,12 +68,12 @@ namespace Singularity.Shell {
         /**
          * Creates a shell dialog anchored to the bottom edge.
          *
-         * @param app    The owning application, or `null`.
+         * @param app    The owning application, or null.
          * @param margin Bottom margin in pixels; defaults to 60.
          */
-        public ShellDialog.bottom(Gtk.Application? app, int margin = 60) {
+        public ShellDialog.bottom(GLib.Application? app, int margin = 60) {
             Object(
-                application: app,
+                application: app as Gtk.Application,
                 anchor_bottom: true,
                 margin_bottom_value: margin
             );
