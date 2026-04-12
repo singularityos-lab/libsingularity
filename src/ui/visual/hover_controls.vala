@@ -49,7 +49,6 @@ namespace Singularity.Widgets {
         public void add_control(Widget w) {
             w.add_css_class("singularity-hover-btn");
             if (w is Button) {
-                ((Button) w).add_css_class("flat");
                 w.set_size_request(28, 28);
             }
             controls_box.append(w);

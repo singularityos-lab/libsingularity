@@ -3252,30 +3252,27 @@ button.singularity-hover-btn,
 button.flat.singularity-hover-btn {
     min-width: 28px;
     min-height: 28px;
-    padding: 4px;
+    padding: 4px 8px;
     border-radius: 99px;
-    background: alpha(@shadow_color, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: alpha(@shadow_color, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     box-shadow: 0 2px 8px alpha(@shadow_color, 0.55);
-    color: rgba(255, 255, 255, 0.9);
+    color: white;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .singularity-hover-btn image,
 button.singularity-hover-btn image,
 button.flat.singularity-hover-btn image {
     -gtk-icon-size: 14px;
-    color: rgba(255, 255, 255, 0.9);
+    color: white;
 }
 .singularity-hover-btn:hover,
 button.singularity-hover-btn:hover,
 button.flat.singularity-hover-btn:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: alpha(@shadow_color, 0.85);
     color: white;
-    box-shadow: 0 2px 8px alpha(@shadow_color, 0.55);
-}
-.singularity-hover-btn:hover image,
-button.singularity-hover-btn:hover image,
-button.flat.singularity-hover-btn:hover image {
-    color: white;
+    box-shadow: 0 3px 12px alpha(@shadow_color, 0.7);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 .singularity-hover-sep {
     min-width: 1px;
