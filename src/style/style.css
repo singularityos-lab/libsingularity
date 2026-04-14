@@ -2858,6 +2858,16 @@ window.singularity.desktop-icons,
     padding: 0;
 }
 
+.singularity .preferences-group .heading {
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.singularity .preferences-list {
+    background-color: transparent;
+    border-radius: 0 0 12px 12px;
+}
+
 .singularity .preferences-row {
     background-color: transparent;
     border-bottom: 1px solid alpha(@text_color, 0.05);
@@ -2885,7 +2895,7 @@ window.singularity.desktop-icons,
 }
 
 .singularity .preferences-row .title {
-    font-weight: 600;
+    font-weight: 500;
     font-size: 15px;
 }
 
@@ -2893,6 +2903,17 @@ window.singularity.desktop-icons,
     font-size: 12px;
     opacity: 0.6;
     margin-top: 2px;
+}
+
+.singularity .confirm-row .confirm-content {
+    background-color: alpha(@destructive_color, 0.08);
+    border-top: 1px solid alpha(@destructive_color, 0.2);
+    border-radius: 0 0 8px 8px;
+    padding: 8px 12px;
+}
+
+.singularity .confirm-row.revealed {
+    background-color: alpha(@destructive_color, 0.04);
 }
 
 .singularity .expander-content {

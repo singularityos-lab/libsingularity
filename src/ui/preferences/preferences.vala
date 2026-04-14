@@ -81,31 +81,32 @@ namespace Singularity.Widgets {
 
         public PreferencesGroup(string? title = null, string? description = null) {
             Object(orientation: Orientation.VERTICAL, spacing: 6);
+            add_css_class("preferences-group");
             header_box = new Box(Orientation.HORIZONTAL, 12);
             header_box.margin_bottom = 6;
-            header_box.margin_start = 6;
-            header_box.margin_end = 6;
-            header_box.valign = Align.CENTER;
+            header_box.margin_start = 12;
+            header_box.margin_end = 12;
             append(header_box);
 
             title_box = new Box(Orientation.VERTICAL, 2);
             title_box.hexpand = true;
-            title_box.valign = Align.CENTER;
             header_box.append(title_box);
 
             header_suffix_box = new Box(Orientation.HORIZONTAL, 6);
-            header_suffix_box.valign = Align.CENTER;
+            header_suffix_box.halign = Align.END;
+            header_suffix_box.hexpand = true;
             header_box.append(header_suffix_box);
 
             if (title != null) this.title = title;
             if (description != null) this.description = description;
             list_box = new ListBox();
-            list_box.add_css_class("preferences-group");
-            list_box.selection_mode = SelectionMode.NONE;
+            list_box.add_css_class("preferences-list");
+            list_box.selection_mode = SelectionMode.BROWSE;
             list_box.activate_on_single_click = true;
-            // Row activation is handled by ActionRow.activate() override.
-            // Do NOT connect row_activated here - it would cause the activated
-            // signal to fire twice on keyboard activation (Enter key).
+            list_box.row_activated.connect((row) => {
+                row.activate();
+                list_box.unselect_row(row);
+            });
             append(list_box);
         }
 
@@ -146,6 +147,116 @@ namespace Singularity.Widgets {
             }
         }
     }
+
+    /**
+     * An ActionRow that expands to show a confirmation prompt when activated.
+     *
+     * Clicking the row reveals a message with Confirm and Cancel buttons.
+     * If confirmed, the `confirmed` signal is emitted and the row collapses.
+     * If cancelled, the row collapses without action.
+     */
+    public class ConfirmRow : ActionRow {
+        private Revealer revealer;
+        private Button confirm_btn;
+        private Button cancel_btn;
+        private bool confirming = false;
+
+        public signal void confirmed();
+
+        public string confirm_label {
+            get { return confirm_btn.label; }
+            set { confirm_btn.label = value; }
+        }
+        public string cancel_label {
+            get { return cancel_btn.label; }
+            set { cancel_btn.label = value; }
+        }
+
+        public ConfirmRow(string title, string? subtitle = null, string? icon_name = null) {
+            base(title, subtitle, icon_name);
+            add_css_class("confirm-row");
+
+            var delete_btn = new Button.from_icon_name("user-trash-symbolic");
+            delete_btn.add_css_class("flat");
+            delete_btn.add_css_class("destructive-action");
+            delete_btn.clicked.connect(() => {
+                revealer.reveal_child = true;
+                add_css_class("revealed");
+            });
+            add_suffix(delete_btn);
+
+            var internal_box = new Box(Orientation.VERTICAL, 0);
+            internal_box.hexpand = true;
+            var header = this.get_child();
+            if (header != null) {
+                this.set_child(null);
+                header.valign = Align.CENTER;
+                header.vexpand = true;
+                internal_box.append(header);
+            }
+
+            revealer = new Revealer();
+            revealer.transition_type = RevealerTransitionType.SLIDE_DOWN;
+
+            var confirm_box = new Box(Orientation.HORIZONTAL, 12);
+            confirm_box.add_css_class("confirm-content");
+            confirm_box.margin_top = 8;
+            confirm_box.margin_bottom = 4;
+            confirm_box.margin_start = 12;
+            confirm_box.margin_end = 12;
+
+            var msg = new Label(subtitle ?? title);
+            msg.hexpand = true;
+            msg.wrap = true;
+            msg.add_css_class("dim-label");
+            confirm_box.append(msg);
+
+            cancel_btn = new Button.with_label("Cancel");
+            cancel_btn.add_css_class("flat");
+            cancel_btn.clicked.connect(() => {
+                confirming = false;
+                revealer.reveal_child = false;
+            });
+            confirm_box.append(cancel_btn);
+
+            confirm_btn = new Button.with_label("Remove");
+            confirm_btn.add_css_class("destructive-action");
+            confirm_btn.clicked.connect(() => {
+                confirming = true;
+                revealer.reveal_child = false;
+            });
+            confirm_box.append(confirm_btn);
+
+            revealer.set_child(confirm_box);
+            internal_box.append(revealer);
+            this.set_child(internal_box);
+
+            this.activatable = false;
+            var gesture = new GestureClick();
+            header.add_controller(gesture);
+            gesture.released.connect((n, x, y) => {
+                if (revealer.reveal_child) {
+                    confirming = false;
+                    revealer.reveal_child = false;
+                } else {
+                    msg.label = subtitle ?? title;
+                    revealer.reveal_child = true;
+                    add_css_class("revealed");
+                }
+            });
+
+            revealer.notify["reveal-child"].connect(() => {
+                if (!revealer.reveal_child) {
+                    remove_css_class("revealed");
+                    if (confirming) {
+                        confirming = false;
+                        confirmed();
+                    }
+                }
+            });
+        }
+    }
+
     /** Base class for all rows in a PreferencesGroup. */
     public class PreferencesRow : ListBoxRow {
 
