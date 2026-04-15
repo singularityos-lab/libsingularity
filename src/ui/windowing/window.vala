@@ -122,6 +122,7 @@ namespace Singularity.Widgets {
 
         private Revealer sidebar_revealer;
         private ScrolledWindow sidebar_scroll_wrap;
+        private int _sidebar_width = 180;
         private GLib.Settings desktop_settings;
         private bool _flat = false;
         private bool _show_close = true;
@@ -193,9 +194,8 @@ namespace Singularity.Widgets {
             sidebar_scroll_wrap = new ScrolledWindow();
             sidebar_scroll_wrap.set_size_request(180, -1);
             sidebar_scroll_wrap.hexpand = false;
-            sidebar_scroll_wrap.propagate_natural_width = false;
             sidebar_scroll_wrap.hscrollbar_policy = PolicyType.NEVER;
-            sidebar_scroll_wrap.vscrollbar_policy = PolicyType.NEVER;
+            sidebar_scroll_wrap.vscrollbar_policy = PolicyType.AUTOMATIC;
             sidebar_scroll_wrap.set_child(sidebar_area);
 
             sidebar_revealer = new Revealer();
@@ -421,6 +421,7 @@ namespace Singularity.Widgets {
                 content_area.remove(child);
                 child = next;
             }
+
             widget.hexpand = true;
             widget.vexpand = true;
             content_area.append(widget);
@@ -441,6 +442,8 @@ namespace Singularity.Widgets {
                 sidebar_area.remove(child);
                 child = next;
             }
+
+            sidebar_revealer.set_child(sidebar_scroll_wrap);
             widget.vexpand = true;
             sidebar_area.append(widget);
         }
@@ -465,6 +468,7 @@ namespace Singularity.Widgets {
          * @param width Width in pixels; default is 180.
          */
         public void set_sidebar_width(int width) {
+            _sidebar_width = width;
             sidebar_scroll_wrap.set_size_request(width, -1);
         }
     }
