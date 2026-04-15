@@ -58,6 +58,7 @@ namespace Singularity.Widgets {
                     title_label.add_css_class("heading");
                     title_label.halign = Align.START;
                     title_box.prepend(title_label);
+                    header_box.visible = true;
                 } else {
                     title_label.label = value;
                 }
@@ -73,6 +74,7 @@ namespace Singularity.Widgets {
                     description_label.wrap = true;
                     description_label.max_width_chars = 50;
                     title_box.append(description_label);
+                    header_box.visible = true;
                 } else {
                     description_label.label = value;
                 }
@@ -83,6 +85,7 @@ namespace Singularity.Widgets {
             Object(orientation: Orientation.VERTICAL, spacing: 6);
             add_css_class("preferences-group");
             header_box = new Box(Orientation.HORIZONTAL, 12);
+            header_box.margin_top = 8;
             header_box.margin_bottom = 6;
             header_box.margin_start = 12;
             header_box.margin_end = 12;
@@ -99,14 +102,13 @@ namespace Singularity.Widgets {
 
             if (title != null) this.title = title;
             if (description != null) this.description = description;
+            if (title == null && description == null) {
+                header_box.visible = false;
+            }
             list_box = new ListBox();
             list_box.add_css_class("preferences-list");
-            list_box.selection_mode = SelectionMode.BROWSE;
+            list_box.selection_mode = SelectionMode.NONE;
             list_box.activate_on_single_click = true;
-            list_box.row_activated.connect((row) => {
-                row.activate();
-                list_box.unselect_row(row);
-            });
             append(list_box);
         }
 
@@ -345,6 +347,11 @@ namespace Singularity.Widgets {
             suffix_box.valign = Align.CENTER;
             main_box.append(suffix_box);
             this.activatable = true;
+            var gesture = new GestureClick();
+            gesture.released.connect((n, x, y) => {
+                activate();
+            });
+            add_controller(gesture);
         }
 
     /**
@@ -607,6 +614,15 @@ namespace Singularity.Widgets {
     }
     /** An EntryRow that validates the input as an e-mail address. */
     public class EmailRow : EntryRow {
+        private static Regex? _email_regex;
+
+        static construct {
+            try {
+                _email_regex = new Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+            } catch (Error e) {
+                warning("EmailRow regex compile error: %s", e.message);
+            }
+        }
 
         public EmailRow(string title) {
             base(title);
@@ -621,25 +637,20 @@ namespace Singularity.Widgets {
                 entry.remove_css_class("success");
                 return;
             }
-            try {
-                var regex = new Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-                if (regex.match(entry.text)) {
-                    status_icon.icon_name = "object-select-symbolic";
-                    status_icon.add_css_class("success");
-                    status_icon.remove_css_class("error");
-                    entry.add_css_class("success");
-                    entry.remove_css_class("error");
-                } else {
-                    status_icon.icon_name = "dialog-error-symbolic";
-                    status_icon.add_css_class("error");
-                    status_icon.remove_css_class("success");
-                    entry.add_css_class("error");
-                    entry.remove_css_class("success");
-                }
-                status_icon.visible = true;
-            } catch (Error e) {
-                warning("Regex error: %s", e.message);
+            if (_email_regex != null && _email_regex.match(entry.text)) {
+                status_icon.icon_name = "object-select-symbolic";
+                status_icon.add_css_class("success");
+                status_icon.remove_css_class("error");
+                entry.add_css_class("success");
+                entry.remove_css_class("error");
+            } else {
+                status_icon.icon_name = "dialog-error-symbolic";
+                status_icon.add_css_class("error");
+                status_icon.remove_css_class("success");
+                entry.add_css_class("error");
+                entry.remove_css_class("success");
             }
+            status_icon.visible = true;
         }
     }
     /**

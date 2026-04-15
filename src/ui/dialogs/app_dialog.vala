@@ -93,6 +93,22 @@ namespace Singularity.Widgets {
          */
         public virtual void open_dialog() {
             present();
+            var focus = get_focus();
+            if (focus == null) {
+                var first_btn = find_first_button(content_box);
+                if (first_btn != null) first_btn.grab_focus();
+            }
+        }
+
+        private static Button? find_first_button(Widget root) {
+            unowned Widget child = root.get_first_child();
+            while (child != null) {
+                if (child is Button) return (Button) child;
+                var inner = find_first_button(child);
+                if (inner != null) return inner;
+                child = child.get_next_sibling();
+            }
+            return null;
         }
     }
 }

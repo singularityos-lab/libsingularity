@@ -12,8 +12,8 @@ namespace Singularity.Widgets {
      */
     public class ColorPickerButton : Button {
         private DrawingArea _swatch;
-        private Popover _popover;
-        private ColorChooserWidget _chooser;
+        private Popover? _popover = null;
+        private ColorChooserWidget? _chooser = null;
         private RGBA _color;
 
         /** The currently selected colour. Setting this updates the swatch immediately. */
@@ -22,7 +22,7 @@ namespace Singularity.Widgets {
             set {
                 _color = value;
                 _swatch.queue_draw();
-                _chooser.rgba = value;
+                if (_chooser != null) _chooser.rgba = value;
             }
         }
 
@@ -59,6 +59,15 @@ namespace Singularity.Widgets {
             });
             set_child(_swatch);
 
+            clicked.connect(() => {
+                ensure_popover();
+                _chooser.rgba = _color;
+                _popover.popup();
+            });
+        }
+
+        private void ensure_popover() {
+            if (_popover != null) return;
             _chooser = new ColorChooserWidget();
             _chooser.rgba = _color;
             _chooser.use_alpha = false;
@@ -72,15 +81,9 @@ namespace Singularity.Widgets {
                 color_changed(c);
                 _popover.popdown();
             });
-
             _popover = new Popover();
             _popover.set_parent(this);
             _popover.set_child(_chooser);
-
-            clicked.connect(() => {
-                _chooser.rgba = _color;
-                _popover.popup();
-            });
         }
 
         private void draw_rounded_rect(Cairo.Context cr, double x, double y,

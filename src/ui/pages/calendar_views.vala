@@ -14,6 +14,22 @@ namespace Singularity.Widgets {
     public class CalendarEventChip : Button {
         public CalendarEvent event_data { get; private set; }
 
+        private static Gee.HashMap<string, CssProvider> _color_providers = new Gee.HashMap<string, CssProvider>();
+        private static CssProvider? _global_provider = null;
+
+        private static void ensure_color_css(string hex) {
+            if (_color_providers.has_key(hex)) return;
+            var p = new CssProvider();
+            try {
+                p.load_from_string(
+                    ".cal-event-dot-%s { background-color: %s; border-radius: 4px; min-width: 8px; min-height: 8px; }"
+                    .printf(hex.replace("#", ""), hex));
+                _color_providers[hex] = p;
+            } catch (Error e) {
+                warning("CalendarEventChip CSS: %s", e.message);
+            }
+        }
+
         public CalendarEventChip (CalendarEvent evt) {
             event_data = evt;
             add_css_class ("cal-event-chip");
@@ -25,15 +41,12 @@ namespace Singularity.Widgets {
 
             var dot = new Box (Orientation.HORIZONTAL, 0);
             dot.add_css_class ("cal-event-dot");
+            dot.add_css_class ("cal-event-dot-%s".printf (evt.color.replace ("#", "")));
             dot.valign = Align.CENTER;
-            try {
-                var p = new CssProvider ();
-                p.load_from_string (
-                    ".cal-event-dot { background-color: %s; border-radius: 4px; min-width: 8px; min-height: 8px; }"
-                    .printf (evt.color));
-                dot.get_style_context ().add_provider (p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
-            } catch (Error e) {
-                warning ("CalendarEventChip: failed to apply dot colour CSS: %s", e.message);
+
+            ensure_color_css(evt.color);
+            if (_color_providers.has_key(evt.color)) {
+                dot.get_style_context ().add_provider (_color_providers[evt.color], Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
             }
             box.append (dot);
 

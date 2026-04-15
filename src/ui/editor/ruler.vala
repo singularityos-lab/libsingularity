@@ -18,6 +18,7 @@ namespace Singularity.Widgets {
         private bool _dragging_right = false;
         private double _drag_start_x = 0;
         private double _drag_start_margin = 0;
+        private Gdk.Cursor? _col_resize_cursor;
 
         /** Total page width in millimetres. Changing this redraws the ruler. */
         public double page_width_mm {
@@ -174,7 +175,9 @@ namespace Singularity.Widgets {
             int aw = get_allocated_width();
             if (GLib.Math.fabs(x - left_handle_x(aw)) < 12 ||
                 GLib.Math.fabs(x - right_handle_x(aw)) < 12) {
-                cursor = new Gdk.Cursor.from_name("col-resize", null);
+                if (_col_resize_cursor == null)
+                    _col_resize_cursor = new Gdk.Cursor.from_name("col-resize", null);
+                cursor = _col_resize_cursor;
             } else {
                 cursor = null;
             }
