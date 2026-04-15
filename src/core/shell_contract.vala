@@ -62,5 +62,15 @@ namespace Singularity.Shell {
          * @param app_id Desktop file ID, e.g. `"dev.sinty.leafs"`.
          */
         public abstract void open_app_settings(string app_id) throws IOError;
+
+        /**
+         * Shows a permission dialog for ush-broker.
+         *
+         * @param category Permission category (e.g. "network", "device").
+         * @param resource  Specific resource being accessed.
+         * @param reason    Human-readable description of why the access is needed.
+         * @return          One of: "allow", "allow_session", "allow_always", "deny".
+         */
+        public abstract string show_permission(string category, string resource, string reason) throws IOError;
     }
 }
