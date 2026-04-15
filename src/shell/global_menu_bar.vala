@@ -204,7 +204,6 @@ namespace Singularity.Shell {
             var btn = make_item_row(label, icon_name);
             btn.add_css_class("has-submenu");
 
-            // Right-arrow
             var inner = btn.get_child() as Box;
             if (inner != null) {
                 var spacer = new Box(Orientation.HORIZONTAL, 0);
@@ -218,18 +217,31 @@ namespace Singularity.Shell {
 
             var motion = new EventControllerMotion();
             Popover? sub = null;
+            uint sub_enter_id = 0;
             motion.enter.connect((x, y) => {
                 if (sub != null) return;
-                sub = build_menu_popover(submenu);
-                sub.set_parent(btn);
-                sub.set_position(PositionType.RIGHT);
-                ulong handler_id = 0;
-                handler_id = sub.closed.connect(() => {
-                    sub.disconnect(handler_id);
-                    sub.unparent();
-                    sub = null;
+                if (sub_enter_id != 0) GLib.Source.remove(sub_enter_id);
+                sub_enter_id = GLib.Timeout.add(100, () => {
+                    sub_enter_id = 0;
+                    if (sub != null) return GLib.Source.REMOVE;
+                    sub = build_menu_popover(submenu);
+                    sub.set_parent(btn);
+                    sub.set_position(PositionType.RIGHT);
+                    ulong handler_id = 0;
+                    handler_id = sub.closed.connect(() => {
+                        sub.disconnect(handler_id);
+                        sub.unparent();
+                        sub = null;
+                    });
+                    sub.popup();
+                    return GLib.Source.REMOVE;
                 });
-                sub.popup();
+            });
+            motion.leave.connect(() => {
+                if (sub_enter_id != 0) {
+                    GLib.Source.remove(sub_enter_id);
+                    sub_enter_id = 0;
+                }
             });
             btn.add_controller(motion);
             return btn;
