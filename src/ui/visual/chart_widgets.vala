@@ -17,6 +17,11 @@ namespace Singularity.Widgets {
         public int      history_size;
         private string  color_hex;
         private string? fill_hex;
+        private int     _head = 0;
+        private int     _count = 0;
+        private Gdk.RGBA _col_rgba;
+        private Gdk.RGBA _fill_rgba;
+
 
         /**
          * Creates a new sparkline.
@@ -31,6 +36,10 @@ namespace Singularity.Widgets {
             history      = new double[size];
             color_hex    = color;
             fill_hex     = fill;
+            _col_rgba = {};
+            _col_rgba.parse(color);
+            _fill_rgba = {};
+            if (fill != null) _fill_rgba.parse(fill);
             hexpand      = true;
             vexpand      = true;
             set_draw_func(draw);
@@ -42,43 +51,46 @@ namespace Singularity.Widgets {
          * @param val Normalised value in the range [0, 1].
          */
         public void push(double val) {
-            for (int i = 0; i < history_size - 1; i++)
-                history[i] = history[i + 1];
-            history[history_size - 1] = val.clamp(0, 1);
+            if (_count < history_size) {
+                history[_count] = val.clamp(0, 1);
+                _count++;
+            } else {
+                history[_head] = val.clamp(0, 1);
+                _head = (_head + 1) % history_size;
+            }
             queue_draw();
         }
 
         private void draw(DrawingArea a, Context cr, int w, int h) {
-            if (history_size < 2) return;
-            double step = (double)w / (double)(history_size - 1);
-
-            Gdk.RGBA col = {};
-            col.parse(color_hex);
+            if (_count < 2) return;
+            int n = _count;
+            double step = (double)w / (double)(n - 1);
 
             // Fill
             if (fill_hex != null) {
-                Gdk.RGBA fill = {};
-                fill.parse(fill_hex);
                 cr.move_to(0, h);
-                for (int i = 0; i < history_size; i++)
-                    cr.line_to(i * step, h - history[i] * h);
-                cr.line_to((history_size - 1) * step, h);
+                for (int i = 0; i < n; i++) {
+                    int idx = (_head + i) % history_size;
+                    cr.line_to(i * step, h - history[idx] * h);
+                }
+                cr.line_to((n - 1) * step, h);
                 cr.close_path();
-                fill.alpha = 0.18f;
-                Gdk.cairo_set_source_rgba(cr, fill);
+                _fill_rgba.alpha = 0.18f;
+                Gdk.cairo_set_source_rgba(cr, _fill_rgba);
                 cr.fill();
             }
 
             // Line
             bool first = true;
-            for (int i = 0; i < history_size; i++) {
+            for (int i = 0; i < n; i++) {
+                int idx = (_head + i) % history_size;
                 double x = i * step;
-                double y = h - history[i] * h;
+                double y = h - history[idx] * h;
                 if (first) { cr.move_to(x, y); first = false; }
                 else        cr.line_to(x, y);
             }
-            col.alpha = 1.0f;
-            Gdk.cairo_set_source_rgba(cr, col);
+            _col_rgba.alpha = 1.0f;
+            Gdk.cairo_set_source_rgba(cr, _col_rgba);
             cr.set_line_width(2);
             cr.set_line_join(LineJoin.ROUND);
             cr.stroke();
@@ -94,6 +106,7 @@ namespace Singularity.Widgets {
     public class MiniBar : DrawingArea {
         private double _value = 0;
         private string _color;
+        private Gdk.RGBA _col_rgba;
 
         /**
          * Creates a new mini bar.
@@ -102,6 +115,8 @@ namespace Singularity.Widgets {
          */
         public MiniBar(string color) {
             _color = color;
+            _col_rgba = {};
+            _col_rgba.parse(color);
             set_size_request(18, -1);
             vexpand = true;
             set_draw_func(draw);
@@ -122,12 +137,9 @@ namespace Singularity.Widgets {
             cr.rectangle(0, 0, w, h);
             cr.set_source_rgba(1, 1, 1, 0.06);
             cr.fill();
-            // Bar
-            Gdk.RGBA col = {};
-            col.parse(_color);
             double bh = _value * h;
             cr.rectangle(0, h - bh, w, bh);
-            Gdk.cairo_set_source_rgba(cr, col);
+            Gdk.cairo_set_source_rgba(cr, _col_rgba);
             cr.fill();
         }
     }
