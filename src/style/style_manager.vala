@@ -139,8 +139,19 @@ namespace Singularity.Style {
                 :focus { border-color: @accent_color; }
 
                 /* Explicit rules for OSD and level indicators */
+                .osd-pill {
+                    background-color: @surface_overlay;
+                    border: 1px solid alpha(@text_color, 0.12);
+                    border-radius: 999px;
+                    padding: 8px 16px;
+                    box-shadow: 0 4px 12px alpha(@shadow_color, 0.3);
+                    min-width: 200px;
+                }
+                .singularity-blur .osd-pill { background-color: rgba(30, 30, 30, 0.6); }
+
                 levelbar block.filled { background-color: @accent_color; }
                 progressbar progress { background-color: @accent_color; }
+                progressbar trough { background-color: alpha(@text_color, 0.1); border-radius: 99px; min-height: 4px; }
                 scale highlight { background-color: @accent_color; }
                 scale slider { background-color: @accent_color; }
                 
