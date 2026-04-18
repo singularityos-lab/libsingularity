@@ -123,6 +123,32 @@ namespace Singularity.Style {
                 @define-color toolbar_bg %s;
                 @define-color headerbar_bg_color @toolbar_bg;
 
+                /* Standard GTK aliases for external apps and legacy widgets */
+                @define-color theme_selected_bg_color @accent_color;
+                @define-color theme_selected_fg_color @accent_fg;
+                @define-color selected_bg_color @accent_color;
+                @define-color selected_fg_color @accent_fg;
+                @define-color theme_fg_color @text_color;
+                @define-color theme_text_color @text_color;
+                @define-color theme_bg_color @window_bg;
+                @define-color theme_base_color @window_bg;
+
+                /* Ensure selection and focus states use the accent */
+                selection { background-color: @accent_color; color: @accent_fg; }
+                :selected { background-color: @accent_color; color: @accent_fg; }
+                :focus { border-color: @accent_color; }
+
+                /* Explicit rules for OSD and level indicators */
+                levelbar block.filled { background-color: @accent_color; }
+                progressbar progress { background-color: @accent_color; }
+                scale highlight { background-color: @accent_color; }
+                scale slider { background-color: @accent_color; }
+                
+                /* Global overrides for common UI elements */
+                progress, trough > progress { background-color: @accent_color; }
+                highlight { background-color: @accent_color; }
+                slider { background-color: @accent_color; }
+
                 /* Dock accent tint */
                 .dock-box { background-color: %s; }
                 window.singularity-blur .dock-box,
