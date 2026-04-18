@@ -36,44 +36,8 @@ namespace Singularity.Style {
          * apply_color_scheme() afterwards to switch to light.
          */
         public void load_theme() {
-            if (base_theme_provider != null) return;
-            _load_combined_css(true);
-        }
-
-        /**
-         * Reloads the combined color-vars + structural CSS into a single
-         * provider so that @define-color declarations are visible to all
-         * rules.
-         */
-        private void _load_combined_css(bool dark) {
-            var display = Gdk.Display.get_default();
-            if (base_theme_provider != null) {
-                StyleContext.remove_provider_for_display(display, base_theme_provider);
-                base_theme_provider = null;
-            }
-            string color_path = dark
-                ? "/dev/sinty/libsingularity/style.dark.css"
-                : "/dev/sinty/libsingularity/style.light.css";
-            try {
-                var color_bytes = GLib.resources_lookup_data(color_path, 0);
-                var struct_bytes = GLib.resources_lookup_data(
-                    "/dev/sinty/libsingularity/style.css", 0);
-                unowned uint8[] color_data = color_bytes.get_data();
-                unowned uint8[] struct_data = struct_bytes.get_data();
-                string color_css = (string) color_data;
-                string struct_css = (string) struct_data;
-                string combined = color_css + "\n" + struct_css;
-                base_theme_provider = new CssProvider();
-                base_theme_provider.load_from_string(combined);
-                StyleContext.add_provider_for_display(
-                    display,
-                    base_theme_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-                );
-            } catch (Error e) {
-                warning("StyleManager: FAILED to load theme: %s", e.message);
-                base_theme_provider = null;
-            }
+            if (accent_provider != null) return;
+            apply_accent_color("blue");
         }
 
         /**
@@ -89,10 +53,11 @@ namespace Singularity.Style {
          * @param wallpaper_path Filesystem path to the wallpaper image; only
          *                      used when `color_name` is `"wallpaper"`.
          */
-        public void apply_accent_color(CssProvider provider, string color_name, string? wallpaper_path = null) {
+        public void apply_accent_color(string color_name, string? wallpaper_path = null) {
             string hex_color = "#3584e4";
+            current_accent = color_name;
+            current_accent_wallpaper = wallpaper_path;
             if (color_name.has_prefix("#") && color_name.length >= 7) {
-                // Hex color passed directly (e.g. from custom color picker or wallpaper extraction).
                 hex_color = color_name;
             } else if (color_name == "wallpaper" && wallpaper_path != null) {
                 hex_color = extract_primary_color(wallpaper_path);
@@ -143,8 +108,6 @@ namespace Singularity.Style {
             string alpha80 = "rgba(%u, %u, %u, 0.80)".printf(ar, ag, ab);
             string alpha85 = "rgba(%u, %u, %u, 0.85)".printf(ar, ag, ab);
             string css = ("""
-                /* Named color definitions - convenience for CSS rules in style.css
-                 * that reference @accent_color etc. */
                 @define-color accent_color %s;
                 @define-color accent_bg @accent_color;
                 @define-color accent_bg_color @accent_color;
@@ -160,75 +123,14 @@ namespace Singularity.Style {
                 @define-color toolbar_bg %s;
                 @define-color headerbar_bg_color @toolbar_bg;
 
-                /* ── Accent widget rules (hardcoded hex, priority 601 beats GTK built-in) ──
-                 * GTK4's Default fallback theme hardcodes switch:checked blue (#3584e4).
-                 * If @accent_color ever fails to resolve (undefined in that cascade step),
-                 * GTK falls back to that blue. Emitting the rules here with literal hex
-                 * values at priority 601 guarantees the correct accent is always applied. */
+                /* Dock accent tint */
+                .dock-box { background-color: %s; }
+                window.singularity-blur .dock-box,
+                .singularity-blur .dock-box,
+                window.singularity-blur .dock-window:backdrop .dock-box,
+                .singularity-blur .dock-window:backdrop .dock-box { background-color: %s; }
 
-                switch:checked {
-                    background-color: %s;
-                    border-color: %s;
-                }
-                switch:checked > slider { border-color: %s; }
-
-                .singularity switch:checked,
-                .singularity-app switch:checked {
-                    background-color: %s;
-                    border-color: %s;
-                }
-
-                scale trough highlight { background-color: %s; }
-                scale slider { background-color: %s; }
-                .singularity scale trough highlight,
-                .singularity-app scale trough highlight { background-color: %s; }
-                .singularity scale slider,
-                .singularity-app scale slider { background-color: %s; }
-
-                progressbar progress { background-color: %s; }
-                .singularity progressbar progress,
-                .singularity-app progressbar progress { background-color: %s; }
-
-                button.suggested-action {
-                    background-color: %s;
-                    color: white;
-                }
-                button.suggested-action:hover   { background-color: %s; }
-                button.suggested-action:active  { background-color: %s; }
-                .singularity button.suggested-action,
-                .singularity-app button.suggested-action { background-color: %s; }
-                .singularity button.suggested-action:hover,
-                .singularity-app button.suggested-action:hover { background-color: %s; }
-
-                checkbutton check:checked,
-                radiobutton radio:checked {
-                    background-color: %s;
-                    border-color: %s;
-                }
-                .singularity checkbutton check:checked,
-                .singularity-app checkbutton check:checked,
-                .singularity radiobutton radio:checked,
-                .singularity-app radiobutton radio:checked {
-                    background-color: %s;
-                    border-color: %s;
-                }
-
-                .toggle-tile.active { background-color: %s; }
-
-                .sidebar-row:selected { background-color: %s; }
-
-                .quick-setting-tile.active {
-                    background-color: %s;
-                    color: white;
-                }
-                .quick-setting-tile.active:hover { background-color: %s; }
-                .quick-setting-tile.active:focus { background-color: %s; }
-                .quick-setting-tile.active~.quick-setting-nav-btn {
-                    background-color: %s;
-                    color: white;
-                }
-                .quick-setting-tile.active~.quick-setting-nav-btn:hover { background-color: %s; }
-
+                /* Workspace previews — rgba computed here for box-shadow */
                 .workspace-preview.active .workspace-clipper {
                     border-color: %s;
                     box-shadow: 0 0 0 1px %s, 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -242,38 +144,19 @@ namespace Singularity.Style {
                 hex_color,
                 alpha10, alpha15, alpha20, alpha50,
                 hover_rgba, tint8, toolbar_rgba,
-                /* switch */ hex_color, hex_color, hex_color,
-                hex_color, hex_color,
-                /* scale */ hex_color, hex_color, hex_color, hex_color,
-                /* progressbar */ hex_color, hex_color,
-                /* button */ hex_color, hover_hex, active_hex, hex_color, hover_hex,
-                /* check/radio */ hex_color, hex_color, hex_color, hex_color,
-                /* toggle-tile */ hex_color,
-                /* sidebar-row */ hex_color,
-                /* quick-setting-tile */ hex_color, hover_hex, hex_color, hex_color, hover_hex,
-                /* workspace active */ alpha40, alpha20,
-                /* workspace selected */ hex_color, hex_color, alpha40
+                dock_bg, dock_bg_blur,
+                alpha40, alpha20,
+                hex_color, hex_color, alpha40
             );
 
-            // Extra rules via token substitution - avoids %s counting errors.
+            // Extra rules via token substitution, only rules that need rgba()
+            // values not expressible via @define-color in style.css.
             // Tokens: {HEX} {HOVER} {ACTIVE} {A10} {A15} {A20} {A25} {A28} {A35} {A40} {A80} {A85}
             css += """
-                .activities-button:active,
-                .clock-button:active,
-                .system-pill-button:active { background-color: {HEX}; color: white; }
-                .notification-button:active { background-color: {HEX}; color: white; }
-
                 .workspace-button { color: {HEX}; }
                 .workspace-button:hover { background-color: {A20}; }
 
-                .calendar-day-btn.today { background-color: {HEX}; color: white; }
-                .event-dot { background-color: {HEX}; }
-                .notification-group-badge { background-color: {HEX}; }
-
-                .audio-device-chip.active { background-color: {HEX}; color: white; }
-
-                .search-result-row:active   { background-color: {HEX}; }
-                .search-result-row:selected { background-color: {HEX}; }
+                .search-result-row:active   { background-color: {A20}; }
 
                 .app-switcher-item.selected { background-color: {A28}; }
 
@@ -282,49 +165,12 @@ namespace Singularity.Style {
                 .quick-setting-group .quick-setting-tile.state-partial { background-color: {A25}; }
                 .quick-setting-group .quick-setting-tile.state-partial~.quick-setting-nav-btn { background-color: {A15}; }
 
-                .media-player-card .accent-button       { background-color: {HEX}; color: white; }
                 .media-player-card .accent-button:hover { background-color: {A80}; }
 
-                .osd-pill progressbar progress { background-color: {HEX}; }
-
-                .singularity button:active     { background-color: {HEX}; }
-                .singularity-app button:active { background-color: {HEX}; }
-
-                .greeter-password-entry:focus { border-color: {A80}; box-shadow: 0 0 0 2px {A28}; }
-                .greeter-session-pill:active  { background: {HEX}; border-color: {HEX}; }
-
-                .singularity .wallpaper-item:checked     { background-color: {HEX}; border-color: {HEX}; }
-                .singularity-app .wallpaper-item:checked { background-color: {HEX}; border-color: {HEX}; }
-
-                togglebutton.close-button:checked { background: {HEX}; }
-
                 .boxed-list > row:selected { background-color: {A20}; }
-                listbox row:selected       { background-color: {A20}; }
                 columnview row:selected    { background-color: {A20}; }
 
-                scrollbar slider:active { background-color: {HEX}; }
-
-                spinbutton:focus-within                   { border-color: {HEX}; }
-                .singularity spinbutton button:active     { background-color: {HEX}; }
-                .singularity-app spinbutton button:active { background-color: {HEX}; }
-
-                .singularity entry selection     { background-color: {HEX}; }
-                .singularity-app entry selection { background-color: {HEX}; }
-
-                .view:selected, iconview:selected { background-color: {HEX}; }
-
-                .browser-progress > trough > progress { background-color: {HEX}; }
-
-                /* Dock accent tint - 4% accent blended into dark base */
-                .dock-box {
-                    background-color: {DOCK_BG};
-                }
-                window.singularity-blur .dock-box,
-                .singularity-blur .dock-box,
-                window.singularity-blur .dock-window:backdrop .dock-box,
-                .singularity-blur .dock-window:backdrop .dock-box {
-                    background-color: {DOCK_BG_BLUR};
-                }
+                .greeter-password-entry:focus { border-color: {A80}; box-shadow: 0 0 0 2px {A28}; }
             """
             .replace("{HEX}",          hex_color)
             .replace("{HOVER}",         hover_hex)
@@ -340,18 +186,40 @@ namespace Singularity.Style {
             .replace("{A85}",           alpha85)
             .replace("{DOCK_BG}",       dock_bg)
             .replace("{DOCK_BG_BLUR}",  dock_bg_blur);
+
+            // Combine base theme + accent into one string for a single parse pass.
+            string color_path = current_dark_mode
+                ? "/dev/sinty/libsingularity/style.dark.css"
+                : "/dev/sinty/libsingularity/style.light.css";
+            string combined;
+            try {
+                var color_bytes = GLib.resources_lookup_data(color_path, 0);
+                var struct_bytes = GLib.resources_lookup_data("/dev/sinty/libsingularity/style.css", 0);
+                combined = (string)color_bytes.get_data() + "\n" + (string)struct_bytes.get_data() + "\n" + css;
+            } catch (Error e) {
+                warning("StyleManager: failed to load base CSS, using accent only: %s", e.message);
+                combined = css;
+            }
+
+            if (accent_provider == null) {
+                accent_provider = new CssProvider();
+            }
             var display = Gdk.Display.get_default();
+            bool was_registered = false;
             if (display != null) {
-                StyleContext.remove_provider_for_display(display, provider);
+                try {
+                    StyleContext.remove_provider_for_display(display, accent_provider);
+                    was_registered = true;
+                } catch {}
             }
             try {
-                provider.load_from_string(css);
+                accent_provider.load_from_string(combined);
             } catch (Error e) {
                 warning("StyleManager: failed to apply accent color: %s", e.message);
             }
-            if (display != null) {
+            if (display != null || was_registered) {
                 StyleContext.add_provider_for_display(
-                    display, provider,
+                    display, accent_provider,
                     Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1
                 );
             }
@@ -526,23 +394,25 @@ namespace Singularity.Style {
             return "#3584e4";
         }
 
-        private CssProvider? base_theme_provider;
+        private CssProvider? accent_provider;
         private CssProvider? user_theme_provider;
         private CssProvider? user_theme_variant_provider;
         private string current_user_theme = "";
         private bool current_dark_mode = true;
+        private string current_accent = "blue";
+        private string? current_accent_wallpaper = null;
 
         /**
          * Switches between dark and light color scheme.
          *
-         * Reloads the combined color-vars + structural CSS with the
-         * appropriate color variable file.
+         * Reloads the combined CSS with the appropriate color variable file
+         * by re-applying the current accent color.
          *
          * @param dark `true` for dark, `false` for light.
          */
         public void apply_color_scheme(bool dark) {
-            _load_combined_css(dark);
             current_dark_mode = dark;
+            apply_accent_color(current_accent, current_accent_wallpaper);
             _load_user_theme_variant(dark);
         }
 

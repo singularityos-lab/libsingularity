@@ -14,7 +14,6 @@ namespace Singularity {
 
         private GLib.Settings desktop_settings;
         private GLib.Settings? iface_settings;
-        private CssProvider accent_provider;
         // True when desktop_settings loaded successfully; iface_settings only
         // controls dark-mode as a fallback when this is false.
         private bool has_desktop_settings = false;
@@ -46,12 +45,6 @@ namespace Singularity {
 
             Singularity.Style.StyleManager.get_default().load_theme();
             Singularity.Accessibility.AccessibilityManager.get_default();
-            accent_provider = new CssProvider();
-            StyleContext.add_provider_for_display(
-                Gdk.Display.get_default(),
-                accent_provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1
-            );
 
             try {
                 desktop_settings = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
@@ -118,7 +111,7 @@ namespace Singularity {
                 if (hex == "" || hex == null) hex = "#3584e4";
                 color_name = hex;
             }
-            Singularity.Style.StyleManager.get_default().apply_accent_color(accent_provider, color_name, wallpaper_path);
+            Singularity.Style.StyleManager.get_default().apply_accent_color(color_name, wallpaper_path);
         }
 
         private void update_theme_mode() {
