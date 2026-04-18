@@ -43,6 +43,10 @@ namespace Singularity.Widgets {
         }
 
         /** Appends a horizontal separator between groups of items. */
+        public void add_widget(Widget widget) {
+            content_box.append(widget);
+        }
+
         public void add_separator() {
             content_box.append(new Separator(Orientation.HORIZONTAL));
         }

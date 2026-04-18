@@ -4,6 +4,37 @@ using Peas;
 namespace Singularity {
 
     /**
+     * Describes the app being right-clicked on the dock.
+     */
+    public class DockContextMenuRequest : Object {
+        public string app_id { get; construct; }
+        public string? display_name { get; construct; }
+        public bool is_running { get; construct; }
+        public bool is_pinned { get; construct; }
+        public int window_count { get; construct; }
+
+        public DockContextMenuRequest(string app_id, string? display_name,
+                                      bool is_running, bool is_pinned, int window_count) {
+            Object(app_id: app_id, display_name: display_name,
+                   is_running: is_running, is_pinned: is_pinned,
+                   window_count: window_count);
+        }
+    }
+
+    /**
+     * Interface for plugins that add items to dock context menus.
+     */
+    public interface DockContextMenuProvider : Object {
+        /**
+         * Called when a dock icon is right-clicked.
+         * Use menu.add_item() or menu.add_widget() to add entries.
+         * Return true if items were added, false otherwise.
+         */
+        public abstract bool populate_context_menu(Singularity.Widgets.ContextMenu menu,
+                                                    DockContextMenuRequest request);
+    }
+
+    /**
      * Interface that all Singularity plugins must implement.
      */
     public interface Plugin : Object {
@@ -58,6 +89,11 @@ namespace Singularity {
         /** Emitted when a plugin removes a widget from the right of the clock button. */
         public signal void clock_suffix_widget_removed(Gtk.Widget widget);
 
+        /** Emitted when a plugin registers a dock context menu provider. */
+        public signal void dock_context_menu_provider_added(DockContextMenuProvider provider);
+        /** Emitted when a plugin unregisters a dock context menu provider. */
+        public signal void dock_context_menu_provider_removed(DockContextMenuProvider provider);
+
         public PluginContext() {
         }
 
@@ -99,6 +135,20 @@ namespace Singularity {
         /** Removes a previously added clock-suffix widget. */
         public void remove_clock_suffix_widget(Gtk.Widget widget) {
             clock_suffix_widget_removed(widget);
+        }
+
+        /**
+         * Registers a dock context menu provider.
+         * The dock will call provider.populate_context_menu() for each
+         * right-clicked app, letting the plugin insert custom items.
+         */
+        public void add_dock_context_menu_provider(DockContextMenuProvider provider) {
+            dock_context_menu_provider_added(provider);
+        }
+
+        /** Unregisters a dock context menu provider. */
+        public void remove_dock_context_menu_provider(DockContextMenuProvider provider) {
+            dock_context_menu_provider_removed(provider);
         }
 
         /**
