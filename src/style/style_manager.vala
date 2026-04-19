@@ -313,20 +313,32 @@ namespace Singularity.Style {
             if (display != null) {
                 StyleContext.add_provider_for_display(
                     display, accent_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 200
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER
                 );
             }
             
-            // Extra switch/toggle overrides to ensure they use the accent
+            // Extra switch/toggle overrides to ensure they use the accent in the shell
             string switch_css = """
+                /* Generic toggles */
                 switch:checked { background-color: {HEX} !important; border-color: {HEX} !important; }
-                .singularity switch:checked { background-color: {HEX} !important; }
-            """.replace("{HEX}", hex_color);
+                
+                /* Specific sidebar/shell toggles */
+                .singularity switch:checked { background-color: {HEX} !important; border-color: {HEX} !important; }
+                .navigation-sidebar switch:checked { background-color: {HEX} !important; }
+                
+                /* Selection in shell lists */
+                .singularity listbox row:selected,
+                .singularity .boxed-list > row:selected { 
+                    background-color: {A20} !important; 
+                }
+            """
+            .replace("{HEX}", hex_color)
+            .replace("{A20}", alpha20);
             
             var switch_provider = new CssProvider();
             switch_provider.load_from_string(switch_css);
             if (display != null) {
-                StyleContext.add_provider_for_display(display, switch_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER);
+                StyleContext.add_provider_for_display(display, switch_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1);
             }
             // Propagate accent to GTK4/3 config files so installed GTK themes
             // (e.g. Kids) can use @accent_color without hardcoding a value.
