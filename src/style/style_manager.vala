@@ -359,7 +359,10 @@ namespace Singularity.Style {
             uint8 r = (uint8)((1.0 - factor) * r1 + factor * r2 + 0.5);
             uint8 g = (uint8)((1.0 - factor) * g1 + factor * g2 + 0.5);
             uint8 b = (uint8)((1.0 - factor) * b1 + factor * b2 + 0.5);
-            return "rgba(%u, %u, %u, %.2f)".printf(r, g, b, alpha);
+            // Use fixed string for alpha to avoid locale-dependent decimal separator (comma vs dot)
+            int a_int = (int)alpha;
+            int a_dec = (int)((alpha - a_int) * 100);
+            return "rgba(%u, %u, %u, %d.%02d)".printf(r, g, b, a_int, a_dec);
         }
 
         // Writes @define-color accent_color to ~/.config/gtk-{3,4}.0/gtk.css
