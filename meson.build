@@ -114,6 +114,8 @@ libsingularity_dep = declare_dependency(
   dependencies: libsingularity_deps,
 )
 
+libsingularity_vapi = meson.current_build_dir() / 'singularity-1.0.vapi'
+
 pkgconfig.generate(
   libsingularity,
   name: 'libsingularity',
