@@ -304,6 +304,7 @@ namespace Singularity.Style {
             
             accent_provider = new CssProvider();
             try {
+                // message("StyleManager: applying hex color %s", hex_color);
                 accent_provider.load_from_string(combined);
             } catch (Error e) {
                 warning("StyleManager: failed to apply accent color: %s", e.message);
@@ -312,8 +313,20 @@ namespace Singularity.Style {
             if (display != null) {
                 StyleContext.add_provider_for_display(
                     display, accent_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 100
+                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 200
                 );
+            }
+            
+            // Extra switch/toggle overrides to ensure they use the accent
+            string switch_css = """
+                switch:checked { background-color: {HEX} !important; border-color: {HEX} !important; }
+                .singularity switch:checked { background-color: {HEX} !important; }
+            """.replace("{HEX}", hex_color);
+            
+            var switch_provider = new CssProvider();
+            switch_provider.load_from_string(switch_css);
+            if (display != null) {
+                StyleContext.add_provider_for_display(display, switch_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER);
             }
             // Propagate accent to GTK4/3 config files so installed GTK themes
             // (e.g. Kids) can use @accent_color without hardcoding a value.
