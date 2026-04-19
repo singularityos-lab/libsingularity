@@ -150,13 +150,25 @@ namespace Singularity.Style {
                 .singularity-blur .osd-pill { background-color: rgba(30, 30, 30, 0.6); }
 
                 levelbar block.filled { background-color: @accent_color; }
-                progressbar progress { background-color: @accent_color; }
-                progressbar trough { background-color: alpha(@text_color, 0.1); border-radius: 99px; min-height: 4px; }
-                scale highlight { background-color: @accent_color; }
-                scale slider { background-color: @accent_color; }
+                progressbar trough {
+                    background-color: alpha(@text_color, 0.1);
+                    border-radius: 99px;
+                    min-height: 6px;
+                    border: none;
+                }
+                progressbar progress {
+                    background-color: @accent_color;
+                    background-image: none;
+                    border-radius: 99px;
+                    min-height: 6px;
+                    border: none;
+                }
                 
                 /* Global overrides for common UI elements */
-                progress, trough > progress { background-color: @accent_color; }
+                progress { 
+                    background-color: @accent_color !important; 
+                    background-image: none !important;
+                }
                 highlight { background-color: @accent_color; }
                 slider { background-color: @accent_color; }
 
