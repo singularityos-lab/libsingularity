@@ -25,7 +25,8 @@ ninja -C build
 - **Doc comments are required on every public API** classes, properties, signals,
   and methods. Use the `/** .. */` form.
 - Keep files focused: one primary class per `.vala` file, named after the class
-  (e.g. `SwitchRow` -> `switch_row.vala`).
+  (e.g. `SwitchRow` -> `switch_row.vala`). Redundant suffixes in the filename 
+  (like `_manager` or `_provider`) should be avoided.
 
 ## License
 
