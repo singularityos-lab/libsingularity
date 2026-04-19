@@ -166,8 +166,8 @@ namespace Singularity.Style {
                 
                 /* Global overrides for common UI elements */
                 progress { 
-                    background-color: @accent_color !important; 
-                    background-image: none !important;
+                    background-color: @accent_color; 
+                    background-image: none;
                 }
                 highlight { background-color: @accent_color; }
                 slider { background-color: @accent_color; }

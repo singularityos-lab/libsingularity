@@ -758,7 +758,6 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 }
 .switcher-thumbnail-box {
     border-radius: 8px;
-    overflow: hidden;
     background-color: @card_bg;
 }
 .switcher-thumbnail-fallback {
