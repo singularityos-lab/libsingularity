@@ -297,26 +297,22 @@ namespace Singularity.Style {
                 combined = css;
             }
 
-            if (accent_provider == null) {
-                accent_provider = new CssProvider();
-            }
             var display = Gdk.Display.get_default();
-            bool was_registered = false;
-            if (display != null) {
-                try {
-                    StyleContext.remove_provider_for_display(display, accent_provider);
-                    was_registered = true;
-                } catch {}
+            if (display != null && accent_provider != null) {
+                StyleContext.remove_provider_for_display(display, accent_provider);
             }
+            
+            accent_provider = new CssProvider();
             try {
                 accent_provider.load_from_string(combined);
             } catch (Error e) {
                 warning("StyleManager: failed to apply accent color: %s", e.message);
             }
-            if (display != null || was_registered) {
+
+            if (display != null) {
                 StyleContext.add_provider_for_display(
                     display, accent_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1
+                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 100
                 );
             }
             // Propagate accent to GTK4/3 config files so installed GTK themes
