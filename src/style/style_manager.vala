@@ -138,53 +138,6 @@ namespace Singularity.Style {
                 :selected { background-color: @accent_color; color: @accent_fg; }
                 :focus { border-color: @accent_color; }
 
-                /* Greeter and Lockscreen styles */
-                .lock-screen-window { background-color: black; }
-                .lock-screen-bg { background-color: black; }
-                .lock-screen-scrim { background-color: alpha(black, 0.4); }
-                
-                .greeter-card {
-                    background-color: @surface_overlay;
-                    border-radius: 24px;
-                    padding: 40px;
-                    box-shadow: 0 8px 32px alpha(black, 0.5);
-                    border: 1px solid alpha(white, 0.1);
-                }
-                .singularity-blur .greeter-card { background-color: alpha(black, 0.3); }
-
-                .greeter-username {
-                    font-size: 24px;
-                    font-weight: 700;
-                    color: white;
-                    margin-bottom: 8px;
-                }
-                .greeter-clock {
-                    font-size: 120px;
-                    font-weight: 900;
-                    color: white;
-                    text-shadow: 0 4px 16px alpha(black, 0.5);
-                }
-                .greeter-date {
-                    font-size: 24px;
-                    font-weight: 500;
-                    color: white;
-                    text-shadow: 0 2px 8px alpha(black, 0.5);
-                }
-                .greeter-avatar {
-                    border-radius: 999px;
-                    border: 4px solid white;
-                    box-shadow: 0 4px 16px alpha(black, 0.3);
-                }
-                .greeter-password-entry {
-                    margin-top: 16px;
-                    min-width: 280px;
-                }
-                .greeter-status {
-                    color: @error_color;
-                    font-size: 14px;
-                    margin-top: 8px;
-                }
-
                 /* Explicit rules for OSD and level indicators */
                 .osd-pill {
                     background-color: @surface_overlay;
