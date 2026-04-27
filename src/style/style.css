@@ -97,6 +97,16 @@ button.destructive-action {
 button.destructive-action:active { background-color: shade(@destructive_color, 0.7); }
 button.destructive-action:disabled { opacity: 0.5; }
 
+button.pill {
+    border-radius: 999px;
+    padding: 8px 20px;
+    font-weight: 600;
+}
+
+button.pill.suggested-action {
+    border-radius: 999px;
+}
+
 /* Boxed list (PreferencesGroup cards) */
 .boxed-list {
     border-radius: 8px;

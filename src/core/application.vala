@@ -2,7 +2,7 @@ using Gtk;
 
 namespace Singularity {
 
-    /**
+     /**
      * Base application class for Singularity apps.
      *
      * Extends Gtk.Application with automatic theme loading, accent
@@ -12,7 +12,7 @@ namespace Singularity {
      */
     public class Application : Gtk.Application {
 
-        private GLib.Settings desktop_settings;
+        private GLib.Settings? desktop_settings;
         private GLib.Settings? iface_settings;
         // True when desktop_settings loaded successfully; iface_settings only
         // controls dark-mode as a fallback when this is false.
@@ -46,6 +46,9 @@ namespace Singularity {
             Singularity.Style.StyleManager.get_default().load_theme();
             Singularity.Accessibility.AccessibilityManager.get_default();
 
+            string fallback_accent = detect_system_accent();
+            bool fallback_dark = false;
+
             try {
                 desktop_settings = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
                 desktop_settings.changed["accent-color"].connect(() => {
@@ -69,7 +72,8 @@ namespace Singularity {
                 Singularity.Style.StyleManager.get_default().load_user_theme(
                     desktop_settings.get_string("singularity-theme"));
             } catch (Error e) {
-                warning("Failed to load desktop settings: %s", e.message);
+                warning("Desktop settings unavailable, using system fallbacks: %s", e.message);
+                Singularity.Style.StyleManager.get_default().apply_accent_color(fallback_accent);
             }
             // React to system color-scheme changes only as a fallback when
             // desktop_settings is unavailable. When desktop_settings is present,
@@ -85,19 +89,70 @@ namespace Singularity {
 
                 if (!has_desktop_settings) {
                     apply_color_scheme(iface_settings.get_string("color-scheme"));
+                    fallback_dark = iface_settings.get_string("color-scheme") == "prefer-dark";
                 }
             } catch (Error e) {
                 // This is expected, org.gnome.desktop.interface may not be present in
                 // all environments.
+                if (!fallback_dark) {
+                    var scheme = Environment.get_variable("XDG_CURRENT_DESKTOP");
+                    fallback_dark = (Environment.get_variable("GTK_THEME") ?? "").contains(":dark");
+                }
             }
             // Apply our own dark-mode preference last so it always wins over
             // any system-level setting applied above.
             if (has_desktop_settings) {
                 update_theme_mode();
+            } else if (fallback_dark) {
+                Gtk.Settings.get_default().gtk_application_prefer_dark_theme = true;
+                Singularity.Style.StyleManager.get_default().apply_color_scheme(true);
+                Singularity.Style.StyleManager.get_default().apply_accent_color(fallback_accent);
             }
+
+            var quit_action = new SimpleAction("quit", null);
+            quit_action.activate.connect(() => {
+                foreach (var win in get_windows()) {
+                    if (win is Gtk.Window) {
+                        ((Gtk.Window) win).close();
+                    }
+                }
+            });
+            add_action(quit_action);
+            set_accels_for_action("app.quit", {"<Ctrl>q", "<Alt>F4"});
+        }
+
+        private string detect_system_accent() {
+            try {
+                var proxy = new GLib.DBusProxy.for_bus_sync(
+                    BusType.SESSION,
+                    DBusProxyFlags.DO_NOT_AUTO_START | DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
+                    null,
+                    "org.freedesktop.portal.Desktop",
+                    "/org/freedesktop/portal/desktop",
+                    "org.freedesktop.portal.Settings"
+                );
+                var variant = proxy.call_sync("Read", new Variant("(ss)", "org.freedesktop.appearance", "accent-color"), DBusCallFlags.NONE, -1);
+                if (!variant.is_of_type(new VariantType("(v)"))) return "blue";
+                var value = variant.get_child_value(0).get_variant();
+                if (value.is_of_type(new VariantType("(ddd)"))) {
+                    double r = value.get_child_value(0).get_double();
+                    double g = value.get_child_value(1).get_double();
+                    double b = value.get_child_value(2).get_double();
+                    return "#%02x%02x%02x".printf((uint)(r * 255 + 0.5), (uint)(g * 255 + 0.5), (uint)(b * 255 + 0.5));
+                }
+            } catch {}
+            try {
+                var iface = new GLib.Settings("org.gnome.desktop.interface");
+                if (iface.settings_schema.has_key("accent-color")) {
+                    string name = iface.get_string("accent-color");
+                    if (name != null && name != "") return name;
+                }
+            } catch {}
+            return "blue";
         }
 
         private void update_accent_color() {
+            if (desktop_settings == null) return;
             string color_name = desktop_settings.get_string("accent-color");
             string? wallpaper_path = null;
             if (color_name == "wallpaper") {
@@ -115,6 +170,7 @@ namespace Singularity {
         }
 
         private void update_theme_mode() {
+            if (desktop_settings == null) return;
             bool dark_mode = desktop_settings.get_boolean("dark-mode");
             Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark_mode;
             Singularity.Style.StyleManager.get_default().apply_color_scheme(dark_mode);
