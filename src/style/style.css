@@ -2519,6 +2519,16 @@ columnview row:selected {
     box-shadow: none;
 }
 
+/* Suppress square inner cell selection - only outer row gets accent */
+.singularity columnview row:selected > *,
+.singularity columnview row:selected > * > *,
+.singularity columnview row:selected > * > * > * {
+    background: none;
+    box-shadow: none;
+    outline: none;
+    border: none;
+}
+
 .singularity .file-grid-item label {
     font-size: 12px;
     color: alpha(@text_color, 0.9);
