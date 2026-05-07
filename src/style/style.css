@@ -751,10 +751,10 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     background-color: alpha(@shadow_color, 0.5);
 }
 .app-switcher-card {
-    background-color: @toolbar_bg;
-    border: 1px solid @border_color;
-    border-radius: 16px;
-    padding: 12px;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
 }
 .app-switcher-item {
     border-radius: 8px;
@@ -3522,41 +3522,78 @@ flowboxchild.disk-card-child:focus {
 
 /* Hot corner visual hints - dedicated overlay windows per corner */
 .corner-hint {
-    min-width: 96px;
-    min-height: 96px;
+    min-width: 112px;
+    min-height: 112px;
     opacity: 0;
-    transition: opacity 220ms ease, transform 220ms ease;
+    transition: opacity 180ms ease, transform 220ms ease;
 }
 .corner-hint.visible {
     opacity: 1;
 }
-.corner-hint-tl {
-    transform: scale(0.6);
-    background: radial-gradient(circle at 0% 0%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+.corner-hint-glow {
+    min-width: 112px;
+    min-height: 112px;
 }
-.corner-hint-tl.visible {
-    transform: scale(1);
+.corner-hint-badge {
+    background: radial-gradient(circle at 30% 30%, alpha(@accent_color, 0.8), alpha(@accent_color, 0.3));
+    border-radius: 50%;
+    padding: 6px;
+    transition: transform 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform: translate(0, 0);
+}
+.corner-hint-badge.visible {
+    animation: corner-bounce 300ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
+}
+
+@keyframes corner-bounce {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(12px, 12px); }
+    100% { transform: translate(8px, 8px); }
+}
+.corner-hint-badge image {
+    margin: 0;
+    padding: 0;
+}
+.corner-hint.visible .corner-hint-badge {
+    transform: scale(1.0);
+}
+.corner-hint-tl {
+    transform: scale(0.75);
+}
+.corner-hint-tl .corner-hint-glow {
+    background: radial-gradient(circle at 0% 0%, alpha(@accent_color, 0.28) 0%, alpha(@accent_color, 0.10) 42%, transparent 72%);
+}
+.corner-hint-tl .corner-hint-badge {
 }
 .corner-hint-tr {
-    transform: scale(0.6);
-    background: radial-gradient(circle at 100% 0%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+    transform: scale(0.75);
 }
-.corner-hint-tr.visible {
-    transform: scale(1);
+.corner-hint-tr .corner-hint-glow {
+    background: radial-gradient(circle at 100% 0%, alpha(@accent_color, 0.28) 0%, alpha(@accent_color, 0.10) 42%, transparent 72%);
+}
+.corner-hint-tr .corner-hint-badge {
 }
 .corner-hint-bl {
-    transform: scale(0.6);
-    background: radial-gradient(circle at 0% 100%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+    transform: scale(0.75);
 }
-.corner-hint-bl.visible {
-    transform: scale(1);
+.corner-hint-bl .corner-hint-glow {
+    background: radial-gradient(circle at 0% 100%, alpha(@accent_color, 0.28) 0%, alpha(@accent_color, 0.10) 42%, transparent 72%);
+}
+.corner-hint-bl .corner-hint-badge {
 }
 .corner-hint-br {
-    transform: scale(0.6);
-    background: radial-gradient(circle at 100% 100%, alpha(@accent_color, 0.55) 0%, transparent 68%);
+    transform: scale(0.75);
 }
-.corner-hint-br.visible {
-    transform: scale(1);
+.corner-hint-br .corner-hint-glow {
+    background: radial-gradient(circle at 100% 100%, alpha(@accent_color, 0.28) 0%, alpha(@accent_color, 0.10) 42%, transparent 72%);
+}
+.corner-hint-br .corner-hint-badge {
+}
+.corner-hint.visible.corner-hint-tl,
+.corner-hint.visible.corner-hint-tr,
+.corner-hint.visible.corner-hint-bl,
+.corner-hint.visible.corner-hint-br {
+    transform: scale(1.0);
 }
 
 /* Debug HUD Overlay */
