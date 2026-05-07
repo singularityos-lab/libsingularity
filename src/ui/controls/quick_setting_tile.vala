@@ -104,12 +104,12 @@ namespace Singularity.Widgets {
             add_css_class("quick-setting-tile");
             if (_state > 0) add_css_class("active");
 
-            var main_box = new Box(Orientation.HORIZONTAL, 12);
+            var main_box = new Box(Orientation.HORIZONTAL, 10);
             main_box.valign = Align.CENTER;
-            main_box.margin_start = 12;
-            main_box.margin_end = 12;
-            main_box.margin_top = 10;
-            main_box.margin_bottom = 10;
+            main_box.margin_start = 4;
+            main_box.margin_end = 4;
+            main_box.margin_top = 8;
+            main_box.margin_bottom = 8;
 
             _icon = new Image.from_icon_name(icon_name);
             _icon.pixel_size = 20;

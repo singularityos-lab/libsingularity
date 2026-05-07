@@ -978,23 +978,22 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 }
 
 .quick-settings-grid {
-    padding: 0;
+    padding: 0px;
 }
 
 /* Quick-setting grouped pill (tile + nav fused) */
 .quick-setting-group {
-    background-color: alpha(@text_color, 0.08);
-    border-radius: 16px;
+    background-color: alpha(@text_color, 0.04);
+    border-radius: 64px;
     transition: all 0.15s ease;
 }
 
 /* Tile part: transparent over group bg, rounded on left only */
 .quick-setting-group .quick-setting-tile {
     background-color: transparent;
-    border-radius: 16px 0 0 16px;
+    border-radius: 64px 0 0 64px;
     border: none;
     box-shadow: none;
-    min-height: 42px;
     transition: background-color 0.15s ease;
 }
 
@@ -1004,7 +1003,7 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 
 .quick-setting-group .quick-setting-tile.active {
     background-color: @accent_color;
-    border-radius: 16px 0 0 16px;
+    border-radius: 64px 0 0 64px;
 }
 
 .quick-setting-group .quick-setting-tile.active:hover {
@@ -1027,11 +1026,11 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 /* Nav button: transparent, rounded on right, thin divider */
 .quick-setting-group .quick-setting-nav-btn {
     background-color: transparent;
-    border-radius: 0 16px 16px 0;
+    border-radius: 0 64px 64px 0;
     border: none;
     border-left: 1px solid alpha(@text_color, 0.1);
     padding: 0 10px;
-    min-width: 30px;
+    min-width: 20px;
     color: alpha(@text_color, 0.45);
     transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -1056,12 +1055,11 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 /* Standalone tile (no group wrapper) keeps full pill */
 .quick-setting-tile {
     background-color: alpha(@text_color, 0.08);
-    border-radius: 16px;
+    border-radius: 64px;
     padding: 0;
     transition: all 0.2s ease;
     border: 1px solid transparent;
     box-shadow: none;
-    min-height: 42px;
 }
 
 .quick-setting-tile:hover {
@@ -1121,7 +1119,9 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 
 .tile-icon {
     background-color: alpha(@text_color, 0.1);
-    padding: 4px;
+    padding: 8px;
+    min-width: 22px;
+    min-height: 22px;
     border-radius: 999px;
 }
 
@@ -1337,6 +1337,8 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     font-size: 13px;
     color: alpha(@text_color, 0.8);
 }
+
+.sidebar-window {border-radius: 40px}
 
 .sidebar-window .settings-page-content {
     padding: 0;
@@ -2880,7 +2882,7 @@ window.singularity.desktop-icons,
 .singularity .preferences-group {
     background-color: @card_bg;
     border: 1px solid @border_color;
-    border-radius: 12px;
+    border-radius: 24px;
     margin-bottom: 16px;
     padding: 0;
 }
@@ -2892,19 +2894,21 @@ window.singularity.desktop-icons,
 
 .singularity .preferences-list {
     background-color: transparent;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0;
 }
 
 .singularity .preferences-row {
     background-color: transparent;
     border-bottom: 1px solid alpha(@text_color, 0.05);
     min-height: 50px;
+    margin: 0;
     padding: 0;
     transition: background-color 0.2s;
+    border-radius: 0;
 }
 
 .singularity .preferences-row:last-child {
-    border-bottom: none;
+    border-bottom: 0;
 }
 
 .singularity .preferences-row:hover {
@@ -2912,13 +2916,13 @@ window.singularity.desktop-icons,
 }
 
 .singularity .preferences-row:first-child {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
 }
 
 .singularity .preferences-row:last-child {
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
 }
 
 .singularity .preferences-row .title {
