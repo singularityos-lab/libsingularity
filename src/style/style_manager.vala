@@ -88,6 +88,8 @@ namespace Singularity.Style {
             string tint8 = _mix_hex(base_bg, hex_color, 0.08);
             // Compute toolbar rgba directly to avoid GTK CSS alpha(#hex) issues.
             string toolbar_rgba = _mix_rgba(toolbar_base, hex_color, 0.05, toolbar_alpha);
+            string toolbar_tinted = _mix_hex(toolbar_base, hex_color, 0.05);
+            string toolbar_hex = _mix_hex(base_bg, toolbar_tinted, toolbar_alpha);
             // Pre-compute hover/active variants for button rules.
             string hover_hex  = _mix_hex(hex_color, "#ffffff", 0.15);
             string active_hex = _mix_hex(hex_color, "#000000", 0.15);
@@ -113,11 +115,6 @@ namespace Singularity.Style {
                 @define-color accent_bg_color @accent_color;
                 @define-color accent_fg white;
                 @define-color accent_fg_color white;
-                @define-color accent_color_10 %s;
-                @define-color accent_color_15 %s;
-                @define-color accent_color_20 %s;
-                @define-color accent_color_50 %s;
-                @define-color hover_white %s;
                 @define-color window_tint %s;
                 @define-color overview_bg @window_tint;
                 @define-color toolbar_bg %s;
@@ -179,7 +176,7 @@ namespace Singularity.Style {
                 window.singularity-blur .dock-window:backdrop .dock-box,
                 .singularity-blur .dock-window:backdrop .dock-box { background-color: %s; }
 
-                /* Workspace previews — rgba computed here for box-shadow */
+                /* Workspace previews — rgbacomputed here for box-shadow */
                 .workspace-preview.active .workspace-clipper {
                     border-color: %s;
                     box-shadow: 0 0 0 1px %s, 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -191,8 +188,7 @@ namespace Singularity.Style {
                 }
             """).printf(
                 hex_color,
-                alpha10, alpha15, alpha20, alpha50,
-                hover_rgba, tint8, toolbar_rgba,
+                tint8, toolbar_hex,
                 dock_bg, dock_bg_blur,
                 alpha40, alpha20,
                 hex_color, hex_color, alpha40
@@ -371,7 +367,9 @@ namespace Singularity.Style {
                 // File may not exist on first run — that is expected, start with empty string.
                 try { GLib.FileUtils.get_contents(path, out existing); } catch (Error e) {
                     if (!(e is GLib.FileError.NOENT)) warning("StyleManager: could not read %s: %s", path, e.message);
+                    existing = "";
                 }
+                if (existing == null) existing = "";
                 // Strip any previous auto-generated block.
                 int block_start = existing.index_of(START_SENTINEL);
                 if (block_start >= 0) {
