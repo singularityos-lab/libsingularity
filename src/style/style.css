@@ -2883,7 +2883,6 @@ window.singularity.desktop-icons,
     background-color: @card_bg;
     border: 1px solid @border_color;
     border-radius: 24px;
-    margin-bottom: 16px;
     padding: 0;
 }
 
@@ -3640,4 +3639,9 @@ flowboxchild.disk-card-child:focus {
 
 .flat-close-btn:hover {
     background-color: rgba(0, 0, 0, 0.55);
+}
+
+.singularity .media-player-card {
+    border-radius: 24px;
+    border: 1px solid @border_color;
 }

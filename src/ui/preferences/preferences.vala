@@ -82,7 +82,8 @@ namespace Singularity.Widgets {
         }
 
         public PreferencesGroup(string? title = null, string? description = null) {
-            Object(orientation: Orientation.VERTICAL, spacing: 6);
+            Object(orientation: Orientation.VERTICAL, spacing: 6, margin_bottom: 10);
+
             add_css_class("preferences-group");
             header_box = new Box(Orientation.HORIZONTAL, 12);
             header_box.margin_top = 8;

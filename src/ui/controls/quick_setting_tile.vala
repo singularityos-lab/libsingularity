@@ -106,10 +106,10 @@ namespace Singularity.Widgets {
 
             var main_box = new Box(Orientation.HORIZONTAL, 10);
             main_box.valign = Align.CENTER;
-            main_box.margin_start = 4;
-            main_box.margin_end = 4;
-            main_box.margin_top = 8;
-            main_box.margin_bottom = 8;
+            main_box.margin_start = 2;
+            main_box.margin_end = 2;
+            main_box.margin_top = 6;
+            main_box.margin_bottom = 6;
 
             _icon = new Image.from_icon_name(icon_name);
             _icon.pixel_size = 20;
