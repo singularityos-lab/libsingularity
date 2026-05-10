@@ -44,6 +44,7 @@ namespace Singularity.Widgets {
      * Gtk.ListBox and separated visually from other groups.
      */
     public class PreferencesGroup : Box {
+        private Gee.ArrayList<Widget> rows = new Gee.ArrayList<Widget>();
         private Box header_box;
         private Box title_box;
         private Box header_suffix_box;
@@ -64,6 +65,7 @@ namespace Singularity.Widgets {
                 }
             }
         }
+        public signal void row_added(Widget row);
         public string description {
             get { return description_label != null ? description_label.label : ""; }
             set {
@@ -128,7 +130,9 @@ namespace Singularity.Widgets {
      * @param row Any Gtk.Widget — typically a PreferencesRow subclass.
      */
         public void add_row(Widget row) {
+            rows.add(row);
             list_box.append(row);
+            row_added(row);
         }
 
         /**
@@ -137,7 +141,12 @@ namespace Singularity.Widgets {
          * @param row The widget to remove.
          */
         public void remove_row(Widget row) {
+            rows.remove(row);
             list_box.remove(row);
+        }
+
+        public Gee.List<Widget> get_rows() {
+            return rows.read_only_view;
         }
 
         /** Removes all rows from the group's list box. */

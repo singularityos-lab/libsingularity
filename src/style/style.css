@@ -682,6 +682,19 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     background-color: transparent;
 }
 
+.dock-mpris-icon-cover {
+    border-radius: 8px;
+}
+
+.dock-mpris-app-badge {
+    min-width: 18px;
+    min-height: 18px;
+    border-radius: 5px;
+    padding: 1px;
+    background-color: alpha(@window_bg_color, 0.86);
+    box-shadow: 0 1px 4px alpha(black, 0.35), 0 0 0 1px alpha(white, 0.55);
+}
+
 @keyframes screen-flash-out {
     0% {
         opacity: 0.75;
@@ -1731,7 +1744,7 @@ window.singularity .panel-window,
 .singularity-toolbar {
     background-color: @toolbar_bg;
     border-radius: 12px;
-    margin: 8px 12px;
+    margin: 7px;
     padding: 0 4px;
     min-height: 46px;
     box-shadow: 0 2px 8px alpha(@shadow_color, 0.2);
@@ -3013,12 +3026,12 @@ window.notification-display {
 }
 
 .notification-bubble {
-    background-color: @surface_scrim_heavy;
+    background-color: @window_bg;
     border-radius: 16px;
     border: 1px solid alpha(@text_color, 0.10);
     box-shadow: 0 4px 24px alpha(@shadow_color, 0.55);
     min-width: 340px;
-    margin: 4px;
+    margin: 20px;
 }
 
 .notification-header {
