@@ -1938,6 +1938,11 @@ window.singularity .panel-window,
     outline: none;
 }
 
+.app-title {
+    font-weight: bold;
+    font-size: 14px;
+}
+
 /* Global Menu Bar (custom GlobalMenuBar widget) */
 .singularity .global-menu-bar {
     background-color: transparent;
@@ -1973,7 +1978,6 @@ window.singularity .panel-window,
     border: none;
 }
 
-/* Dropdown popover from GlobalMenuBar */
 .singularity popover.global-menu-popover {
     padding: 0;
 }
