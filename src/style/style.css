@@ -919,6 +919,15 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     border-radius: 999px;
 }
 
+.singularity entry.search-entry > text {
+    padding-left: 6px;
+}
+
+.singularity entry.search-entry image.left,
+.singularity entry.search-entry > text > image.left {
+    margin-right: 8px;
+}
+
 .search-results-list {
     background-color: transparent;
     border: none;
