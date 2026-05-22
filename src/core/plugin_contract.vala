@@ -35,6 +35,107 @@ namespace Singularity {
     }
 
     /**
+     * Interface for plugins that extend a dock item's appearance: override
+     * its icon (e.g. album art) and/or inject widgets in the suffix slot
+     * shown next to the icon when the user hovers (or pins) the dock entry.
+     *
+     * Extensions are queried per app_id during a dock refresh. Emit
+     * `changed(app_id)` whenever the icon or the widget for that app needs
+     * to be rebuilt; the dock will rerun matches / get_icon_override /
+     * create_suffix_widget.
+     */
+    public interface DockItemExtension : Object {
+        /** Emitted when the appearance for `app_id` may have changed. Empty string = all. */
+        public signal void changed(string app_id);
+
+        /** Return true if this extension is currently active for `app_id`. */
+        public abstract bool matches(string app_id);
+
+        /**
+         * Optional icon override. Return a `Gdk.Paintable` to replace the
+         * default app icon (used for album art), or `null` to keep the
+         * default icon. The dock automatically composes the original app
+         * icon as a small badge in the bottom-right corner when overridden.
+         */
+        public abstract Gdk.Paintable? get_icon_override(string app_id);
+
+        /**
+         * Optional widget to inject in the dock item's suffix slot (to the
+         * right of the icon, inside the rounded "pill" container). Return
+         * `null` for no widget. The dock reveals this widget on hover, and
+         * keeps it open if the user toggled "Keep expanded" on the item.
+         */
+        public abstract Gtk.Widget? create_suffix_widget(string app_id);
+
+        /**
+         * Optional widget overlaid ON TOP of the dock icon - usually a
+         * small badge at the bottom-centre showing a count or status dot.
+         * Default impl returns null. Use this instead of a suffix widget
+         * for short numeric / state info that should always be visible
+         * (the suffix is hidden until hover), without taking horizontal
+         * space.
+         *
+         * The widget is positioned by the dock at bottom-centre via halign/
+         * valign + the `.dock-icon-badge` CSS class. Plugins should keep it
+         * small (under ~24px wide) - anything bigger belongs in the suffix.
+         */
+        public virtual Gtk.Widget? create_icon_overlay(string app_id) { return null; }
+    }
+
+    /**
+     * Grid footprint of an OverviewWidget instance. Cells are measured in
+     * the overview grid's natural unit (one app icon = 1×1).
+     */
+    public struct WidgetSize {
+        public int w;
+        public int h;
+        public WidgetSize(int width, int height) { w = width; h = height; }
+    }
+
+    /**
+     * A widget that can be placed on the overview grid alongside app icons.
+     * Providers come from two places:
+     *
+     *   1. Peas plugins (third-party): a .so + .plugin file in the usual
+     *      plugin search path. The plugin's activate() calls
+     *      `PluginContext.add_overview_widget(provider)`.
+     *
+     *   2. libsingularity-bundled apps (first-party): a .widget manifest in
+     *      $XDG_DATA_DIRS/singularity/widgets/ describing the provider, and
+     *      an optional .so loaded by the overview itself - NOT by the app
+     *      process. This is what makes "the music widget works offline"
+     *      possible: the widget code lives in libmusic-widget.so loaded by
+     *      the overview, talking to the app via DBus when it's running and
+     *      falling back to a cached / informative state when it isn't.
+     *
+     * Widgets choose their own size from `supported_sizes` (e.g. 2×1 row,
+     * 2×2 card). The overview wraps the returned Gtk.Widget in chrome
+     * (drag handle, "remove", "configure") - providers focus on content.
+     */
+    public interface OverviewWidgetProvider : Object {
+        /** Stable identifier, e.g. "music.now-playing". */
+        public abstract string id { get; }
+        /** App or plugin that owns this widget - used for grouping in pickers. */
+        public abstract string provider_id { get; }
+        /** Human-visible name in the widget picker. */
+        public abstract string display_name { get; }
+        /** Icon name used in the widget picker. */
+        public abstract string icon_name { get; }
+        /** Sizes this widget can be instantiated at. Must be non-empty. */
+        public abstract WidgetSize[] supported_sizes { get; }
+        /**
+         * Build a new instance. `instance_id` is unique per layout slot;
+         * `config` is the per-instance Variant previously stored, or null
+         * for a fresh instance.
+         */
+        public abstract Gtk.Widget create_instance(string instance_id,
+                                                   WidgetSize size,
+                                                   Variant? config);
+        /** Open a configuration dialog for this instance. Optional. */
+        public virtual void configure_instance(string instance_id) {}
+    }
+
+    /**
      * Interface that all Singularity plugins must implement.
      */
     public interface Plugin : Object {
@@ -151,6 +252,66 @@ namespace Singularity {
             dock_context_menu_provider_removed(provider);
         }
 
+        /** Emitted when a plugin registers a dock item extension. */
+        public signal void dock_item_extension_added(DockItemExtension extension);
+        /** Emitted when a plugin unregisters a dock item extension. */
+        public signal void dock_item_extension_removed(DockItemExtension extension);
+
+        /**
+         * Registers a dock item extension. The extension can override the
+         * icon and/or inject a hover-revealed widget on the right of any
+         * dock item it matches.
+         */
+        public void add_dock_item_extension(DockItemExtension extension) {
+            dock_item_extension_added(extension);
+        }
+
+        /** Unregisters a previously added dock item extension. */
+        public void remove_dock_item_extension(DockItemExtension extension) {
+            dock_item_extension_removed(extension);
+        }
+
+        /**
+         * Emitted whenever the desktop's notification daemon receives a
+         * Notify() call. Plugins can subscribe to react to specific senders
+         * (e.g. Telegram, Slack) without needing direct access to those apps.
+         *
+         * `id` is the notification id assigned by the daemon - plugins can
+         * pass it back to dismiss_notification() to close that specific
+         * notification (popup + history entry).
+         */
+        public signal void notification_received(uint id, string app_name, string summary,
+                                                 string body, string icon);
+
+        /** Called by the shell to fan out notifications to plugins. */
+        public void emit_notification(uint id, string app_name, string summary,
+                                       string body, string icon) {
+            notification_received(id, app_name, summary, body, icon);
+        }
+
+        /**
+         * Request the shell's notification daemon to close (dismiss) the
+         * notification with the given id. Used by plugins that "consume" the
+         * notification by surfacing it in another UI (dock bubble, sidebar).
+         */
+        public signal void notification_dismiss_requested(uint id);
+
+        public void dismiss_notification(uint id) {
+            notification_dismiss_requested(id);
+        }
+
+        /**
+         * Emitted when a notification is closed - either dismissed by the user
+         * in the notification centre, expired naturally, or programmatically
+         * closed. Plugins use this to keep their derived state (unread counts,
+         * dock badges) in sync with the actual notification daemon.
+         */
+        public signal void notification_closed(uint id, uint reason);
+
+        public void emit_notification_closed(uint id, uint reason) {
+            notification_closed(id, reason);
+        }
+
         /**
          * Sends a desktop notification via the default GLib.Application.
          *
@@ -198,6 +359,39 @@ namespace Singularity {
          */
         public void switch_workspace(int index) {
             workspace_switch_requested(index);
+        }
+
+        // ── Overview widgets ──────────────────────────────────────────────
+        public signal void overview_widget_added(OverviewWidgetProvider provider);
+        public signal void overview_widget_removed(OverviewWidgetProvider provider);
+
+        public void add_overview_widget(OverviewWidgetProvider provider) {
+            overview_widget_added(provider);
+        }
+        public void remove_overview_widget(OverviewWidgetProvider provider) {
+            overview_widget_removed(provider);
+        }
+
+        // ── Search providers ──────────────────────────────────────────────
+        public signal void search_provider_added(SearchProvider provider);
+        public signal void search_provider_removed(SearchProvider provider);
+
+        public void add_search_provider(SearchProvider provider) {
+            search_provider_added(provider);
+        }
+        public void remove_search_provider(SearchProvider provider) {
+            search_provider_removed(provider);
+        }
+
+        // ── Shell surfaces (replaceable dock / panel / overview / …) ───────
+        public signal void shell_surface_provider_added(ShellSurfaceProvider provider);
+        public signal void shell_surface_provider_removed(ShellSurfaceProvider provider);
+
+        public void add_shell_surface_provider(ShellSurfaceProvider provider) {
+            shell_surface_provider_added(provider);
+        }
+        public void remove_shell_surface_provider(ShellSurfaceProvider provider) {
+            shell_surface_provider_removed(provider);
         }
     }
 }
