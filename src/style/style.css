@@ -97,14 +97,11 @@ button.destructive-action {
 button.destructive-action:active { background-color: shade(@destructive_color, 0.7); }
 button.destructive-action:disabled { opacity: 0.5; }
 
-button.pill {
+button.pill,
+.singularity button.pill {
     border-radius: 999px;
     padding: 8px 20px;
     font-weight: 600;
-}
-
-button.pill.suggested-action {
-    border-radius: 999px;
 }
 
 /* Boxed list (PreferencesGroup cards) */
@@ -196,7 +193,7 @@ label:disabled { opacity: 0.5; }
 label.dim-label { opacity: 0.55; }
 
 /* Typography scale
-   Defined here because Singularity does NOT inherit Adwaita — these classes
+   Defined here because Singularity does NOT inherit Adwaita - these classes
    would otherwise be unstyled (tiny default font, no weight). */
 .title-1 {
     font-size: 28px;
@@ -369,6 +366,15 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
 /* Bright wallpaper detected: switch to dark text. */
 .panel-window.light-bg:not(.flat-panel) .panel * {
     color: #1a1a1a;
+}
+
+/* ...but NOT inside popovers/menus opened from the panel: those are
+   descendants of the panel button in the GTK4 widget tree, so the rule
+   above bleeds dark text onto their (dark) body - black-on-black. Reset
+   them to the theme foreground so submenus stay readable. */
+.panel-window.light-bg:not(.flat-panel) .panel popover,
+.panel-window.light-bg:not(.flat-panel) .panel popover * {
+    color: @window_fg_color;
 }
 
 /* Active state always gets white text on accent bg regardless of mode. */
@@ -562,7 +568,9 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     background-color: @panel_bg;
     border-top: 1px solid alpha(@text_color, 0.08);
     box-shadow: 0 -1px 8px alpha(@shadow_color, 0.3);
-    padding: 0 12px;
+    /* Symmetric vertical padding so the icons are visually centered
+       between the top and bottom edges of the panel. */
+    padding: 4px 12px;
     margin: 0;
 }
 
@@ -680,6 +688,96 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 
 .dock-item-wrapper {
     background-color: transparent;
+}
+
+/* Pill (inner): rounded container around icon + suffix; sits inside the
+   wrapper so the running-indicator dot row stays below, outside the pill. */
+.dock-item-pill {
+    background-color: transparent;
+    border-radius: 14px;
+    transition: background-color 180ms ease;
+}
+
+.dock-item-pill.has-suffix {
+    background-color: alpha(@text_color, 0.10);
+    padding-left: 2px;
+    padding-right: 6px;
+}
+
+.dock-item-pill.has-suffix:hover,
+.dock-item-pill.expanded {
+    background-color: alpha(@text_color, 0.16);
+}
+
+.dock-suffix-area {
+    padding-left: 4px;
+    padding-right: 2px;
+    color: @text_color;
+}
+
+.dock-suffix-button {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 2px;
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 8px;
+}
+.dock-suffix-button:hover {
+    background-color: alpha(@text_color, 0.18);
+}
+
+.dock-suffix-label {
+    padding: 0 4px;
+    color: @text_color;
+}
+
+.dock-suffix-badge {
+    background-color: alpha(@accent_bg_color, 0.85);
+    color: white;
+    border-radius: 9px;
+    min-width: 16px;
+    min-height: 16px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.dock-suffix-bubble {
+    border-radius: 12px;
+    padding: 2px 6px;
+    background-color: alpha(@text_color, 0.10);
+    border: none;
+    box-shadow: none;
+}
+.dock-suffix-bubble:hover {
+    background-color: alpha(@text_color, 0.18);
+}
+
+.dock-circular-progress {
+    color: @text_color;
+    min-width: 30px;
+    min-height: 30px;
+}
+
+/* Vertical stack inside the suffix area (multi-row content). */
+.dock-suffix-vstack {
+    padding: 2px 4px;
+    min-width: 220px;
+}
+.dock-suffix-progress-row {
+    padding: 4px 6px;
+    border-radius: 8px;
+    background-color: alpha(@text_color, 0.06);
+    color: @text_color;
+}
+.dock-suffix-progress-row:hover,
+.dock-suffix-progress-row.clickable:hover {
+    background-color: alpha(@text_color, 0.12);
+}
+.dock-suffix-progress-row-label {
+    font-size: 12px;
 }
 
 .dock-mpris-icon-cover {
@@ -1999,6 +2097,22 @@ window.singularity .panel-window,
     padding: 0;
 }
 
+/* Context menus must carry their own opaque background unconditionally -
+   not all parents sit under a `.singularity` ancestor (e.g. popovers
+   parented from a ColumnView row in Files list mode), which otherwise left
+   the menu transparent. Target the class directly + the contents node that
+   actually paints in GTK4. */
+popover.context-menu,
+popover.context-menu > contents {
+    background-color: @surface_raised;
+    color: @text_color;
+}
+popover.context-menu {
+    border: 1px solid alpha(@text_color, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px alpha(@shadow_color, 0.5);
+}
+
 .singularity modelbutton {
     border-radius: 6px;
     padding: 5px 10px;
@@ -2105,6 +2219,19 @@ popover .menu-row:hover {
     background-color: @accent_color;
     color: white;
     box-shadow: none;
+}
+
+/* Destructive menu rows (e.g. Force Kill exposed via Shift+right-click on
+   the dock). Red text in idle state, red background on hover. */
+.singularity popover.context-menu .menu-row.destructive-action {
+    color: #e01b24;
+}
+.singularity popover.context-menu .menu-row.destructive-action:hover {
+    background-color: #e01b24;
+    color: white;
+}
+.singularity popover.context-menu .menu-row.destructive-action:hover * {
+    color: white;
 }
 
 /* Labels and images inside hovered menu rows must also be white */
@@ -2311,7 +2438,7 @@ flowbox popover.context-menu button.menu-row {
     font-size: 13px;
 }
 
-.singularity popover>contents {
+.singularity popover:not(.context-menu)>contents {
     background-color: transparent;
     box-shadow: none;
     border: none;
@@ -3647,7 +3774,7 @@ flowboxchild.disk-card-child:focus {
 
 /* Window flat mode */
 
-/* Transparent drag strip — invisible but grabbable */
+/* Transparent drag strip - invisible but grabbable */
 .flat-drag-strip {
     background: transparent;
     min-height: 24px;
@@ -3670,4 +3797,175 @@ flowboxchild.disk-card-child:focus {
 .singularity .media-player-card {
     border-radius: 24px;
     border: 1px solid @border_color;
+}
+
+/* ───────────────────── Overview widgets ───────────────────── */
+
+.overview-widget {
+    border-radius: 20px;
+    overflow: hidden;
+    transition: box-shadow 180ms ease, transform 180ms ease;
+}
+.overview-widget-loading {
+    background-color: alpha(@window_fg_color, 0.05);
+    border-radius: 20px;
+}
+.overview-widget.dragging {
+    opacity: 0.5;
+    transform: scale(0.97);
+}
+.overview-widget-handle {
+    background: alpha(@window_bg_color, 0.55);
+    border-radius: 999px;
+    padding: 3px 12px;
+    color: alpha(@window_fg_color, 0.7);
+    transition: opacity 160ms ease;
+}
+
+/* Resize mode - accent outline + pill handles on the dragged edges. */
+.overview-widget-resize-active {
+    outline: 2px dashed @accent_bg_color;
+    outline-offset: -1px;
+    border-radius: 22px;
+}
+.overview-resize-handle {
+    background: @accent_bg_color;
+    border-radius: 999px;
+    box-shadow: 0 0 0 2px alpha(white, 0.7);
+    transition: transform 120ms ease;
+}
+.overview-resize-handle:hover { transform: scale(1.18); }
+
+/* Live resize preview - translucent accent frame floated over the grid
+   showing the widget's target footprint while a handle is being dragged. */
+.overview-resize-preview {
+    background: alpha(@accent_bg_color, 0.18);
+    border: 2px solid alpha(@accent_bg_color, 0.85);
+    border-radius: 22px;
+}
+
+/* Drop indicator - soft accent halo around the item where the dragged
+   element would be inserted. No layout change, just visual feedback. */
+.drop-target-here {
+    box-shadow: 0 0 0 3px alpha(@accent_bg_color, 0.65),
+                0 0 24px alpha(@accent_bg_color, 0.45);
+    border-radius: 18px;
+    transition: box-shadow 120ms ease;
+}
+
+/* Clock - soft frosted veil so it doesn't disappear into the wallpaper. */
+.overview-clock {
+    border-radius: 20px;
+    background: alpha(@window_bg_color, 0.35);
+    border: 1px solid alpha(@window_fg_color, 0.08);
+    box-shadow: 0 1px 2px alpha(black, 0.18) inset,
+                0 1px 4px alpha(black, 0.12);
+}
+.overview-clock-time {
+    letter-spacing: 0.5px;
+}
+
+/* System stats - uses individual "cards" per metric. */
+.overview-sysstats {
+    border-radius: 20px;
+    background: alpha(@window_bg_color, 0.30);
+    border: 1px solid alpha(@window_fg_color, 0.08);
+}
+.overview-sysstats-card {
+    border-radius: 12px;
+    background: alpha(@window_fg_color, 0.04);
+}
+
+/* Quick notes - paper-yellow tint with dark text. The dark theme bleeds
+   through the TextView's `text` node, so override colour + background on
+   every nested node explicitly. */
+.overview-notes,
+.overview-notes-view {
+    background-color: #fff4b8;
+    color: #2b2b2b;
+    border-radius: 20px;
+    border: 1px solid alpha(black, 0.06);
+}
+.overview-notes label { color: #2b2b2b; }
+.overview-notes textview,
+.overview-notes textview.view,
+.overview-notes scrolledwindow,
+.overview-notes scrolledwindow viewport,
+.overview-notes textview text,
+.overview-notes textview > text {
+    background-color: #fff4b8;
+    background-image: none;
+    color: #2b2b2b;
+    caret-color: #2b2b2b;
+}
+.overview-notes textview text selection {
+    background-color: alpha(#000, 0.18);
+    color: #2b2b2b;
+}
+
+/* Calculator - distinct flat buttons with grouped accents. */
+.overview-calculator {
+    border-radius: 20px;
+    background: alpha(@window_bg_color, 0.50);
+    border: 1px solid alpha(@window_fg_color, 0.10);
+}
+.overview-calc-display {
+    padding: 6px 12px;
+    font-feature-settings: "tnum";
+}
+.overview-calc-btn {
+    border-radius: 12px;
+    padding: 8px;
+    min-width: 0;
+    min-height: 0;
+    font-weight: 600;
+}
+.overview-calc-num    { background: alpha(@window_fg_color, 0.06); }
+.overview-calc-func   { background: alpha(@window_fg_color, 0.12); }
+.overview-calc-op     { background: alpha(@accent_bg_color, 0.20); }
+.overview-calc-accent { background: @accent_bg_color; color: @accent_fg_color; }
+.overview-calc-btn:hover  { background-color: alpha(@window_fg_color, 0.18); }
+.overview-calc-accent:hover { background-color: shade(@accent_bg_color, 1.1); }
+
+/* Photos carousel - full-bleed images. */
+.overview-photos {
+    border-radius: 20px;
+    background: black;
+}
+.overview-photo {
+    border-radius: 18px;
+}
+
+/* ───────────────── Dock resource stack (macOS-style) ───────────────── */
+.dock-resources-sep {
+    margin: 8px 4px;
+    min-width: 1px;
+    background: alpha(@window_fg_color, 0.18);
+}
+.dock-resource-thumb,
+.dock-polaroid {
+    border-radius: 8px;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px alpha(black, 0.35);
+}
+.dock-polaroid-fan { }
+.dock-folder-popover > contents {
+    border-radius: 16px;
+    padding: 4px;
+}
+.dock-folder-entry button {
+    border-radius: 12px;
+    padding: 4px;
+}
+
+/* ── Definitive context-menu opacity guarantee (must be LAST) ──────────────
+   Context menus are sometimes parented from inside a GtkColumnView/ListView
+   (Files list mode, Monitor) whose popover ends up outside the `.singularity`
+   subtree, so the `.singularity popover {…}` background never reaches them and
+   they render see-through. Set the background on BOTH the popover node and its
+   contents, with no `.singularity` requirement, placed last so it wins. */
+popover.context-menu,
+popover.context-menu > contents {
+    background-color: @surface_raised;
+    color: @text_color;
 }
