@@ -32,9 +32,12 @@ namespace Singularity.Widgets {
          * @param icon_name Optional symbolic icon displayed to the left of the label.
          * @param callback  Called when the item is clicked (after the menu pops down).
          */
-        public void add_item(string label, string? icon_name, owned ClickedCallback callback) {
+        public void add_item(string label, string? icon_name, owned ClickedCallback callback,
+                              string? css_class = null) {
             var item = new MenuRow(label, icon_name);
             item.halign = Align.FILL;
+            if (css_class != null && css_class.length > 0)
+                item.add_css_class(css_class);
             item.clicked.connect(() => {
                 popdown();
                 callback();
