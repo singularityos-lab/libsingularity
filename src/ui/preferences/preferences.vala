@@ -127,7 +127,7 @@ namespace Singularity.Widgets {
     /**
      * Appends a row to the group's list box.
      *
-     * @param row Any Gtk.Widget — typically a PreferencesRow subclass.
+     * @param row Any Gtk.Widget - typically a PreferencesRow subclass.
      */
         public void add_row(Widget row) {
             rows.add(row);
@@ -565,7 +565,7 @@ namespace Singularity.Widgets {
         public EntryRow(string title, string? icon_name = null) {
             base(title, null, icon_name);
 
-            // Tighten vertical margins — row has title + entry stacked
+            // Tighten vertical margins - row has title + entry stacked
             var mb = this.get_child() as Box;
             if (mb != null) {
                 mb.margin_top = 6;
@@ -828,7 +828,7 @@ namespace Singularity.Widgets {
             container.append(scrolled);
             add_row(container);
             // Pre-populate so the ScrolledWindow has content before the Revealer
-            // calculates its target height — prevents the "10px tall" collapse.
+            // calculates its target height - prevents the "10px tall" collapse.
             populate_list();
             this.notify["expanded"].connect(() => {
                 if (expanded) {

@@ -176,7 +176,7 @@ namespace Singularity.Style {
                 window.singularity-blur .dock-window:backdrop .dock-box,
                 .singularity-blur .dock-window:backdrop .dock-box { background-color: %s; }
 
-                /* Workspace previews — rgbacomputed here for box-shadow */
+                /* Workspace previews - rgbacomputed here for box-shadow */
                 .workspace-preview.active .workspace-clipper {
                     border-color: %s;
                     box-shadow: 0 0 0 1px %s, 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -364,7 +364,7 @@ namespace Singularity.Style {
                 }
                 string path = GLib.Path.build_filename(dir, "gtk.css");
                 string existing = "";
-                // File may not exist on first run — that is expected, start with empty string.
+                // File may not exist on first run - that is expected, start with empty string.
                 try { GLib.FileUtils.get_contents(path, out existing); } catch (Error e) {
                     if (!(e is GLib.FileError.NOENT)) warning("StyleManager: could not read %s: %s", path, e.message);
                     existing = "";
