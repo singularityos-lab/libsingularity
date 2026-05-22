@@ -17,9 +17,11 @@ layershell_dep = dependency('gtk4-layer-shell-0', version: '>= 0.7')
 gee_dep        = dependency('gee-0.8',            version: '>= 0.20')
 json_dep       = dependency('json-glib-1.0',      version: '>= 1.6')
 peas_dep       = dependency('libpeas-2',          version: '>= 2.0')
+gmodule_dep    = dependency('gmodule-2.0')
+soup_dep       = dependency('libsoup-3.0')
 introspection_dep = dependency('gobject-introspection-1.0', required: get_option('introspection'))
 
-libsingularity_deps = [gtk4_dep, layershell_dep, gee_dep, json_dep, peas_dep]
+libsingularity_deps = [gtk4_dep, layershell_dep, gee_dep, json_dep, peas_dep, gmodule_dep, soup_dep]
 
 libsingularity_resources = gnome.compile_resources(
   'libsingularity-resources',
@@ -71,12 +73,17 @@ libsingularity_sources = files(
   'src/core/shell_contract.vala',
   'src/core/app_settings_contract.vala',
   'src/core/plugin_contract.vala',
+  'src/core/overview_widget_registry.vala',
+  'src/core/shell_surface_contract.vala',
+  'src/core/search_provider.vala',
   'src/core/app_settings_loader.vala',
   'src/animation/animation.vala',
   'src/animation/timed_animation.vala',
   'src/style/style_manager.vala',
   'src/accessibility/accessibility_manager.vala',
   'src/ui/visual/chart_widgets.vala',
+  'src/ui/visual/circular_progress.vala',
+  'src/ui/visual/media_player_card.vala',
   'src/ui/pages/browser_pill.vala',
   'src/core/terminal_themes.vala',
   'src/file_system/file_provider.vala',
