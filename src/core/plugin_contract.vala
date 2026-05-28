@@ -383,6 +383,22 @@ namespace Singularity {
             search_provider_removed(provider);
         }
 
+        // ── VPN providers (Tailscale and other non-NetworkManager backends) ─
+        public signal void vpn_provider_added(VpnProvider provider);
+        public signal void vpn_provider_removed(VpnProvider provider);
+
+        /**
+         * Registers a VPN provider. Its connections appear in the Network
+         * settings page alongside the built-in NetworkManager VPNs, with
+         * connect / disconnect (and optionally remove) controls.
+         */
+        public void add_vpn_provider(VpnProvider provider) {
+            vpn_provider_added(provider);
+        }
+        public void remove_vpn_provider(VpnProvider provider) {
+            vpn_provider_removed(provider);
+        }
+
         // ── Shell surfaces (replaceable dock / panel / overview / …) ───────
         public signal void shell_surface_provider_added(ShellSurfaceProvider provider);
         public signal void shell_surface_provider_removed(ShellSurfaceProvider provider);

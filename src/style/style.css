@@ -1458,7 +1458,7 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     color: alpha(@text_color, 0.8);
 }
 
-.sidebar-window {border-radius: 40px}
+.sidebar-window { border-radius: 40px; }
 
 .sidebar-window .settings-page-content {
     padding: 0;
@@ -3803,7 +3803,6 @@ flowboxchild.disk-card-child:focus {
 
 .overview-widget {
     border-radius: 20px;
-    overflow: hidden;
     transition: box-shadow 180ms ease, transform 180ms ease;
 }
 .overview-widget-loading {
