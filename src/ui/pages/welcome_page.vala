@@ -11,9 +11,9 @@ namespace Singularity.Widgets {
      * Responsive: when width < 680 px or no extra widget, right pane moves
      * below the left pane (vertical stacking).
      *
-     * Action layout rules:
-     * - 1–2 actions: stacked cards (icon + title + description)
-     * - 3+ actions: list rows (icon + title + description + chevron)
+     * Action layout: vertical list rows (icon + title + description + chevron),
+     * regardless of action count, so every Singularity app shares the same
+     * welcome UX.
      */
     public class WelcomePage : Box {
 
@@ -159,9 +159,13 @@ namespace Singularity.Widgets {
             // ── Right pane: extra widget (recent files, etc.) ──────────────
             _right_pane = new Box(Orientation.VERTICAL, 0);
             _right_pane.add_css_class("welcome-page-right");
-            _right_pane.hexpand = true;
-            _right_pane.vexpand = true;
-            _right_pane.visible = false;
+            _right_pane.hexpand        = true;
+            _right_pane.vexpand        = true;
+            _right_pane.visible        = false;
+            _right_pane.margin_top     = 10;
+            _right_pane.margin_bottom  = 10;
+            _right_pane.margin_start   = 10;
+            _right_pane.margin_end     = 10;
             _split_box.append(_right_pane);
 
             scroll.set_child(_split_box);
@@ -236,11 +240,7 @@ namespace Singularity.Widgets {
             if (_actions_built) return;
             _actions_built = true;
             if (_actions.length == 0) return;
-            if (_actions.length <= 2) {
-                build_card_actions();
-            } else {
-                build_list_actions();
-            }
+            build_list_actions();
         }
 
         /** 1–2 actions: stacked cards (icon left, text right). */

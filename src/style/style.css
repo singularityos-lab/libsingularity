@@ -146,6 +146,18 @@ textview > text {
 }
 textview > text > selection { background-color: mix(@accent_color, @window_bg, 0.5); }
 
+/* Singularity SourceView: full-bleed editor, accent-true selection. */
+textview.singularity-sourceview,
+textview.singularity-sourceview > text {
+    background-color: transparent;
+    color: @text_color;
+    caret-color: @accent_color;
+}
+textview.singularity-sourceview > text > selection {
+    background-color: @accent_color;
+    color: @accent_fg_color;
+}
+
 /* Scrollbar */
 scrollbar { background-color: transparent; border: none; }
 scrollbar trough {

@@ -19,9 +19,10 @@ json_dep       = dependency('json-glib-1.0',      version: '>= 1.6')
 peas_dep       = dependency('libpeas-2',          version: '>= 2.0')
 gmodule_dep    = dependency('gmodule-2.0')
 soup_dep       = dependency('libsoup-3.0')
+gtksource_dep  = dependency('gtksourceview-5')
 introspection_dep = dependency('gobject-introspection-1.0', required: get_option('introspection'))
 
-libsingularity_deps = [gtk4_dep, layershell_dep, gee_dep, json_dep, peas_dep, gmodule_dep, soup_dep]
+libsingularity_deps = [gtk4_dep, layershell_dep, gee_dep, json_dep, peas_dep, gmodule_dep, soup_dep, gtksource_dep]
 
 libsingularity_resources = gnome.compile_resources(
   'libsingularity-resources',
@@ -52,6 +53,7 @@ libsingularity_sources = files(
   'src/ui/editor/ruler.vala',
   'src/ui/editor/find_replace_bar.vala',
   'src/ui/editor/page_canvas.vala',
+  'src/ui/editor/source_view.vala',
   'src/ui/navigation/menu_row.vala',
   'src/ui/navigation/context_menu.vala',
   'src/ui/navigation/app_sidebar.vala',
