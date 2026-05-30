@@ -4014,3 +4014,35 @@ popover.context-menu > contents {
     background-color: @surface_raised;
     color: @text_color;
 }
+
+/* Singularity OverlaySearch: floating spotlight / palette card. */
+.singularity-overlay-search-card {
+    background-color: alpha(@window_bg_color, 0.94);
+    border: 1px solid alpha(@text_color, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px alpha(black, 0.35);
+    padding: 6px;
+    min-width: 480px;
+}
+.singularity-overlay-search-entry {
+    min-height: 32px;
+    border-radius: 8px;
+    padding: 0 8px;
+    background-color: transparent;
+}
+.singularity-overlay-search-entry:focus {
+    background-color: alpha(@text_color, 0.04);
+}
+.singularity-overlay-search-list {
+    background-color: transparent;
+    padding: 4px 0;
+}
+.singularity-overlay-search-list row {
+    border-radius: 6px;
+    margin: 1px 2px;
+    background-color: transparent;
+}
+.singularity-overlay-search-list row:selected,
+.singularity-overlay-search-list row:hover {
+    background-color: alpha(@accent_color, 0.18);
+}
