@@ -4046,3 +4046,14 @@ popover.context-menu > contents {
 .singularity-overlay-search-list row:hover {
     background-color: alpha(@accent_color, 0.18);
 }
+
+/* Singularity Carousel: dot indicator under the stack. */
+.singularity-carousel-dots { padding: 2px 0; }
+.singularity-carousel-dot {
+    background-color: alpha(@text_color, 0.25);
+    border-radius: 99px;
+    transition: background-color 0.2s ease;
+}
+.singularity-carousel-dot.active {
+    background-color: @accent_color;
+}
