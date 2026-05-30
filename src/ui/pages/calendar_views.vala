@@ -77,8 +77,10 @@ namespace Singularity.Widgets {
         private DateTime?  _selected;
         private Label      _month_lbl;
         private Grid       _grid;
+        private Button     _today_btn;
 
         public signal void date_selected (DateTime date);
+        public signal void today_clicked ();
 
         public CalendarNavPicker () {
             Object (orientation: Orientation.VERTICAL, spacing: 4);
@@ -109,6 +111,18 @@ namespace Singularity.Widgets {
             _month_lbl.halign   = Align.CENTER;
             _month_lbl.add_css_class ("cal-nav-month-label");
 
+            _today_btn = new Button.with_label ("Today");
+            _today_btn.add_css_class ("flat");
+            _today_btn.add_css_class ("cal-nav-today-btn");
+            _today_btn.set_size_request (-1, 24);
+            _today_btn.clicked.connect (() => {
+                var now = new DateTime.now_local ();
+                _display_month = new DateTime.local (now.get_year (), now.get_month (), 1, 0, 0, 0);
+                _selected      = now;
+                _refresh ();
+                today_clicked ();
+            });
+
             var next = new Button.from_icon_name ("go-next-symbolic");
             next.add_css_class ("flat"); next.add_css_class ("circular");
             next.set_size_request (28, 28);
@@ -116,6 +130,7 @@ namespace Singularity.Widgets {
 
             hdr.append (prev);
             hdr.append (_month_lbl);
+            hdr.append (_today_btn);
             hdr.append (next);
             append (hdr);
 
