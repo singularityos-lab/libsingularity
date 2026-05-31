@@ -240,7 +240,7 @@ namespace Singularity.Core {
             return _theme_to_source_xml (theme);
         }
 
-        // Mix two hex colours: t=0 → hex1, t=1 → hex2.
+        // Mix two hex colours: t=0 -> hex1, t=1 -> hex2.
         private static string _mix_hex (string hex1, string hex2, double t) {
             if (hex1.length < 7 || hex2.length < 7) return hex1;
             int r1 = (int) hex1.substring (1, 2).to_long (null, 16);

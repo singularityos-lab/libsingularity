@@ -3,15 +3,22 @@ using Gtk;
 namespace Singularity.Widgets {
 
     /**
-     * A styled search-entry widget that wraps Gtk.SearchEntry.
+     * The Singularity search-entry primitive. Wraps a Gtk.SearchEntry
+     * and shifts the inner GtkText right by 10% so the placeholder /
+     * text isn't glued to the search icon. Every Singularity app
+     * uses this in place of Gtk.SearchEntry for a uniform visual.
      *
-     * Emits `search_changed` on every keystroke so callers can filter their data
-     * in real time. Gain input focus programmatically via the overridden `grab_focus()`.
+     * GtkSearchEntry can't be subclassed (its class struct is not
+     * public), so this widget is a Box composition with proxied
+     * `text`, `placeholder_text`, the underlying `entry`, and a
+     * forwarded `search_changed` signal.
      */
     public class SearchEntry : Box {
-        private Gtk.SearchEntry entry;
 
-        /** The current text in the search field. */
+        /** The underlying Gtk.SearchEntry - exposed for callers that
+         *  need direct access (e.g. focus chain, gesture controllers). */
+        public Gtk.SearchEntry entry { get; private set; }
+
         public string text {
             get { return entry.text; }
             set { entry.text = value; }
@@ -22,26 +29,43 @@ namespace Singularity.Widgets {
             set { entry.placeholder_text = value; }
         }
 
-        /** Emitted when the text in the entry changes. */
-        public signal void search_changed(SearchEntry sender);
+        /** Forwarded from Gtk.SearchEntry.search_changed. */
+        public signal void search_changed ();
 
-        public SearchEntry() {
-            Object(orientation: Orientation.HORIZONTAL, spacing: 0);
+        construct {
+            orientation = Orientation.HORIZONTAL;
+            spacing = 0;
 
-            entry = new Gtk.SearchEntry();
+            entry = new Gtk.SearchEntry ();
             entry.hexpand = true;
-            entry.add_css_class("search-entry");
-            entry.add_css_class("singularity-search");
+            entry.search_changed.connect (() => search_changed ());
+            append (entry);
 
-            entry.search_changed.connect(() => {
-                search_changed(this);
-            });
-
-            append(entry);
+            _apply_xalign ();
+            entry.realize.connect (_apply_xalign);
         }
 
-        public override bool grab_focus() {
-            return entry.grab_focus();
+        public override bool grab_focus () {
+            return entry.grab_focus ();
+        }
+
+        private void _apply_xalign () {
+            Widget? child = entry.get_first_child ();
+            while (child != null) {
+                if (child is Gtk.Text) {
+                    ((Gtk.Text) child).xalign = 0.10f;
+                    return;
+                }
+                Widget? grand = child.get_first_child ();
+                while (grand != null) {
+                    if (grand is Gtk.Text) {
+                        ((Gtk.Text) grand).xalign = 0.10f;
+                        return;
+                    }
+                    grand = grand.get_next_sibling ();
+                }
+                child = child.get_next_sibling ();
+            }
         }
     }
 }

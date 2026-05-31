@@ -59,7 +59,7 @@ namespace Singularity.Widgets {
         public signal void item_activated(string id);
         public signal void entry_activated(string query);
 
-        private Gtk.SearchEntry _entry;
+        private Singularity.Widgets.SearchEntry _entry;
         private ListBox     _list;
         private ScrolledWindow _scroll;
         private Stack       _stack;
@@ -128,16 +128,16 @@ namespace Singularity.Widgets {
             _card = new Box(Orientation.VERTICAL, 0);
             _card.add_css_class("singularity-overlay-search-card");
 
-            _entry = new Gtk.SearchEntry();
+            _entry = new Singularity.Widgets.SearchEntry();
             _entry.add_css_class("singularity-overlay-search-entry");
             _entry.placeholder_text = _placeholder;
             _entry.hexpand = true;
             _entry.search_changed.connect(on_search_changed);
-            _entry.activate.connect(on_entry_activate);
+            _entry.entry.activate.connect(on_entry_activate);
 
             var entry_key = new EventControllerKey();
             entry_key.key_pressed.connect(on_entry_key);
-            _entry.add_controller(entry_key);
+            _entry.entry.add_controller(entry_key);
 
             _list = new ListBox();
             _list.add_css_class("singularity-overlay-search-list");
@@ -178,7 +178,7 @@ namespace Singularity.Widgets {
             if (prefill != null) _entry.text = prefill;
             refresh();
             _entry.grab_focus();
-            _entry.select_region(0, -1);
+            _entry.entry.select_region(0, -1);
         }
 
         public void close() { visible = false; }

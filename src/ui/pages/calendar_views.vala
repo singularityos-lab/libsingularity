@@ -5,7 +5,7 @@ using Singularity.Calendar;
 
 namespace Singularity.Widgets {
 
-    // ── EventChip ────────────────────────────────────────────────────────────
+    // -- EventChip ------------------------------------------------------------
 
     /**
      * A colored pill showing a calendar event.
@@ -66,7 +66,7 @@ namespace Singularity.Widgets {
         }
     }
 
-    // ── CalendarNavPicker ─────────────────────────────────────────────────────
+    // -- CalendarNavPicker -----------------------------------------------------
 
     /**
      * A compact month-grid date picker for the sidebar.
@@ -199,7 +199,7 @@ namespace Singularity.Widgets {
         }
     }
 
-    // ── CalendarMonthView ─────────────────────────────────────────────────────
+    // -- CalendarMonthView -----------------------------------------------------
 
     /**
      * Month-grid view.  Shows 6 weeks × 7 days with event chips per cell.
@@ -341,7 +341,7 @@ namespace Singularity.Widgets {
         }
     }
 
-    // ── CalendarWeekView ──────────────────────────────────────────────────────
+    // -- CalendarWeekView ------------------------------------------------------
 
     /**
      * Week view: 7 day columns with time-positioned event chips.
@@ -372,7 +372,7 @@ namespace Singularity.Widgets {
         }
 
         private void _build_ui () {
-            // ── Day header row ──────────────────────────────────────────────
+            // -- Day header row ----------------------------------------------
             _day_header_grid = new Grid ();
             _day_header_grid.add_css_class ("cal-week-header");
             _day_header_grid.column_homogeneous = false;
@@ -388,7 +388,7 @@ namespace Singularity.Widgets {
             }
             append (_day_header_grid);
 
-            // ── Scrollable time + day columns ───────────────────────────────
+            // -- Scrollable time + day columns -------------------------------
             var scroll = new ScrolledWindow ();
             scroll.hexpand = true; scroll.vexpand = true;
             scroll.hscrollbar_policy = PolicyType.NEVER;
@@ -530,8 +530,8 @@ namespace Singularity.Widgets {
         }
 
         private DateTime _sunday_of_week (DateTime d) {
-            // GTK DateTime: 1=Mon … 7=Sun; we want Sunday as first day
-            int dow = d.get_day_of_week () % 7; // Sun=0, Mon=1 … Sat=6
+            // GTK DateTime: 1=Mon ... 7=Sun; we want Sunday as first day
+            int dow = d.get_day_of_week () % 7; // Sun=0, Mon=1 ... Sat=6
             return d.add_days (-dow).add (
                 -(d.get_hour ()   * (int64) TimeSpan.HOUR)
                 -(d.get_minute () * (int64) TimeSpan.MINUTE)
@@ -539,7 +539,7 @@ namespace Singularity.Widgets {
         }
     }
 
-    // ── CalendarDayView ───────────────────────────────────────────────────────
+    // -- CalendarDayView -------------------------------------------------------
 
     /**
      * Single-day view with hourly time slots and time-positioned event chips.
@@ -569,7 +569,7 @@ namespace Singularity.Widgets {
         }
 
         private void _build_ui () {
-            // ── Day header ──────────────────────────────────────────────────
+            // -- Day header --------------------------------------------------
             _day_header_lbl = new Label ("");
             _day_header_lbl.add_css_class ("cal-day-title");
             _day_header_lbl.label = _date.format ("%A, %B %e %Y");
@@ -580,7 +580,7 @@ namespace Singularity.Widgets {
             append (_day_header_lbl);
             append (new Separator (Orientation.HORIZONTAL));
 
-            // ── Scrollable time grid ────────────────────────────────────────
+            // -- Scrollable time grid ----------------------------------------
             var scroll = new ScrolledWindow ();
             scroll.hexpand = true; scroll.vexpand = true;
             scroll.hscrollbar_policy = PolicyType.NEVER;

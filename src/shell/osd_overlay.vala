@@ -98,7 +98,7 @@ namespace Singularity.Shell {
          * The overlay is presented immediately and auto-hides after ~1.5 seconds.
          *
          * @param icon_name Symbolic icon name (e.g. `"audio-volume-high-symbolic"`).
-         * @param value     Progress value in the range 0–100 for a progress bar,
+         * @param value     Progress value in the range 0-100 for a progress bar,
          *                  or a negative value to show only the icon and label.
          * @param text      Optional label shown below the progress bar.
          */

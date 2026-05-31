@@ -122,35 +122,4 @@ namespace Singularity.Widgets {
             end_box.prepend(widget);
         }
     }
-    /**
-     * An invisible spacer widget that reserves the same vertical space as a
-     * ToolBar when the toolbar is used as an overlay.
-     *
-     * Place this at the top of a scrollable area so content does not start
-     * behind the floating toolbar.
-     */
-    public class ToolbarSpacer : Widget {
-
-        /** Creates a spacer with the default toolbar height (46 px). */
-        public ToolbarSpacer() {
-            add_css_class("toolbar-spacer");
-            set_size_request(-1, 46);
-            visible = true;
-            can_target = false;
-            focusable = false;
-        }
-
-        /**
-         * Creates a spacer with a custom height.
-         *
-         * @param height Height in pixels.
-         */
-        public ToolbarSpacer.with_height(int height) {
-            add_css_class("toolbar-spacer");
-            set_size_request(-1, height);
-            visible = true;
-            can_target = false;
-            focusable = false;
-        }
-    }
 }

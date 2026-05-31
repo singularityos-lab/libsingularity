@@ -19,6 +19,7 @@ namespace Singularity.Widgets {
 
         private bool   _active   = false;
         private Button _body_btn;
+        private Label  _label;
 
         public Chip (string id, string label) {
             Object (orientation: Orientation.HORIZONTAL, spacing: 0,
@@ -29,8 +30,12 @@ namespace Singularity.Widgets {
             _body_btn = new Button.with_label (label);
             _body_btn.has_frame = false;
             _body_btn.add_css_class ("chip-body");
-            ((Label) _body_btn.get_child ()).ellipsize = Pango.EllipsizeMode.END;
-            ((Label) _body_btn.get_child ()).max_width_chars = 12;
+            _label = (Label) _body_btn.get_child ();
+            // Default: ellipsize with a sensible visible minimum so the
+            // chip never collapses to "..." alone.
+            _label.ellipsize       = Pango.EllipsizeMode.END;
+            _label.width_chars     = 6;
+            _label.max_width_chars = 18;
             _body_btn.clicked.connect (() => activated ());
             append (_body_btn);
 
@@ -51,7 +56,18 @@ namespace Singularity.Widgets {
         }
 
         public void set_label (string label) {
-            ((Label) _body_btn.get_child ()).label = label;
+            _label.label = label;
+        }
+
+        /** Toggle ellipsis on the label. False = always show the full label. */
+        public void set_ellipsize (bool on) {
+            _label.ellipsize = on ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE;
+        }
+
+        /** Visible character bounds when ellipsis is on. */
+        public void set_label_chars (int min_chars, int max_chars) {
+            _label.width_chars     = min_chars;
+            _label.max_width_chars = max_chars;
         }
     }
 
@@ -66,11 +82,38 @@ namespace Singularity.Widgets {
         /** Emitted with the chip's id when the close button is clicked. */
         public signal void chip_closed    (string id);
 
+        /**
+         * Emitted after the user reorders the chips by drag-and-drop.
+         * The argument is the new ordered list of chip ids; apps should
+         * persist it (e.g. settings) so the order survives restart.
+         */
+        public signal void chips_reordered (string[] ids);
+
         /** Number of chips currently in the bar. */
         public int chip_count { get; private set; default = 0; }
 
         private ScrolledWindow _scroll;
         private Box            _chips_box;
+
+        /**
+         * Per-chip ellipsis policy applied to every chip added afterwards
+         * (and propagated to existing chips). False = chips always show
+         * their full label and the bar scrolls horizontally if needed.
+         */
+        public bool ellipsize_labels { get; set; default = true; }
+
+        /** Minimum visible label width (in chars) when ellipsis is on. */
+        public int min_label_chars { get; set; default = 6; }
+
+        /** Maximum visible label width (in chars) when ellipsis is on. */
+        public int max_label_chars { get; set; default = 18; }
+
+        /**
+         * When true, the user can drag chips to reorder them (tab-like).
+         * Toggling this property re-wires drag/drop on every existing
+         * chip. Default off so the behaviour is opt-in.
+         */
+        public bool reorderable { get; set; default = false; }
 
         public ChipBar () {
             Object (orientation: Orientation.HORIZONTAL, spacing: 0);
@@ -89,6 +132,12 @@ namespace Singularity.Widgets {
             _chips_box.margin_bottom = 5;
             _chips_box.valign        = Align.CENTER;
             _scroll.set_child (_chips_box);
+
+            // When the policy flips, restyle every existing chip.
+            notify["ellipsize-labels"].connect (_apply_label_policy);
+            notify["min-label-chars"].connect  (_apply_label_policy);
+            notify["max-label-chars"].connect  (_apply_label_policy);
+            notify["reorderable"].connect      (_apply_reorderable_policy);
         }
 
         /**
@@ -99,12 +148,135 @@ namespace Singularity.Widgets {
          */
         public void add_chip (string id, string label) {
             var chip = new Chip (id, label);
-            // Capture id by value for the closures
+            chip.set_ellipsize (ellipsize_labels);
+            chip.set_label_chars (min_label_chars, max_label_chars);
             string cid = id;
             chip.activated.connect       (() => chip_activated (cid));
             chip.close_requested.connect (() => chip_closed    (cid));
             _chips_box.append (chip);
             chip_count++;
+            if (reorderable) _install_drag (chip);
+        }
+
+        // -- Drag-to-reorder ------------------------------------------------
+        //
+        // Each chip carries:
+        //  - a GtkDragSource that hands off the chip's id (as string)
+        //  - a GtkDropTarget that, on drop, finds the source chip by id,
+        //    pulls it out of the box and re-inserts it before/after the
+        //    target chip based on the cursor x position.
+        //
+        // We mark the controllers via set_data so _apply_reorderable_policy
+        // can find and remove them when the property is toggled off.
+
+        private void _install_drag (Chip chip) {
+            if (chip.get_data<bool> ("singularity-chip-drag-installed")) return;
+            chip.set_data<bool> ("singularity-chip-drag-installed", true);
+
+            var src = new Gtk.DragSource ();
+            src.set_actions (Gdk.DragAction.MOVE);
+            string cid = chip.chip_id;
+            src.prepare.connect ((x, y) => {
+                return new Gdk.ContentProvider.for_value (cid);
+            });
+            chip.add_controller (src);
+            chip.set_data<Gtk.DragSource> ("singularity-chip-drag-src", src);
+
+            var tgt = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            tgt.drop.connect ((value, x, y) => {
+                string dragged_id = value.get_string ();
+                if (dragged_id == cid) return false;
+                var dragged = _find (dragged_id);
+                if (dragged == null) return false;
+                _chips_box.remove (dragged);
+                int target_index = _index_of (chip);
+                bool after = x > (chip.get_width () / 2);
+                if (after) {
+                    _insert_at (dragged, target_index + 1);
+                } else {
+                    _insert_at (dragged, target_index);
+                }
+                string[] ids = _ordered_ids ();
+                chips_reordered (ids);
+                return true;
+            });
+            chip.add_controller (tgt);
+            chip.set_data<Gtk.DropTarget> ("singularity-chip-drop-tgt", tgt);
+        }
+
+        private void _uninstall_drag (Chip chip) {
+            if (!chip.get_data<bool> ("singularity-chip-drag-installed")) return;
+            var src = chip.get_data<Gtk.DragSource> ("singularity-chip-drag-src");
+            var tgt = chip.get_data<Gtk.DropTarget>  ("singularity-chip-drop-tgt");
+            if (src != null) chip.remove_controller (src);
+            if (tgt != null) chip.remove_controller (tgt);
+            chip.set_data<Gtk.DragSource>    ("singularity-chip-drag-src", null);
+            chip.set_data<Gtk.DropTarget>    ("singularity-chip-drop-tgt", null);
+            chip.set_data<bool>              ("singularity-chip-drag-installed", false);
+        }
+
+        private void _apply_reorderable_policy () {
+            Widget? w = _chips_box.get_first_child ();
+            while (w != null) {
+                var c = w as Chip;
+                if (c != null) {
+                    if (reorderable) _install_drag (c);
+                    else             _uninstall_drag (c);
+                }
+                w = w.get_next_sibling ();
+            }
+        }
+
+        private int _index_of (Chip chip) {
+            int i = 0;
+            Widget? w = _chips_box.get_first_child ();
+            while (w != null) {
+                if (w == chip) return i;
+                w = w.get_next_sibling ();
+                i++;
+            }
+            return -1;
+        }
+
+        private void _insert_at (Chip chip, int index) {
+            if (index <= 0) {
+                Widget? first = _chips_box.get_first_child ();
+                if (first == null) _chips_box.append (chip);
+                else               _chips_box.insert_child_after (chip, null);
+                return;
+            }
+            int i = 0;
+            Widget? w = _chips_box.get_first_child ();
+            Widget? prev = null;
+            while (w != null && i < index) {
+                prev = w;
+                w = w.get_next_sibling ();
+                i++;
+            }
+            _chips_box.insert_child_after (chip, prev);
+        }
+
+        private string[] _ordered_ids () {
+            string[] ids = {};
+            Widget? w = _chips_box.get_first_child ();
+            while (w != null) {
+                var c = w as Chip;
+                if (c != null) ids += c.chip_id;
+                w = w.get_next_sibling ();
+            }
+            return ids;
+        }
+
+        private void _apply_label_policy () {
+            Widget? w = _chips_box.get_first_child ();
+            while (w != null) {
+                var c = w as Chip;
+                if (c != null) {
+                    c.set_ellipsize (ellipsize_labels);
+                    c.set_label_chars (min_label_chars, max_label_chars);
+                }
+                w = w.get_next_sibling ();
+            }
         }
 
         /**

@@ -327,7 +327,7 @@ namespace Singularity {
              }
         }
 
-        // ── Workspace API ─────────────────────────────────────────────────────
+        // -- Workspace API -----------------------------------------------------
         /** Emitted when the workspace list changes. */
         public signal void workspaces_changed();
         /** Emitted when a plugin requests switching to a workspace by index. */
@@ -361,7 +361,7 @@ namespace Singularity {
             workspace_switch_requested(index);
         }
 
-        // ── Overview widgets ──────────────────────────────────────────────
+        // -- Overview widgets ----------------------------------------------
         public signal void overview_widget_added(OverviewWidgetProvider provider);
         public signal void overview_widget_removed(OverviewWidgetProvider provider);
 
@@ -372,7 +372,7 @@ namespace Singularity {
             overview_widget_removed(provider);
         }
 
-        // ── Search providers ──────────────────────────────────────────────
+        // -- Search providers ----------------------------------------------
         public signal void search_provider_added(SearchProvider provider);
         public signal void search_provider_removed(SearchProvider provider);
 
@@ -383,7 +383,7 @@ namespace Singularity {
             search_provider_removed(provider);
         }
 
-        // ── VPN providers (Tailscale and other non-NetworkManager backends) ─
+        // -- VPN providers (Tailscale and other non-NetworkManager backends) -
         public signal void vpn_provider_added(VpnProvider provider);
         public signal void vpn_provider_removed(VpnProvider provider);
 
@@ -399,7 +399,7 @@ namespace Singularity {
             vpn_provider_removed(provider);
         }
 
-        // ── Shell surfaces (replaceable dock / panel / overview / …) ───────
+        // -- Shell surfaces (replaceable dock / panel / overview / ...) -------
         public signal void shell_surface_provider_added(ShellSurfaceProvider provider);
         public signal void shell_surface_provider_removed(ShellSurfaceProvider provider);
 

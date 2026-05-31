@@ -5,22 +5,26 @@ using Gee;
 namespace Singularity.Widgets {
 
     /**
-     * A horizontal segmented control (tab-strip) that can drive a Gtk.Stack or be used standalone.
+     * A horizontal segmented control (tab-strip) that can drive a Gtk.Stack
+     * or work standalone.
      *
-     * When bound to a Gtk.Stack, the control synchronizes with the stack automatically:
-     * selecting a button switches the visible child, and adding/removing pages rebuilds the buttons.
-     * Standalone buttons can be added with `add_option()`.
+     * Bound to a Stack:
+     *   - clicking a button switches `visible_child_name`
+     *   - active state mirrors the stack at all times
+     *
+     * Standalone:
+     *   - clicking a button marks it active and emits `selected`
+     *   - the first added option is active by default
      */
     public class SegmentedControl : Box {
+
+        public signal void selected(string name);
+
         private Stack? _stack;
         private Box _inner_box;
         private Map<string, Button> _buttons = new HashMap<string, Button>();
+        private string? _active_name = null;
 
-        /**
-         * Creates a segmented control, optionally bound to a stack.
-         *
-         * @param stack The Gtk.Stack to control, or null for standalone use.
-         */
         public SegmentedControl(Stack? stack = null) {
             Object(orientation: Orientation.HORIZONTAL, spacing: 0);
             _stack = stack;
@@ -33,55 +37,54 @@ namespace Singularity.Widgets {
             _inner_box.add_css_class("segmented-inner");
             append(_inner_box);
 
-            if (_stack != null) {
-                set_stack(_stack);
-            }
+            if (_stack != null) set_stack(_stack);
         }
 
-        /**
-         * Binds the control to a Gtk.Stack, rebuilding buttons to match
-         * its pages and tracking visibility changes.
-         *
-         * @param stack The stack to bind to.
-         */
         public void set_stack(Stack stack) {
             _stack = stack;
-
-            // Rebuild now and when pages change
             rebuild_buttons();
-
             _stack.get_pages().items_changed.connect((model, idx, rem, add) => {
                 rebuild_buttons();
             });
-
-            // Sync with stack visibility
             _stack.notify["visible-child-name"].connect(update_active_button);
         }
 
-        /**
-         * Adds a standalone button to the strip (for use without a stack).
-         *
-         * @param name  Machine-readable identifier for this option.
-         * @param label Human-readable button label.
-         */
         public void add_option(string name, string label) {
             var btn = new Button.with_label(label);
             btn.has_frame = false;
             btn.add_css_class("segmented-button");
 
             btn.clicked.connect(() => {
-                if (_stack != null) _stack.visible_child_name = name;
+                if (_stack != null) {
+                    _stack.visible_child_name = name;
+                } else {
+                    _active_name = name;
+                    update_active_button();
+                    selected(name);
+                }
             });
 
             _inner_box.append(btn);
             _buttons.set(name, btn);
+
+            // First option becomes the standalone default.
+            if (_stack == null && _active_name == null) _active_name = name;
+
             update_active_button();
         }
+
+        /** Mark the option with the given name as active. */
+        public void set_active(string name) {
+            if (_stack != null) _stack.visible_child_name = name;
+            else                _active_name = name;
+            update_active_button();
+        }
+
+        public string? active_option { get { return _active_name; } }
 
         private void rebuild_buttons() {
             if (_stack == null) return;
 
-            // Clean old buttons
             Widget? child = _inner_box.get_first_child();
             while (child != null) {
                 Widget? next = child.get_next_sibling();
@@ -90,7 +93,6 @@ namespace Singularity.Widgets {
             }
             _buttons.clear();
 
-            // Create buttons for stack children
             var pages_model = _stack.get_pages();
             uint n = pages_model.get_n_items();
 
@@ -106,24 +108,22 @@ namespace Singularity.Widgets {
                 if (title == null || title == "") {
                     title = name.substring(0, 1).up() + name.substring(1);
                 }
-
                 add_option(name, title);
             }
         }
 
         private void update_active_button() {
-            if (_stack == null) return;
-            string active_name = _stack.visible_child_name;
+            string? wanted = (_stack != null)
+                ? _stack.visible_child_name
+                : _active_name;
+            if (wanted == null) return;
 
             var it = _buttons.map_iterator();
             while (it.next()) {
                 string name = it.get_key();
                 var btn = it.get_value();
-                if (name == active_name) {
-                    btn.add_css_class("active");
-                } else {
-                    btn.remove_css_class("active");
-                }
+                if (name == wanted) btn.add_css_class("active");
+                else                btn.remove_css_class("active");
             }
         }
     }

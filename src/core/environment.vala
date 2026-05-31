@@ -23,15 +23,15 @@ namespace Singularity {
          * accessibility preferences from this schema. The schema must expose
          * the following keys:
          *
-         *  - `accent-color`           (string)    – accent colour name or `"wallpaper"`
-         *  - `dark-mode`              (boolean)   – whether dark mode is active
-         *  - `background-picture-uri` (string)    – URI of the desktop wallpaper
-         *  - `window-states`          (a{s(iib)}) – per-app saved window geometry
-         *  - `force-ssd`              (boolean)   – use server-side decorations
-         *  - `window-rounded-corners` (boolean)   – rounded window corners
-         *  - `high-contrast`          (boolean)   – high-contrast accessibility mode
-         *  - `large-text`             (boolean)   – large-text accessibility mode
-         *  - `screen-reader-enabled`  (boolean)   – screen reader active
+         *  - `accent-color`           (string)    - accent colour name or `"wallpaper"`
+         *  - `dark-mode`              (boolean)   - whether dark mode is active
+         *  - `background-picture-uri` (string)    - URI of the desktop wallpaper
+         *  - `window-states`          (a{s(iib)}) - per-app saved window geometry
+         *  - `force-ssd`              (boolean)   - use server-side decorations
+         *  - `window-rounded-corners` (boolean)   - rounded window corners
+         *  - `high-contrast`          (boolean)   - high-contrast accessibility mode
+         *  - `large-text`             (boolean)   - large-text accessibility mode
+         *  - `screen-reader-enabled`  (boolean)   - screen reader active
          *
          * Defaults to `"dev.sinty.desktop"`.
          */

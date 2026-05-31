@@ -11,9 +11,9 @@ namespace Singularity.Shell {
      * or overlay panels).
      *
      * Three convenience constructors are provided:
-     * - `ShellDialog()` – default, no anchors
-     * - `ShellDialog.anchored()` – explicit anchor combination
-     * - `ShellDialog.bottom()` – anchored to the bottom edge with margin
+     * - `ShellDialog()` - default, no anchors
+     * - `ShellDialog.anchored()` - explicit anchor combination
+     * - `ShellDialog.bottom()` - anchored to the bottom edge with margin
      *
      * Subclass and override `close_dialog()` and `open_dialog()` for custom show/hide behavior.
      */

@@ -8,7 +8,7 @@ namespace Singularity.Shell {
      */
     public class GlobalMenuBar : Box {
 
-        // Action groups registered by the panel (app, win, dbusmenu…)
+        // Action groups registered by the panel (app, win, dbusmenu...)
         private HashTable<string, ActionGroup> action_groups;
 
         // Currently open item index (-1 = none)

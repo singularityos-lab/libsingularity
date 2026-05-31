@@ -3,9 +3,8 @@ using Gtk;
 namespace Singularity.Widgets {
 
     /**
-     * A page-at-a-time carousel built on Gtk primitives, with an optional
-     * dot indicator strip underneath. API: append_page, get_nth_page,
-     * scroll_to_index, n_pages, position, plus a page_changed signal.
+     * Page-at-a-time carousel with optional dot indicator and
+     * horizontal touchpad/swipe/wheel paging when `interactive`.
      */
     public class Carousel : Box {
 
@@ -17,6 +16,10 @@ namespace Singularity.Widgets {
         private uint      _pos = 0;
         private bool      _show_indicator     = true;
         private uint      _transition_duration = 280;
+        private bool      _interactive        = true;
+
+        private double _scroll_dx = 0.0;
+        private const double SCROLL_PAGE_DELTA = 1.0;
 
         public uint n_pages  { get { return _n; } }
         public uint position { get { return _pos; } }
@@ -27,6 +30,11 @@ namespace Singularity.Widgets {
                 _show_indicator = value;
                 if (_dots != null) _dots.visible = value;
             }
+        }
+
+        public bool interactive {
+            get { return _interactive; }
+            set { _interactive = value; }
         }
 
         public uint transition_duration {
@@ -53,6 +61,44 @@ namespace Singularity.Widgets {
             _dots.margin_top    = 4;
             _dots.margin_bottom = 2;
             append(_dots);
+
+            _install_gestures();
+        }
+
+        private const double SWIPE_MIN_VELOCITY = 250.0;
+
+        private void _install_gestures() {
+            var scroll = new Gtk.EventControllerScroll(
+                Gtk.EventControllerScrollFlags.HORIZONTAL);
+            scroll.scroll_begin.connect(() => { _scroll_dx = 0; });
+            scroll.scroll.connect((dx, dy) => {
+                if (!_interactive) return false;
+                _scroll_dx += dx;
+                if (_scroll_dx >= SCROLL_PAGE_DELTA) {
+                    _scroll_dx = 0;
+                    if (_pos + 1 < _n) scroll_to_index(_pos + 1, true);
+                    return true;
+                }
+                if (_scroll_dx <= -SCROLL_PAGE_DELTA) {
+                    _scroll_dx = 0;
+                    if (_pos > 0) scroll_to_index(_pos - 1, true);
+                    return true;
+                }
+                return false;
+            });
+            scroll.scroll_end.connect(() => { _scroll_dx = 0; });
+            add_controller(scroll);
+
+            var swipe = new Gtk.GestureSwipe();
+            swipe.swipe.connect((vx, vy) => {
+                if (!_interactive) return;
+                if (vx <= -SWIPE_MIN_VELOCITY && _pos + 1 < _n) {
+                    scroll_to_index(_pos + 1, true);
+                } else if (vx >= SWIPE_MIN_VELOCITY && _pos > 0) {
+                    scroll_to_index(_pos - 1, true);
+                }
+            });
+            add_controller(swipe);
         }
 
         public void append_page(Gtk.Widget page) {

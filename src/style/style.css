@@ -24,30 +24,105 @@ window.csd {
     box-shadow: 0 4px 14px alpha(@shadow_color, 0.55);
 }
 
+/* Generic .csd has higher specificity than .singularity-app, so its
+   square box-shadow would otherwise win and produce a square halo
+   around the rounded card. Restate the two-layer shadow at matching
+   specificity and zero the radius (the visible rounded shape comes
+   from .singularity-app-frame). */
+window.csd.singularity-app {
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow:
+        0 1px 2px alpha(@shadow_color, 0.30),
+        0 6px 14px alpha(@shadow_color, 0.42);
+}
+
 window.popup,
 window.tooltip {
     border-radius: 6px;
     box-shadow: none;
 }
 
-/* Headerbar */
-headerbar {
-    min-height: 46px;
-    background-color: @toolbar_bg;
-    border-bottom: 1px solid @border_color;
-    padding: 0 8px;
-    color: @text_color;
+/* GTK default CSD decoration (used when the compositor doesn't draw
+   SSD). We make it look like a single dark-accent strip with round
+   pill window controls, matching the SSD bubblebar color so the
+   fallback feels like a continuation of our visual language. */
+.default-decoration {
+    background-color: mix(@accent_color, black, 0.6);
+    min-height: 0;
+    padding: 4px;
+    border: 0;
+    box-shadow: none;
 }
-headerbar .title { font-weight: bold; }
-headerbar entry,
-headerbar spinbutton,
-headerbar button { margin-top: 6px; margin-bottom: 6px; }
+.default-decoration label.title,
+.default-decoration windowtitle {
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+}
+.default-decoration .image-button,
+.default-decoration button.image-button,
+.default-decoration button.flat.image-button,
+.default-decoration windowcontrols button {
+    padding: 0;
+    min-width: 20px;
+    min-height: 20px;
+    border-radius: 100%;
+    background-color: alpha(white, 0.15);
+    border: none;
+    color: white;
+    box-shadow: none;
+}
+.default-decoration .image-button:hover,
+.default-decoration windowcontrols button:hover {
+    background-color: alpha(white, 0.25);
+}
+.default-decoration windowcontrols button image,
+.default-decoration .image-button image {
+    -gtk-icon-size: 12px;
+    color: white;
+}
 
-/* Generic button */
+/* Same treatment as a fallback when GTK draws a full headerbar
+   instead of the slim default-decoration (some apps or themes). */
+headerbar {
+    min-height: 0;
+    background-color: mix(@accent_color, black, 0.6);
+    padding: 4px;
+    border: 0;
+    box-shadow: none;
+    color: white;
+}
+headerbar label.title,
+headerbar windowtitle {
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+}
+headerbar windowcontrols button {
+    min-height: 20px;
+    min-width: 20px;
+    padding: 0;
+    border-radius: 100%;
+    background-color: alpha(white, 0.15);
+    border: none;
+}
+headerbar windowcontrols button:hover {
+    background-color: alpha(white, 0.25);
+}
+headerbar windowcontrols button image {
+    -gtk-icon-size: 12px;
+    color: white;
+}
+
+/* Generic standalone button: pill rounding to match AppDialog
+   buttons (which carry an explicit `.pill` class). Specific button
+   roles (toolbar, sidebar, path, bubble, etc.) override this
+   border-radius via their own selectors. */
 button {
     background-color: @card_bg;
     border: 1px solid @border_color;
-    border-radius: 6px;
+    border-radius: 999px;
     color: @text_color;
     padding: 6px 12px;
     box-shadow: none;
@@ -76,6 +151,18 @@ button.flat.sidebar-nav-active:hover,
 button.flat.sidebar-nav-active:focus {
     background-color: alpha(@accent_color, 0.15);
     border-color: transparent;
+}
+
+/* Standardized sidebar row pattern used by SidebarRow widget. Tight
+   padding and consistent radius so all apps render their navigation
+   identically (Files, Photos, Store, etc). */
+.singularity-sidebar-row {
+    padding: 6px 10px;
+    border-radius: 8px;
+    min-height: 0;
+}
+.singularity-sidebar-row > box {
+    margin: 0;
 }
 
 /* Suggested / destructive action buttons */
@@ -125,18 +212,37 @@ listbox row { background-color: transparent; }
 listbox row:hover { background-color: @card_hover_bg; }
 listbox row:selected { background-color: mix(@accent_color, @window_bg, 0.25); color: @text_color; }
 
-/* Entry / text input */
+/* Entry / text input: our standardized look, used everywhere
+   (text, search, password, spinbutton). Accent focus ring + 8px
+   pill radius + comfortable padding. */
 entry,
 spinbutton {
     background-color: @card_bg;
     border: 1px solid @border_color;
-    border-radius: 6px;
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-height: 26px;
     color: @text_color;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 entry:focus-within,
-spinbutton:focus-within { border-color: @accent_color; }
+spinbutton:focus-within {
+    border-color: @accent_color;
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.20);
+    outline: none;
+}
 entry:disabled,
 spinbutton:disabled { opacity: 0.5; }
+entry image.left,
+entry > image.left {
+    margin-right: 6px;
+    color: alpha(@text_color, 0.55);
+}
+entry image.right,
+entry > image.right {
+    margin-left: 6px;
+    color: alpha(@text_color, 0.55);
+}
 
 /* Textview */
 textview,
@@ -1451,6 +1557,10 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     border-radius: 16px;
     font-family: 'Inter', sans-serif;
     padding: 0 12px;
+    /* Same two-layer recipe used by app windows and dialog cards. */
+    box-shadow:
+        0 1px 2px alpha(black, 0.22),
+        0 6px 14px alpha(black, 0.34);
 }
 
 .warning-box {
@@ -1470,7 +1580,39 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     color: alpha(@text_color, 0.8);
 }
 
+/* The shell sidebar is a layer-shell GtkWindow. Make the window surface
+   itself fully transparent so the visible .sidebar card (set on the
+   inner main_box with a 20 px margin around in Vala) can cast its
+   shadow without the surrounding window painting a grey halo. */
+window.sidebar-window {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+}
 .sidebar-window { border-radius: 40px; }
+
+/* App menu popup (menu mode of the apps launcher). Same recipe as the
+   sidebar-window: the outer GtkWindow paints nothing so the inner
+   .app-menu-card (set on main_box, surrounded by a small Vala margin
+   so the shadow has room) can carry the rounded card visual without
+   a grey halo behind it. */
+window.app-menu-window {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+.app-menu-card {
+    background-color: @window_tint;
+    border: 1px solid @border_color;
+    border-radius: 16px;
+    box-shadow:
+        0 1px 2px alpha(black, 0.22),
+        0 6px 14px alpha(black, 0.34);
+}
 
 .sidebar-window .settings-page-content {
     padding: 0;
@@ -1538,6 +1680,7 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 /* Force sidebar ScrolledWindow to not expand beyond its requested size */
 .window-sidebar {
     min-width: 0;
+    padding: 10px;
     border-right: 1px solid @border_color;
 }
 
@@ -1597,7 +1740,13 @@ window.singularity-blur .dock-window:backdrop .dock-box,
    is valid CSS - the shadow is cast from the border-box regardless of fill. */
 .singularity-app {
     background: transparent;
-    box-shadow: 0 8px 28px alpha(@shadow_color, 0.5), 0 2px 6px alpha(@shadow_color, 0.3);
+    /* Two-layer recipe (contact + ambient). The TOTAL reach (offset+blur)
+       drives gdk_surface_set_shadow_width() so labwc treats the inner
+       card as the real window: resize cursor lives on the card edge and
+       clicks in the shadow region fall through. */
+    box-shadow:
+        0 1px 2px alpha(@shadow_color, 0.30),
+        0 6px 14px alpha(@shadow_color, 0.42);
     transition: box-shadow 0.15s ease;
 }
 
@@ -1605,6 +1754,11 @@ window.singularity-blur .dock-window:backdrop .dock-box,
    RoundedOverlay.snapshot() pushes a GskRoundedClipNode so children are
    also clipped to the rounded rect (CSS border-radius alone would only
    round the widget's own background paint, not its children). */
+/* Singularity APP windows: shadow + transparent surface are on the
+   window node (.singularity-app, above). The frame only carries the
+   visible card style; no shadow, no margin - GTK4 derives the shadow
+   extents from the .singularity-app rule and the compositor sees the
+   inner card as the real window. */
 .singularity-app-frame {
     background-color: @window_tint;
     border: 1px solid @border_color;
@@ -1625,7 +1779,8 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     box-shadow: none;
 }
 
-/* Remove visual decoration from frame on tiled/maximised/SSD states */
+/* Remove visual decoration AND margin/shadow on tiled / maximised / SSD
+   states - the window is flush with the screen edge, no room for shadow. */
 .singularity-app.no-rounded-corners .singularity-app-frame,
 .singularity-app.maximized .singularity-app-frame,
 .singularity-app.fullscreen .singularity-app-frame,
@@ -1637,6 +1792,8 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 .singularity-app.ssd-mode .singularity-app-frame {
     border-radius: 0;
     border: none;
+    margin: 0;
+    box-shadow: none;
 }
 
 window.singularity .dock-window,
@@ -2148,15 +2305,53 @@ button.segmented-button.active:checked {
    parented from a ColumnView row in Files list mode), which otherwise left
    the menu transparent. Target the class directly + the contents node that
    actually paints in GTK4. */
+/* Context menu: surface is transparent + padded so the visible card can
+   carry a real drop shadow without being clipped. The ContextMenu Vala
+   class compensates the visual offset with set_offset(-20, -20) so the
+   card still lands where the user clicked. */
 popover.context-menu,
-popover.context-menu > contents {
+popover.menu,
+entry > popover,
+entry > popover.background,
+.entry > popover {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 20px;
+}
+popover.context-menu > contents,
+popover.menu > contents,
+entry > popover > contents,
+entry > popover.background > contents,
+.entry > popover > contents {
     background-color: @surface_raised;
     color: @text_color;
-}
-popover.context-menu {
     border: 1px solid alpha(@text_color, 0.1);
     border-radius: 12px;
-    box-shadow: 0 8px 24px alpha(@shadow_color, 0.5);
+    /* Same two-layer recipe as .dialog-card for visual consistency. */
+    box-shadow:
+        0 1px 2px alpha(@shadow_color, 0.30),
+        0 6px 14px alpha(@shadow_color, 0.42);
+    padding: 4px;
+}
+popover.menu modelbutton,
+entry > popover modelbutton {
+    border-radius: 8px;
+    padding: 6px 12px;
+    min-height: 0;
+    color: @text_color;
+}
+popover.menu modelbutton:hover,
+entry > popover modelbutton:hover {
+    background-color: alpha(@accent_color, 0.2);
+    color: @text_color;
+}
+popover.menu modelbutton:active,
+popover.menu modelbutton:focus,
+entry > popover modelbutton:active,
+entry > popover modelbutton:focus {
+    background-color: alpha(@accent_color, 0.3);
+    color: @text_color;
 }
 
 .singularity modelbutton {
@@ -2944,12 +3139,30 @@ window.singularity.desktop-icons,
     background-color: transparent;
 }
 
-.singularity.dialog {
+/* AppDialog: window itself is transparent; the visible card lives a few
+   pixels inside so its drop shadow has room to render. */
+window.singularity.dialog {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+}
+/* Two-layer drop shadow for real depth: tight contact + softer ambient,
+   stays inside SHADOW_MARGIN (20 px). The 1px border on top adds the
+   crisp edge that sells the raised-card look. */
+.dialog-card {
     background-color: @window_tint;
     color: @text_color;
     border-radius: 16px;
     border: 1px solid @border_color;
-    padding: 16px;
+    box-shadow:
+        0 1px 2px alpha(black, 0.22),
+        0 6px 14px alpha(black, 0.34);
+}
+
+/* Legacy: kept so anything still keying on `.singularity.dialog` (e.g. the
+   plain-content dialog used before the card refactor) still looks decent. */
+.singularity.dialog .dialog-content {
+    color: @text_color;
 }
 
 /* Full-screen overlay dialogs: dim the whole screen, card is in content_box */
@@ -3455,8 +3668,21 @@ window.auth-dialog .power-card {
     box-shadow: none;
 }
 
+/* Generalized data-view styling shared by file/process/task lists.
+   Apps add the `singularity-data-view` class to a Gtk.ColumnView (or
+   add `file-view` for the Files-specific legacy alias) and inherit
+   consistent row height + transparent background so the parent
+   surface (`.singularity-content`) shows through. */
+.singularity-data-view columnview row,
 .file-view columnview row {
     min-height: 36px;
+}
+
+.singularity columnview.singularity-data-view,
+.singularity columnview.singularity-data-view > listview,
+.singularity columnview.file-view,
+.singularity columnview.file-view > listview {
+    background-color: transparent;
 }
 
 .singularity .col-browser-wrapper,
@@ -3464,13 +3690,12 @@ window.auth-dialog .power-card {
     background-color: transparent;
 }
 
-.singularity columnview.file-view,
-.singularity columnview.file-view > listview {
-    background-color: transparent;
-}
-
-.file-view,
-.file-grid {
+/* Top padding only when bubble-bar (CSD) is active. SSD mode has no
+   overlay bubbles so no top reserve is needed. Column view (.file-view)
+   is excluded - its wrapper already carries the .singularity-view-edge
+   margin-top, and the simpler .file-view { padding-top: 0 } rule below
+   needs to win. */
+.singularity-app:not(.ssd-mode) .file-grid {
     padding-top: 60px;
 }
 
@@ -3485,39 +3710,245 @@ window.auth-dialog .power-card {
 
 /* HoverControls widget */
 
+/* Default: bubble bar is always visible. Apps whose content can't make
+   room for it (video playback, fullscreen photo viewer) add the
+   `singularity-hover-on-content` class to the overlay so the bar fades
+   in on hover and out otherwise. */
 .singularity-hover-controls {
-    opacity: 0;
+    opacity: 1;
     transition: opacity 0.18s ease;
 }
-.singularity-hover-overlay:hover .singularity-hover-controls,
-.singularity-hover-controls:hover {
+.singularity-hover-on-content .singularity-hover-controls {
+    opacity: 0;
+}
+.singularity-hover-on-content:hover .singularity-hover-controls,
+.singularity-hover-on-content .singularity-hover-controls:hover {
     opacity: 1;
 }
+/* Bubble base: neutral translucent dark glass that reads on any
+   background. Padding leaves breathing room on left/right so the pill
+   rounding never clips inner content; icon-only buttons (GTK adds
+   `.image-button` when built from an icon name) tighten to 20x20.
+   For a suggested-action bubble (picker confirm, primary CTA), add
+   `.suggested-action` to opt into the chip-active accent treatment. */
 .singularity-hover-btn,
 button.singularity-hover-btn,
 button.flat.singularity-hover-btn {
     min-width: 28px;
     min-height: 28px;
-    padding: 4px 8px;
+    padding: 0;
     border-radius: 99px;
-    background: alpha(@shadow_color, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: 0 2px 8px alpha(@shadow_color, 0.55);
+    background-color: alpha(black, 0.45);
+    border: 1px solid alpha(white, 0.18);
     color: white;
-    transition: background 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: none;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.singularity-hover-btn.image-button,
+button.singularity-hover-btn.image-button,
+button.flat.singularity-hover-btn.image-button {
+    padding: 2px;
+}
+.singularity-hover-btn.text-button {
+    padding: 0 10px;
 }
 .singularity-hover-btn image,
 button.singularity-hover-btn image,
 button.flat.singularity-hover-btn image {
-    -gtk-icon-size: 14px;
+    -gtk-icon-size: 12px;
     color: white;
+}
+.singularity-hover-btn label,
+button.singularity-hover-btn label,
+button.flat.singularity-hover-btn label {
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+}
+.singularity-hover-btn box,
+button.singularity-hover-btn box,
+button.flat.singularity-hover-btn box {
+    min-height: 0;
+    margin: 0;
+    padding: 0;
 }
 .singularity-hover-btn:hover,
 button.singularity-hover-btn:hover,
 button.flat.singularity-hover-btn:hover {
-    background: alpha(@shadow_color, 0.85);
+    background-color: alpha(black, 0.6);
+    border-color: alpha(white, 0.28);
+}
+.singularity-hover-btn:active,
+button.singularity-hover-btn:active,
+button.flat.singularity-hover-btn:active {
+    background-color: alpha(black, 0.75);
+}
+
+/* Label bubble (status text in the bubble bar). Tight horizontal
+   padding so it doesn't read as a separate pill, white text to match
+   the icon bubbles. Apps can opt back into the dimmed look via the
+   dim-label + caption classes (auto-applied via add_bubble_label
+   with `dimmed: true`). */
+.singularity-hover-label {
+    padding: 2px 13px;
     color: white;
-    opacity: 0.85;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Search bubble: same outer-shape contract as the path bubble in
+   Files. The SearchBubble Box carries the bubble shell (via the
+   .singularity-hover-btn class auto-added by add_bubble_*), and
+   everything inside resets so the inner entry doesn't pile on its
+   own border / padding / shadow. */
+.singularity-search-bubble {
+    padding: 2px;
+}
+.singularity-search-bubble entry,
+.singularity-search-bubble .search-entry {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0 6px;
+    min-height: 18px;
+    color: white;
+    font-size: 12px;
+}
+.singularity-search-bubble entry:focus-within,
+.singularity-search-bubble .search-entry:focus-within {
+    border: none;
+    box-shadow: none;
+}
+.singularity-search-bubble entry > text,
+.singularity-search-bubble .search-entry > text {
+    color: white;
+    caret-color: white;
+}
+.singularity-search-bubble image {
+    color: alpha(white, 0.7);
+    -gtk-icon-size: 12px;
+}
+
+/* Segmented control inside a bubble: kill the outer panel chrome so
+   the SegmentedControl reads as a compact segmented pill matching
+   the bubble visual. Inner buttons reuse the bubble's white-on-dark
+   palette; the selected one gets an accent tint. */
+.singularity-hover-segmented {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 99px;
+    min-height: 0;
+}
+.singularity-hover-segmented .segmented-inner {
+    background-color: alpha(white, 0.10);
+    border-radius: 99px;
+    padding: 2px;
+    min-height: 0;
+}
+.singularity-hover-segmented button.segmented-button {
+    background-color: transparent;
+    color: white;
+    border: none;
+    box-shadow: none;
+    border-radius: 99px;
+    padding: 2px 10px;
+    min-height: 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+.singularity-hover-segmented button.segmented-button:hover {
+    background-color: alpha(white, 0.10);
+}
+.singularity-hover-segmented button.segmented-button.active {
+    background-color: alpha(@accent_color, 0.65);
+    color: white;
+}
+
+/* Suggested-action variant: opt-in chip-active accent treatment for
+   primary CTAs only (e.g. picker confirm). */
+.singularity-hover-btn.suggested-action,
+button.singularity-hover-btn.suggested-action,
+button.flat.singularity-hover-btn.suggested-action {
+    background-color: alpha(@accent_color, 0.45);
+    border-color: alpha(@accent_color, 0.6);
+}
+.singularity-hover-btn.suggested-action:hover,
+button.singularity-hover-btn.suggested-action:hover,
+button.flat.singularity-hover-btn.suggested-action:hover {
+    background-color: alpha(@accent_color, 0.6);
+    border-color: alpha(@accent_color, 0.75);
+}
+.singularity-hover-btn.suggested-action:active,
+button.singularity-hover-btn.suggested-action:active,
+button.flat.singularity-hover-btn.suggested-action:active {
+    background-color: alpha(@accent_color, 0.75);
+}
+
+/* Path bubble internals: breadcrumb buttons / home icon must round-match
+   the bubble so the hover halo isn't a square clipped at the bubble
+   edge. Padding kept tight so the bubble sizes to the breadcrumb. */
+.files-path-bubble {
+    min-height: 0;
+    padding: 2px;
+}
+
+/* Standard content surface auto-applied by Window.set_content().
+   Every app's main content area gets this translucent dark wash so
+   the visual rhythm matches across windows. */
+.singularity-content {
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Top divider + reserve for content surfaces (list, column, process
+   table) that sit directly under the bubble bar. The bar is an overlay
+   so the content needs its own top margin to not flow under it. Single
+   libsingularity primitive - every first-party app uses this class. */
+.singularity-app:not(.ssd-mode) .singularity-view-edge {
+    border-top: 1px solid alpha(@text_color, 0.08);
+}
+
+.file-view {
+    padding-top: 0px;
+}
+
+.singularity-view-edge .file-view {padding-top:0}
+
+/* Hard reset on every descendant: GTK's default `flat` button + inner
+   Label/Image/Entry keep contributing min-height/padding that snowballs
+   into the parent bubble, making it taller than the other bubbles. */
+.files-path-bubble box,
+.files-path-bubble label,
+.files-path-bubble image,
+.files-path-bubble entry,
+.files-path-bubble spinbutton {
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+}
+.files-path-bubble entry,
+.files-path-bubble spinbutton {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 2px 6px;
+}
+.files-path-bubble entry:focus-within,
+.files-path-bubble spinbutton:focus-within {
+    box-shadow: none;
+    border: none;
+}
+.files-path-bubble .path-button,
+.files-path-bubble button.path-button,
+.files-path-bubble button.flat.path-button {
+    border-radius: 20px;
+}
+.files-path-bubble label {
+    color: alpha(white, 0.85);
+    font-size: 12px;
 }
 
 /* Split container */
@@ -3528,6 +3959,11 @@ button.flat.singularity-hover-btn:hover {
 /* Right pane gets a visible divider in wide/horizontal mode */
 .welcome-page-right {
     border-left: 1px solid alpha(@borders, 0.7);
+}
+/* Whatever widget set_extra_widget() injects gets a small left gutter
+   so it doesn't butt up against the divider. */
+.welcome-page-right-content {
+    margin-left: 12px;
 }
 
 /* Card layout (1-2 actions): stacked horizontal cards */
@@ -3845,7 +4281,7 @@ flowboxchild.disk-card-child:focus {
     border: 1px solid @border_color;
 }
 
-/* ───────────────────── Overview widgets ───────────────────── */
+/* --------------------- Overview widgets --------------------- */
 
 .overview-widget {
     border-radius: 20px;
@@ -3981,7 +4417,7 @@ flowboxchild.disk-card-child:focus {
     border-radius: 18px;
 }
 
-/* ───────────────── Dock resource stack (macOS-style) ───────────────── */
+/* ----------------- Dock resource stack (macOS-style) ----------------- */
 .dock-resources-sep {
     margin: 8px 4px;
     min-width: 1px;
@@ -4003,26 +4439,31 @@ flowboxchild.disk-card-child:focus {
     padding: 4px;
 }
 
-/* ── Definitive context-menu opacity guarantee (must be LAST) ──────────────
-   Context menus are sometimes parented from inside a GtkColumnView/ListView
-   (Files list mode, Monitor) whose popover ends up outside the `.singularity`
-   subtree, so the `.singularity popover {…}` background never reaches them and
-   they render see-through. Set the background on BOTH the popover node and its
-   contents, with no `.singularity` requirement, placed last so it wins. */
-popover.context-menu,
+/* Definitive context-menu contents background (must be LAST). The popover
+   node itself stays transparent (the shadow padding around the card needs
+   to be see-through); only the inner contents carries the opaque bg so
+   the visible pill is always solid, even when parented outside the
+   `.singularity` subtree (Files ColumnView, Monitor list, etc.). */
 popover.context-menu > contents {
     background-color: @surface_raised;
     color: @text_color;
 }
 
-/* Singularity OverlaySearch: floating spotlight / palette card. */
+/* Singularity OverlaySearch: floating spotlight / palette card. Same
+   two-layer shadow recipe as the dialog card so depth feels consistent.
+   The OverlaySearch widget itself is always added inside an Overlay so
+   the card floats above the host content; the outer box is transparent
+   and ignores hit-tests when the search is closed (the widget toggles
+   visibility internally). */
 .singularity-overlay-search-card {
-    background-color: alpha(@window_bg_color, 0.94);
-    border: 1px solid alpha(@text_color, 0.12);
+    background-color: @window_tint;
+    border: 1px solid @border_color;
     border-radius: 12px;
-    box-shadow: 0 8px 24px alpha(black, 0.35);
     padding: 6px;
     min-width: 480px;
+    box-shadow:
+        0 1px 2px alpha(black, 0.22),
+        0 6px 14px alpha(black, 0.34);
 }
 .singularity-overlay-search-entry {
     min-height: 32px;
@@ -4042,7 +4483,11 @@ popover.context-menu > contents {
     margin: 1px 2px;
     background-color: transparent;
 }
-.singularity-overlay-search-list row:selected,
+/* Selected row tracks the system accent so the active entry pops. */
+.singularity-overlay-search-list row:selected {
+    background-color: @accent_color;
+    color: @accent_fg_color;
+}
 .singularity-overlay-search-list row:hover {
     background-color: alpha(@accent_color, 0.18);
 }

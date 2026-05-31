@@ -28,6 +28,21 @@ namespace Singularity {
             Object(application_id: app_id, flags: flags);
         }
 
+        construct {
+            // GTK_CSD must be set BEFORE Gtk.init runs. Application.startup
+            // runs after init, so we read the user's force-ssd setting
+            // here and disable GTK's CSD so labwc draws its own SSD via
+            // xdg-decoration instead of GTK's fallback titlebar.
+            try {
+                var ds = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
+                if (ds.get_boolean("force-ssd")) {
+                    GLib.Environment.set_variable("GTK_CSD", "0", true);
+                }
+            } catch (Error e) {
+                // schema not installed - fall through with CSD on (default)
+            }
+        }
+
         protected override void startup() {
             base.startup();
 

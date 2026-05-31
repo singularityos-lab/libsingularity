@@ -33,6 +33,7 @@ libsingularity_resources = gnome.compile_resources(
 
 libsingularity_sources = files(
   'src/ui/windowing/toolbar.vala',
+  'src/ui/windowing/titlebar_inset.vala',
   'src/ui/navigation/tabbar.vala',
   'src/ui/navigation/tab_container.vala',
   'src/ui/windowing/window.vala',
@@ -64,7 +65,13 @@ libsingularity_sources = files(
   'src/shell/osd_overlay.vala',
   'src/shell/screen_flash.vala',
   'src/ui/controls/quick_setting_tile.vala',
+  'src/ui/controls/search_entry.vala',
   'src/ui/visual/hover_controls.vala',
+  'src/ui/visual/search_bubble.vala',
+  'src/ui/visual/data_list_view.vala',
+  'src/ui/visual/data_grid_view.vala',
+  'src/ui/visual/column_browser.vala',
+  'src/ui/navigation/sidebar_row.vala',
   'src/ui/visual/overlay_search.vala',
   'src/ui/visual/carousel.vala',
   'src/ui/visual/chip.vala',

@@ -74,10 +74,10 @@ namespace Singularity.Widgets {
      * - Rounded-corners and shadow CSS classes toggled in real time.
      *
      * The main layout areas exposed for subclasses and callers:
-     * - `toolbar`       – the top toolbar widget.
-     * - `content_area`  – the primary content area (fills remaining space).
-     * - `sidebar_area`  – optional side panel; hidden by default.
-     * - `main_container` – horizontal box containing sidebar + content.
+     * - `toolbar`       - the top toolbar widget.
+     * - `content_area`  - the primary content area (fills remaining space).
+     * - `sidebar_area`  - optional side panel; hidden by default.
+     * - `main_container` - horizontal box containing sidebar + content.
      */
     public class Window : Gtk.ApplicationWindow {
 
@@ -127,8 +127,12 @@ namespace Singularity.Widgets {
         private bool _flat = false;
         private bool _show_close = true;
         private bool _force_ssd = false;
+        /** True when the user has opted into server-side decorations.
+            HoverControls reads this to switch to its SSD fallback. */
+        public bool force_ssd { get { return _force_ssd; } }
         private WindowHandle? _flat_drag_handle  = null;
         private Button?       _flat_close_btn    = null;
+        private RoundedFrame? _app_frame         = null;
         private ulong _rounded_corners_handler = 0;
         private ulong _toolbar_static_handler  = 0;
         private ulong _map_restore_handler     = 0;
@@ -166,7 +170,12 @@ namespace Singularity.Widgets {
             app_frame.add_css_class("singularity-app-frame");
             app_frame.hexpand = true;
             app_frame.vexpand = true;
+            // No widget margin here: the shadow lives in CSS on the
+            // .singularity-app rule (window node), which lets GTK4 read
+            // the shadow extents and call gdk_surface_set_shadow_width()
+            // so the compositor sees the card as the real window.
             set_child(app_frame);
+            _app_frame = app_frame;
 
             var overlay = new Overlay();
             overlay.hexpand = true;
@@ -180,6 +189,10 @@ namespace Singularity.Widgets {
             if (_force_ssd) {
                 toolbar.set_ssd_mode(true);
                 toolbar.add_css_class("ssd-mode");
+                // Start hidden in SSD mode: labwc already draws the title
+                // strip, our toolbar only re-emerges when HoverControls
+                // (SSD bypass) packs buttons into it.
+                toolbar.visible = false;
                 outer_box.append(toolbar);
             }
 
@@ -190,6 +203,8 @@ namespace Singularity.Widgets {
 
             sidebar_area = new Box(Orientation.VERTICAL, 0);
             sidebar_area.add_css_class("window-sidebar");
+            // 10px padding (in `.window-sidebar` CSS rule) gives every
+            // app's sidebar content a uniform inner gutter on all sides.
 
             sidebar_scroll_wrap = new ScrolledWindow();
             sidebar_scroll_wrap.set_size_request(180, -1);
@@ -218,27 +233,19 @@ namespace Singularity.Widgets {
                 handle.valign = Align.START;
                 overlay.add_overlay(handle);
 
-                // Flat-mode: invisible drag strip at the very top
-                _flat_drag_handle = new WindowHandle();
-                var drag_strip = new Box(Orientation.HORIZONTAL, 0);
-                drag_strip.add_css_class("flat-drag-strip");
-                drag_strip.set_size_request(-1, 24);
-                _flat_drag_handle.set_child(drag_strip);
-                _flat_drag_handle.valign = Align.START;
-                _flat_drag_handle.hexpand = true;
-                _flat_drag_handle.visible = false;
-                overlay.add_overlay(_flat_drag_handle);
+                // Flat-mode drag is provided by the HoverControls bubble
+                // bar (drag grip). A full-width invisible WindowHandle here
+                // would sit on top of the overlay and intercept clicks on
+                // the upper half of the bubbles, so we skip it. Apps that
+                // use flat mode without HoverControls must add their own
+                // drag region.
+                _flat_drag_handle = null;
 
-                // Flat-mode: close button at top-right corner
-                _flat_close_btn = new Singularity.Widgets.CloseButton();
-                _flat_close_btn.add_css_class("flat-close-btn");
-                _flat_close_btn.valign = Align.START;
-                _flat_close_btn.halign = Align.END;
-                _flat_close_btn.margin_top = 8;
-                _flat_close_btn.margin_end = 8;
-                _flat_close_btn.visible = false;
-                _flat_close_btn.clicked.connect(() => close());
-                overlay.add_overlay(_flat_close_btn);
+                // Flat-mode close is provided by the bubble bar (close
+                // bubble auto-added by HoverControls.with_window_bubbles).
+                // The legacy corner-pinned close button was rendering as
+                // a random rogue widget in welcome states; killed.
+                _flat_close_btn = null;
             }
 
             _toolbar_static_handler = toolbar.notify["is-static"].connect(update_layout);
@@ -247,10 +254,21 @@ namespace Singularity.Widgets {
             _map_restore_handler = map.connect(restore_window_state);
             _map_clamp_handler   = map.connect(clamp_to_work_area);
             _close_handler       = close_request.connect(() => { save_window_state(); return false; });
-            _maximized_handler   = notify["maximized"].connect(() => save_window_state());
+            _maximized_handler   = notify["maximized"].connect(() => {
+                save_window_state();
+                _update_shadow_margin();
+            });
+            notify["fullscreened"].connect(_update_shadow_margin);
+            _update_shadow_margin();
         }
 
-        // ── Window state persistence ───────────────────────────────────
+        private void _update_shadow_margin() {
+            // Kept for state-class management; the actual shadow extents
+            // come from CSS on .singularity-app and are reset by the
+            // .maximized / .tiled / .ssd-mode rules in style.css.
+        }
+
+        // -- Window state persistence -----------------------------------
 
         public override void dispose() {
             if (_rounded_corners_handler != 0) {
@@ -374,14 +392,12 @@ namespace Singularity.Widgets {
             desktop_settings.set_value("window-states", builder.end());
         }
 
-        // ── Layout / helpers ──────────────────────────────────────────
+        // -- Layout / helpers ------------------------------------------
 
         private void _update_flat_mode() {
             if (_force_ssd) return;
             toolbar.visible = !_flat;
             if (_flat) main_container.margin_top = 0;
-            if (_flat_drag_handle != null) _flat_drag_handle.visible = _flat;
-            if (_flat_close_btn  != null) _flat_close_btn.visible  = _flat && _show_close;
         }
 
         private void update_layout() {
@@ -403,7 +419,9 @@ namespace Singularity.Widgets {
          */
         public new void set_title(string title) {
             base.title = title;
-            toolbar.set_title(title);
+            // In SSD mode labwc's decoration already shows the title;
+            // duplicating it in our custom toolbar is redundant noise.
+            toolbar.set_title(_force_ssd ? "" : title);
         }
 
         /**
@@ -414,7 +432,19 @@ namespace Singularity.Widgets {
          *
          * @param widget Widget to display as the main content.
          */
+        // Last widget passed to set_content; we keep a reference so we
+        // can re-wrap it later if add_bubble_* triggers lazy bubble-bar
+        // creation after set_content has already run.
+        private Widget? _user_content = null;
+
         public void set_content(Widget widget) {
+            _user_content = widget;
+            _install_content();
+        }
+
+        private void _install_content() {
+            if (_user_content == null) return;
+
             Widget? child = content_area.get_first_child();
             while (child != null) {
                 var next = child.get_next_sibling();
@@ -422,9 +452,148 @@ namespace Singularity.Widgets {
                 child = next;
             }
 
-            widget.hexpand = true;
-            widget.vexpand = true;
-            content_area.append(widget);
+            _user_content.add_css_class("singularity-content");
+
+            Widget actual = _user_content;
+            if (_bubble_bar != null) {
+                // Detach from any prior parent before re-wrapping.
+                var parent = _user_content.get_parent();
+                if (parent is Singularity.Widgets.HoverControls) {
+                    // already wrapped, fine
+                } else if (parent != null) {
+                    if (parent is Box) ((Box) parent).remove(_user_content);
+                }
+                _bubble_bar.set_content(_user_content);
+                actual = _bubble_bar;
+            }
+
+            actual.hexpand = true;
+            actual.vexpand = true;
+            content_area.append(actual);
+        }
+
+        // ===================================================================
+        // Bubble bar API
+        //
+        // The window owns its HoverControls. Apps call `add_bubble_*` to
+        // register actions; the bar is created lazily on the first call,
+        // flips the window into flat mode, and any subsequent `set_content`
+        // wraps the supplied widget so the bubbles overlay it. Apps must
+        // not instantiate HoverControls directly.
+        // ===================================================================
+
+        private Singularity.Widgets.HoverControls? _bubble_bar = null;
+
+        public delegate void BubbleAction ();
+        public delegate void BubbleSearchAction (string text);
+
+        private Singularity.Widgets.HoverControls _ensure_bubble_bar () {
+            if (_bubble_bar == null) {
+                _bubble_bar = Singularity.Widgets.HoverControls.with_window_bubbles (this);
+                // If set_content ran before the first bubble was registered,
+                // re-wrap the user content now so the bar overlays it.
+                if (_user_content != null) _install_content ();
+            }
+            return _bubble_bar;
+        }
+
+        /**
+         * Add an icon-only bubble (preferred for toolbar-style actions).
+         * Returns the Button so callers can flip visibility / sensitivity.
+         */
+        public Button add_bubble_icon (string icon_name,
+                                       string tooltip,
+                                       owned BubbleAction action) {
+            var btn = new Button.from_icon_name (icon_name);
+            btn.add_css_class ("flat");
+            btn.tooltip_text = tooltip;
+            btn.clicked.connect (() => action ());
+            _ensure_bubble_bar ().add (btn);
+            return btn;
+        }
+
+        /** Neutral pill text bubble. Use for plain actions (e.g. Cancel). */
+        public Button add_bubble_text (string label, owned BubbleAction action) {
+            return _ensure_bubble_bar ().add_text_button (label, (owned) action);
+        }
+
+        /** Accent suggested-action pill. Reserve for the primary CTA. */
+        public Button add_bubble_suggested (string label, owned BubbleAction action) {
+            return _ensure_bubble_bar ().add_suggested_button (label, (owned) action);
+        }
+
+        /** Inject an arbitrary widget as a bubble (use sparingly). */
+        public void add_bubble_widget (Widget w) {
+            _ensure_bubble_bar ().add (w);
+        }
+
+        /**
+         * Add a label bubble. Used for status text (word count, etc).
+         * `dimmed` keeps the GTK `dim-label` + `caption` look. Leave
+         * it off for bubble mode (white-on-accent labels read better
+         * full-strength), on for SSD mode where the label sits inside
+         * the regular toolbar background.
+         */
+        public Label add_bubble_label (string text, bool dimmed = false) {
+            var lbl = new Label (text);
+            lbl.add_css_class ("singularity-hover-label");
+            if (dimmed) {
+                lbl.add_css_class ("dim-label");
+                lbl.add_css_class ("caption");
+            }
+            _ensure_bubble_bar ().add (lbl);
+            return lbl;
+        }
+
+        /**
+         * Add a menu bubble: an icon button that pops up the given
+         * popover on click. Avoids the awkward MenuButton arrow + flat
+         * toggle visual.
+         */
+        public Button add_bubble_menu (string icon_name,
+                                       string tooltip,
+                                       Popover popover) {
+            var btn = new Button.from_icon_name (icon_name);
+            btn.add_css_class ("flat");
+            btn.tooltip_text = tooltip;
+            popover.set_parent (btn);
+            popover.set_position (PositionType.BOTTOM);
+            popover.has_arrow = false;
+            btn.clicked.connect (() => {
+                if (popover.visible) popover.popdown ();
+                else popover.popup ();
+            });
+            _ensure_bubble_bar ().add (btn);
+            return btn;
+        }
+
+        /**
+         * Add a search bubble. Returns the underlying SearchEntry for any
+         * extra setup (placeholder tweaks, key bindings, etc.). The
+         * `action` is invoked on every search_changed.
+         */
+        public Singularity.Widgets.SearchBubble add_bubble_search (
+                string placeholder,
+                owned BubbleSearchAction action) {
+            var sb = new Singularity.Widgets.SearchBubble (placeholder);
+            sb.search_changed.connect ((t) => action (t));
+            _ensure_bubble_bar ().add (sb);
+            return sb;
+        }
+
+        /** True if any bubble has been added. */
+        public bool has_bubbles { get { return _bubble_bar != null; } }
+
+        /**
+         * Toggle hover-to-reveal mode on the bubble bar. Use for
+         * scenic content (video playback, fullscreen photo viewer) so
+         * the bubbles fade out and reappear on hover. Welcome/idle
+         * states should pass false so bubbles stay always visible.
+         */
+        public void set_bubbles_on_hover (bool on_hover) {
+            if (_bubble_bar == null) return;
+            if (on_hover) _bubble_bar.add_css_class ("singularity-hover-on-content");
+            else          _bubble_bar.remove_css_class ("singularity-hover-on-content");
         }
 
         /**

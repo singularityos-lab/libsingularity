@@ -7,7 +7,7 @@ namespace Singularity.Widgets {
      * A generic color theme descriptor used by ColorSchemePreview
      * and ColorSchemeRow.
      *
-     * Applications that offer a theme chooser (terminals, editors, …) can
+     * Applications that offer a theme chooser (terminals, editors, ...) can
      * build their theme lists using this class, then pass them to
      * ColorSchemeRow.
      */
@@ -22,7 +22,7 @@ namespace Singularity.Widgets {
         public string foreground { get; set; }
         /**
          * 16-entry ANSI colour palette as CSS hex strings.
-         * Indices 0–7 are the normal colours; 8–15 are the bright variants.
+         * Indices 0-7 are the normal colours; 8-15 are the bright variants.
          */
         public string[] palette { get; set; }
 
@@ -281,7 +281,7 @@ namespace Singularity.Widgets {
      * and support for suffix and prefix widgets.
      *
      * Activating the row (click or Enter) emits `activated`.
-     * Subclasses (SwitchRow, EntryRow, …) connect to
+     * Subclasses (SwitchRow, EntryRow, ...) connect to
      * `activated` to implement their specific interaction.
      */
     public class ActionRow : PreferencesRow {
@@ -814,7 +814,7 @@ namespace Singularity.Widgets {
                 se_wrap.margin_end = 12;
                 search_entry = new Singularity.Widgets.SearchEntry();
                 search_entry.placeholder_text = "Search...";
-                search_entry.search_changed.connect(filter_list);
+                search_entry.search_changed.connect(() => filter_list(search_entry));
                 se_wrap.append(search_entry);
                 container.append(se_wrap);
             }

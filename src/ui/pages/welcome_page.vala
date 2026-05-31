@@ -19,12 +19,6 @@ namespace Singularity.Widgets {
 
         public signal void close_requested();
 
-        /** Whether to show the close (×) button in the top-right corner. */
-        public bool show_close_button {
-            get { return _close_btn.visible; }
-            set { _close_btn.visible = value; }
-        }
-
         /** Name of the symbolic icon shown above the title. Empty = no icon. */
         public string app_icon_name {
             get { return _icon_name; }
@@ -57,7 +51,7 @@ namespace Singularity.Widgets {
             }
         }
 
-        // ── Private state ─────────────────────────────────────────────────
+        // -- Private state -------------------------------------------------
 
         private string _icon_name = "";
         private Image _app_icon;
@@ -83,7 +77,7 @@ namespace Singularity.Widgets {
         private ActionEntry[] _actions = {};
         private bool _actions_built = false;
 
-        // ── Constructor ───────────────────────────────────────────────────
+        // -- Constructor ---------------------------------------------------
 
         public WelcomePage() {
             Object(orientation: Orientation.VERTICAL, spacing: 0);
@@ -114,7 +108,7 @@ namespace Singularity.Widgets {
             _split_box.hexpand = true;
             _split_box.vexpand = true;
 
-            // ── Left pane: icon + title + subtitle + actions ───────────────
+            // -- Left pane: icon + title + subtitle + actions ---------------
             _left_pane = new Box(Orientation.VERTICAL, 28);
             _left_pane.add_css_class("welcome-page-left");
             _left_pane.valign = Align.CENTER;
@@ -156,7 +150,7 @@ namespace Singularity.Widgets {
 
             _split_box.append(_left_pane);
 
-            // ── Right pane: extra widget (recent files, etc.) ──────────────
+            // -- Right pane: extra widget (recent files, etc.) --------------
             _right_pane = new Box(Orientation.VERTICAL, 0);
             _right_pane.add_css_class("welcome-page-right");
             _right_pane.hexpand        = true;
@@ -174,7 +168,7 @@ namespace Singularity.Widgets {
             map.connect(ensure_actions_built);
         }
 
-        // ── Responsive layout ─────────────────────────────────────────────
+        // -- Responsive layout ---------------------------------------------
 
         public override void size_allocate(int width, int height, int baseline) {
             bool should_wide = width >= 680 && _right_pane.visible;
@@ -199,7 +193,7 @@ namespace Singularity.Widgets {
             base.size_allocate(width, height, baseline);
         }
 
-        // ── Public API ────────────────────────────────────────────────────
+        // -- Public API ----------------------------------------------------
 
         /**
          * Register an action that will appear in the actions area.
@@ -227,6 +221,7 @@ namespace Singularity.Widgets {
                 child = next;
             }
             if (widget != null) {
+                widget.add_css_class("welcome-page-right-content");
                 _right_pane.append((!)widget);
                 _right_pane.visible = true;
             } else {
@@ -234,7 +229,7 @@ namespace Singularity.Widgets {
             }
         }
 
-        // ── Private helpers ───────────────────────────────────────────────
+        // -- Private helpers -----------------------------------------------
 
         private void ensure_actions_built() {
             if (_actions_built) return;
@@ -243,7 +238,7 @@ namespace Singularity.Widgets {
             build_list_actions();
         }
 
-        /** 1–2 actions: stacked cards (icon left, text right). */
+        /** 1-2 actions: stacked cards (icon left, text right). */
         private void build_card_actions() {
             var col = new Box(Orientation.VERTICAL, 10);
             col.halign = Align.FILL;

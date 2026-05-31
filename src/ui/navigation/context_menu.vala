@@ -17,12 +17,17 @@ namespace Singularity.Widgets {
          *
          * @param parent_widget The widget this popover is parented to.
          */
+        // Half of the popover padding (40 px ÷ 2) cancels the inward
+        // offset of the visible card so it lands aligned with the anchor.
+        private const int SHADOW_OFFSET = 10;
+
         public ContextMenu(Widget parent_widget) {
             set_parent(parent_widget);
             has_arrow = false;
             content_box = new Box(Orientation.VERTICAL, 0);
             set_child(content_box);
             add_css_class("context-menu");
+            set_offset(-SHADOW_OFFSET, -SHADOW_OFFSET);
         }
 
         /**

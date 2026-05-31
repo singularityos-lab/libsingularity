@@ -28,7 +28,7 @@ namespace Singularity.Widgets {
         private int _n_states = 2;
         private bool _auto_toggle = true;
 
-        // ── Public properties ────────────────────────────────────────────────
+        // -- Public properties ------------------------------------------------
 
         /** Icon name shown on the left of the tile. */
         public string icon_name {
@@ -61,7 +61,7 @@ namespace Singularity.Widgets {
         }
 
         /**
-         * Current state index (0 … n_states − 1).
+         * Current state index (0 ... n_states − 1).
          * Changing this updates the `.active` / `.state-partial` CSS classes.
          */
         public int state {
@@ -95,7 +95,7 @@ namespace Singularity.Widgets {
             set { _auto_toggle = value; }
         }
 
-        // ── Constructor ──────────────────────────────────────────────────────
+        // -- Constructor ------------------------------------------------------
 
         public QuickSettingTile(string title, string icon_name, bool is_active = false) {
             Object();
@@ -143,7 +143,7 @@ namespace Singularity.Widgets {
             });
         }
 
-        // ── Internal ─────────────────────────────────────────────────────────
+        // -- Internal ---------------------------------------------------------
 
         private void _sync_css() {
             remove_css_class("active");

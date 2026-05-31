@@ -60,7 +60,7 @@ namespace Singularity.Widgets {
             var outer = new Box(Orientation.VERTICAL, 0);
             outer.add_css_class("write-find-bar-inner");
 
-            // ── Find row ──
+            // -- Find row --
             var find_row = new Box(Orientation.HORIZONTAL, 4);
             find_row.margin_top = 6;
             find_row.margin_bottom = 2;
@@ -68,7 +68,7 @@ namespace Singularity.Widgets {
             find_row.margin_end = 10;
 
             _find_entry = new Entry();
-            _find_entry.placeholder_text = "Find…";
+            _find_entry.placeholder_text = "Find...";
             _find_entry.hexpand = true;
             _find_entry.activate.connect(() => find_next(_find_entry.text));
             _find_entry.changed.connect(() => {
@@ -108,7 +108,7 @@ namespace Singularity.Widgets {
             find_row.append(close_btn);
             outer.append(find_row);
 
-            // ── Replace row (hidden) ──
+            // -- Replace row (hidden) --
             _replace_row = new Box(Orientation.HORIZONTAL, 4);
             _replace_row.margin_top = 2;
             _replace_row.margin_bottom = 6;
@@ -117,7 +117,7 @@ namespace Singularity.Widgets {
             _replace_row.visible = false;
 
             _replace_entry = new Entry();
-            _replace_entry.placeholder_text = "Replace with…";
+            _replace_entry.placeholder_text = "Replace with...";
             _replace_entry.hexpand = true;
             _replace_entry.activate.connect(() => replace_one(_find_entry.text, _replace_entry.text));
 

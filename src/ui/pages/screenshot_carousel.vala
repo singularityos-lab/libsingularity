@@ -35,7 +35,7 @@ namespace Singularity.Widgets {
                 return;
             }
 
-            // ── Image area ────────────────────────────────────────────────
+            // -- Image area ------------------------------------------------
             var frame = new Gtk.Frame (null);
             frame.add_css_class ("screenshot-carousel-frame");
             frame.hexpand = true;
@@ -70,7 +70,7 @@ namespace Singularity.Widgets {
 
             append (frame);
 
-            // ── Dot indicators ────────────────────────────────────────────
+            // -- Dot indicators --------------------------------------------
             if (count > 1) {
                 _dots_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
                 _dots_box.halign = Gtk.Align.CENTER;
@@ -95,7 +95,7 @@ namespace Singularity.Widgets {
                 show_current ();
         }
 
-        // ── Private helpers ───────────────────────────────────────────────
+        // -- Private helpers -----------------------------------------------
 
         private Gtk.Button make_nav_button (string icon, Gtk.Align align) {
             var btn = new Gtk.Button.from_icon_name (icon);

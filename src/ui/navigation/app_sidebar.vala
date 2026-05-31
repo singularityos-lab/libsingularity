@@ -11,7 +11,7 @@ namespace Singularity.Widgets {
      * Example:
      * {{{
      *   var sidebar = new AppSidebar();
-     *   sidebar.box.append(new ToolbarSpacer.with_height(70));
+     *   Singularity.Widgets.apply_titlebar_inset (sidebar.box);
      *   sidebar.box.append(new Button.with_label("Home"));
      *   window.set_sidebar(sidebar);
      * }}}
@@ -36,13 +36,15 @@ namespace Singularity.Widgets {
             _scroll.hscrollbar_policy = PolicyType.NEVER;
             _scroll.vscrollbar_policy = PolicyType.AUTOMATIC;
             _scroll.vexpand = true;
+            // ScrolledWindow draws its own frame by default in GTK4;
+            // that gave the AppSidebar a visible inner right border
+            // that Files (which uses a raw scroll) doesn't have.
+            _scroll.has_frame = false;
 
             box = new Box(Orientation.VERTICAL, 2);
             box.add_css_class("navigation-sidebar");
-            box.margin_top = 10;
-            box.margin_bottom = 10;
-            box.margin_start = 10;
-            box.margin_end = 10;
+            // No own margins: the Window.sidebar_area already supplies
+            // the 10px padding gutter via `.window-sidebar` CSS.
 
             _scroll.set_child(box);
             append(_scroll);
