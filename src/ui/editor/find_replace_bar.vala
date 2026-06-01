@@ -48,9 +48,9 @@ namespace Singularity.Widgets {
          */
         public void set_match_info(int current, int total) {
             if (total == 0)
-                _match_label.label = "No matches";
+                _match_label.label = _("No matches");
             else
-                _match_label.label = "%d of %d".printf(current, total);
+                _match_label.label = _("%d of %d").printf(current, total);
         }
 
         public FindReplaceBar() {
@@ -68,7 +68,7 @@ namespace Singularity.Widgets {
             find_row.margin_end = 10;
 
             _find_entry = new Entry();
-            _find_entry.placeholder_text = "Find...";
+            _find_entry.placeholder_text = _("Find...");
             _find_entry.hexpand = true;
             _find_entry.activate.connect(() => find_next(_find_entry.text));
             _find_entry.changed.connect(() => {
@@ -117,15 +117,15 @@ namespace Singularity.Widgets {
             _replace_row.visible = false;
 
             _replace_entry = new Entry();
-            _replace_entry.placeholder_text = "Replace with...";
+            _replace_entry.placeholder_text = _("Replace with...");
             _replace_entry.hexpand = true;
             _replace_entry.activate.connect(() => replace_one(_find_entry.text, _replace_entry.text));
 
-            var rep_btn = new Button.with_label("Replace");
+            var rep_btn = new Button.with_label(_("Replace"));
             rep_btn.has_frame = false;
             rep_btn.clicked.connect(() => replace_one(_find_entry.text, _replace_entry.text));
 
-            var rep_all_btn = new Button.with_label("Replace All");
+            var rep_all_btn = new Button.with_label(_("Replace All"));
             rep_all_btn.has_frame = false;
             rep_all_btn.clicked.connect(() => replace_all(_find_entry.text, _replace_entry.text));
 

@@ -19,7 +19,7 @@ namespace Singularity.Widgets {
                                  bool use_modal = true) {
             base(app, use_modal);
             add_css_class("preferences-window");
-            set_title("Preferences");
+            set_title(_("Preferences"));
             set_default_size(560, 520);
 
             var scrolled = new ScrolledWindow();

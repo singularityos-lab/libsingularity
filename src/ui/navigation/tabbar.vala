@@ -96,7 +96,7 @@ namespace Singularity.Widgets {
                 });
                 label_handler_ids.set(page, hid);
             } else {
-                btn.set_label("Tab");
+                btn.set_label(_("Tab"));
             }
             append(btn);
             if (notebook.get_current_page() == notebook.page_num(page)) {

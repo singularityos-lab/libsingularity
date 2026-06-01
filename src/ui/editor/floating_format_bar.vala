@@ -73,7 +73,7 @@ namespace Singularity.Widgets {
 
             var link_btn = new Button();
             link_btn.has_frame = false;
-            link_btn.tooltip_text = "Insert Link";
+            link_btn.tooltip_text = _("Insert Link");
             var link_img = new Image.from_icon_name("insert-link-symbolic");
             link_img.pixel_size = 16;
             link_btn.set_child(link_img);
@@ -84,13 +84,13 @@ namespace Singularity.Widgets {
             var text_init = RGBA();
             text_init.parse("#ffffff");
             _text_color = new ColorPickerButton(text_init);
-            _text_color.tooltip_text = "Text Color";
+            _text_color.tooltip_text = _("Text Color");
             _text_color.color_changed.connect((c) => color_changed("text", c));
 
             var hl_init = RGBA();
             hl_init.parse("#ffff00");
             _highlight_color = new ColorPickerButton(hl_init);
-            _highlight_color.tooltip_text = "Highlight";
+            _highlight_color.tooltip_text = _("Highlight");
             _highlight_color.color_changed.connect((c) => color_changed("highlight", c));
 
             box.append(_text_color);

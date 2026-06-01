@@ -34,12 +34,12 @@ namespace Singularity.Widgets {
             security_icon.add_css_class ("secure");
             append (security_icon);
 
-            domain_label = new Gtk.Label ("New Tab");
+            domain_label = new Gtk.Label (_("New Tab"));
             append (domain_label);
 
             reload_btn = new Gtk.Button.from_icon_name ("view-refresh-symbolic");
             reload_btn.add_css_class ("flat");
-            reload_btn.tooltip_text = "Reload";
+            reload_btn.tooltip_text = _("Reload");
             reload_btn.clicked.connect (() => reload_requested ());
             append (reload_btn);
         }
@@ -55,7 +55,7 @@ namespace Singularity.Widgets {
          */
         public void update_from_uri (string? uri) {
             if (uri == null || uri == "" || uri.has_prefix ("about:") || uri.has_prefix ("singularity:")) {
-                domain_label.label = "New Tab";
+                domain_label.label = _("New Tab");
                 security_icon.icon_name = "channel-secure-symbolic";
                 security_icon.remove_css_class ("insecure");
                 security_icon.add_css_class ("secure");

@@ -215,7 +215,7 @@ namespace Singularity.Widgets {
             drag_btn.add_css_class ("image-button");
             drag_btn.set_size_request (20, 20);
             drag_btn.valign = Align.CENTER;
-            drag_btn.tooltip_text = "Drag Window";
+            drag_btn.tooltip_text = _("Drag Window");
             var grip = new Image.from_icon_name ("list-drag-handle-symbolic");
             grip.pixel_size = -1;
             drag_btn.set_child (grip);
@@ -237,7 +237,7 @@ namespace Singularity.Widgets {
             btn.add_css_class ("singularity-hover-btn");
             btn.set_size_request (20, 20);
             btn.valign = Align.CENTER;
-            btn.tooltip_text = "Minimize Window";
+            btn.tooltip_text = _("Minimize Window");
             btn.clicked.connect (() => window.minimize ());
             target.append (btn);
         }
@@ -248,7 +248,7 @@ namespace Singularity.Widgets {
             btn.add_css_class ("singularity-hover-btn");
             btn.set_size_request (20, 20);
             btn.valign = Align.CENTER;
-            btn.tooltip_text = "Maximize Window";
+            btn.tooltip_text = _("Maximize Window");
             btn.clicked.connect (() => {
                 if (window.maximized) window.unmaximize ();
                 else                  window.maximize ();
@@ -262,7 +262,7 @@ namespace Singularity.Widgets {
             _close_btn.add_css_class ("singularity-hover-btn");
             _close_btn.set_size_request (20, 20);
             _close_btn.valign = Align.CENTER;
-            _close_btn.tooltip_text = "Close Window";
+            _close_btn.tooltip_text = _("Close Window");
             _close_btn.clicked.connect (_on_close_clicked);
             target.append (_close_btn);
         }

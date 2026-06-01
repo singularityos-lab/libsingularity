@@ -12,7 +12,7 @@ namespace Singularity.Widgets {
      * {{{
      *   var sidebar = new AppSidebar();
      *   Singularity.Widgets.apply_titlebar_inset (sidebar.box);
-     *   sidebar.box.append(new Button.with_label("Home"));
+     *   sidebar.box.append(new Button.with_label(_("Home")));
      *   window.set_sidebar(sidebar);
      * }}}
      */

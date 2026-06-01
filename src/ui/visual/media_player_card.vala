@@ -94,7 +94,7 @@ namespace Singularity.Widgets {
             var info_box = new Box(Orientation.VERTICAL, 2);
             info_box.valign = Align.CENTER;
             info_box.hexpand = true;
-            title_label = new Label("No Media");
+            title_label = new Label(_("No Media"));
             title_label.add_css_class("title");
             title_label.halign = Align.START;
             title_label.xalign = 0.0f;
@@ -493,7 +493,7 @@ namespace Singularity.Widgets {
         }
 
         private void update_ui_idle() {
-            title_label.label = "No Media";
+            title_label.label = _("No Media");
             artist_label.label = "";
             last_art_url = null;
             cover_stack.visible_child_name = "icon";

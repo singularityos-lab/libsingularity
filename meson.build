@@ -6,6 +6,9 @@ project('libsingularity', ['vala', 'c'],
 
 gnome     = import('gnome')
 pkgconfig = import('pkgconfig')
+i18n      = import('i18n')
+add_project_arguments('-DGETTEXT_PACKAGE="libsingularity"', language: 'c')
+subdir('po')
 
 datadir = get_option('datadir')
 libdir = get_option('libdir')

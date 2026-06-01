@@ -92,7 +92,7 @@ namespace Singularity.Widgets {
             btn_row.halign = Align.CENTER;
             btn_row.margin_top = 8;
 
-            var cancel_btn = new Button.with_label("Cancel");
+            var cancel_btn = new Button.with_label(_("Cancel"));
             cancel_btn.add_css_class("pill");
             cancel_btn.width_request = 120;
             cancel_btn.clicked.connect(() => {

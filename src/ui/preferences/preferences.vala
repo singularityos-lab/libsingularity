@@ -223,7 +223,7 @@ namespace Singularity.Widgets {
             msg.add_css_class("dim-label");
             confirm_box.append(msg);
 
-            cancel_btn = new Button.with_label("Cancel");
+            cancel_btn = new Button.with_label(_("Cancel"));
             cancel_btn.add_css_class("flat");
             cancel_btn.clicked.connect(() => {
                 confirming = false;
@@ -231,7 +231,7 @@ namespace Singularity.Widgets {
             });
             confirm_box.append(cancel_btn);
 
-            confirm_btn = new Button.with_label("Remove");
+            confirm_btn = new Button.with_label(_("Remove"));
             confirm_btn.add_css_class("destructive-action");
             confirm_btn.clicked.connect(() => {
                 confirming = true;
@@ -681,7 +681,7 @@ namespace Singularity.Widgets {
             container.margin_start = 12;
             container.margin_end = 12;
             search_entry = new Singularity.Widgets.SearchEntry();
-            search_entry.placeholder_text = "Search...";
+            search_entry.placeholder_text = _("Search...");
             container.append(search_entry);
             var scrolled = new ScrolledWindow();
             scrolled.set_size_request(-1, 300);
@@ -813,7 +813,7 @@ namespace Singularity.Widgets {
                 se_wrap.margin_start = 12;
                 se_wrap.margin_end = 12;
                 search_entry = new Singularity.Widgets.SearchEntry();
-                search_entry.placeholder_text = "Search...";
+                search_entry.placeholder_text = _("Search...");
                 search_entry.search_changed.connect(() => filter_list(search_entry));
                 se_wrap.append(search_entry);
                 container.append(se_wrap);

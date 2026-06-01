@@ -51,7 +51,7 @@ namespace Singularity.Widgets {
             box.append (dot);
 
             if (!evt.all_day) {
-                var time_lbl = new Label (evt.start_time.format ("%H:%M"));
+                var time_lbl = new Label (evt.start_time.format (_("%H:%M")));
                 time_lbl.add_css_class ("cal-event-time");
                 box.append (time_lbl);
             }
@@ -111,7 +111,7 @@ namespace Singularity.Widgets {
             _month_lbl.halign   = Align.CENTER;
             _month_lbl.add_css_class ("cal-nav-month-label");
 
-            _today_btn = new Button.with_label ("Today");
+            _today_btn = new Button.with_label (_("Today"));
             _today_btn.add_css_class ("flat");
             _today_btn.add_css_class ("cal-nav-today-btn");
             _today_btn.set_size_request (-1, 24);
@@ -144,7 +144,7 @@ namespace Singularity.Widgets {
         }
 
         private void _refresh () {
-            _month_lbl.label = _display_month.format ("%B %Y");
+            _month_lbl.label = _display_month.format (_("%B %Y"));
 
             Widget? c = _grid.get_first_child ();
             while (c != null) { var n = c.get_next_sibling (); _grid.remove (c); c = n; }
@@ -564,7 +564,7 @@ namespace Singularity.Widgets {
 
         public void set_date (DateTime date) {
             _date = date;
-            _day_header_lbl.label = _date.format ("%A, %B %e %Y");
+            _day_header_lbl.label = _date.format (_("%A, %B %e %Y"));
             refresh.begin ();
         }
 
@@ -572,7 +572,7 @@ namespace Singularity.Widgets {
             // -- Day header --------------------------------------------------
             _day_header_lbl = new Label ("");
             _day_header_lbl.add_css_class ("cal-day-title");
-            _day_header_lbl.label = _date.format ("%A, %B %e %Y");
+            _day_header_lbl.label = _date.format (_("%A, %B %e %Y"));
             _day_header_lbl.halign = Align.START;
             _day_header_lbl.margin_start = 16;
             _day_header_lbl.margin_top   = 10;

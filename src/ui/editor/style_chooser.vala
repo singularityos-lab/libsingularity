@@ -57,7 +57,7 @@ namespace Singularity.Widgets {
         public StyleChooser() {
             Object(orientation: Orientation.HORIZONTAL, spacing: 0);
 
-            _label = new Label("Body");
+            _label = new Label(_("Body"));
             _label.xalign = 0;
             _label.set_size_request(130, -1);
 

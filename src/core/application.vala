@@ -29,6 +29,18 @@ namespace Singularity {
         }
 
         construct {
+            // Bind libsingularity's own translation domain (its widgets ship
+            // user-facing strings); resolve the locale dir from the install
+            // prefix so it works whatever the prefix.
+            string locale_dir = "/usr/share/locale";
+            try {
+                string exe = GLib.FileUtils.read_link("/proc/self/exe");
+                locale_dir = GLib.Path.build_filename(
+                    GLib.Path.get_dirname(GLib.Path.get_dirname(exe)), "share", "locale");
+            } catch (Error e) { }
+            Intl.bindtextdomain("libsingularity", locale_dir);
+            Intl.bind_textdomain_codeset("libsingularity", "UTF-8");
+
             // GTK_CSD must be set BEFORE Gtk.init runs. Application.startup
             // runs after init, so we read the user's force-ssd setting
             // here and disable GTK's CSD so labwc draws its own SSD via
@@ -248,9 +260,9 @@ namespace Singularity {
             var win = new Singularity.Widgets.PreferencesWindow(this, page);
             var app_name = GLib.Environment.get_application_name();
             if (app_name != null && app_name != "") {
-                win.title = "%s - Preferences".printf(app_name);
+                win.title = _("%s - Preferences").printf(app_name);
             } else {
-                win.title = "Preferences";
+                win.title = _("Preferences");
             }
             if (parent != null) {
                 win.transient_for = parent;
