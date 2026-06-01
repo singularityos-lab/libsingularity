@@ -372,9 +372,6 @@ radio:checked {
     border-color: @accent_color;
     color: @accent_fg;
 }
-check:checked        { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); }
-check:indeterminate  { -gtk-icon-source: -gtk-icontheme("list-remove-symbolic"); }
-radio:checked        { -gtk-icon-source: -gtk-icontheme("radio-symbolic"); }
 
 checkbutton:focus-visible > check,
 checkbutton:focus-visible > radio {
@@ -2247,9 +2244,6 @@ button.segmented-button.active:checked {
     border-color: @accent_color;
     color: @accent_fg;
 }
-.singularity check:checked       { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); }
-.singularity check:indeterminate { -gtk-icon-source: -gtk-icontheme("list-remove-symbolic"); }
-.singularity radio:checked       { -gtk-icon-source: -gtk-icontheme("radio-symbolic"); }
 
 .singularity scale trough {
     background-color: alpha(@text_color, 0.1);
