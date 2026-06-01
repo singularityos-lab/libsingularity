@@ -1575,7 +1575,7 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 .sidebar {
     background-color: @window_tint;
     border: 1px solid @border_color;
-    border-radius: 16px;
+    border-radius: 40px;
     font-family: 'Inter', sans-serif;
     padding: 0 12px;
     /* Same two-layer recipe used by app windows and dialog cards. */
