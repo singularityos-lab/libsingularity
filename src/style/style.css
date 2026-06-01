@@ -3749,7 +3749,9 @@ button.singularity-hover-btn.image-button,
 button.flat.singularity-hover-btn.image-button {
     padding: 2px;
 }
-.singularity-hover-btn.text-button {
+.singularity-hover-btn.text-button,
+button.singularity-hover-btn.text-button,
+button.flat.singularity-hover-btn.text-button {
     padding: 0 10px;
 }
 .singularity-hover-btn image,
