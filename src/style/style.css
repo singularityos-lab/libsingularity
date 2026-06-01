@@ -343,21 +343,45 @@ label.dim-label { opacity: 0.55; }
     font-size: 14px;
 }
 
-/* Check / Radio */
-checkbutton > check,
-radiobutton > radio {
-    border: 1.5px solid @border_color;
-    border-radius: 4px;
+/* Check / Radio. GTK4 names the indicator nodes `check` and `radio`; target
+   them directly so both checkboxes and radio buttons get a real style
+   (the old GTK3 `radiobutton > radio` selector never matched in GTK4). */
+check,
+radio {
+    min-width: 18px;
+    min-height: 18px;
+    margin: 2px;
+    padding: 0;
+    border: 1.5px solid alpha(@text_color, 0.35);
     background-color: @card_bg;
-    min-width: 16px;
-    min-height: 16px;
+    color: @accent_fg;
+    transition: background-color 0.12s ease,
+                border-color 0.12s ease,
+                box-shadow 0.12s ease;
 }
+check  { border-radius: 5px; }
+radio  { border-radius: 100%; }
+
+check:hover,
+radio:hover { border-color: @accent_color; }
+
 check:checked,
+check:indeterminate,
 radio:checked {
     background-color: @accent_color;
     border-color: @accent_color;
     color: @accent_fg;
 }
+check:checked        { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); }
+check:indeterminate  { -gtk-icon-source: -gtk-icontheme("list-remove-symbolic"); }
+radio:checked        { -gtk-icon-source: -gtk-icontheme("radio-symbolic"); }
+
+checkbutton:focus-visible > check,
+checkbutton:focus-visible > radio {
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.40);
+}
+check:disabled,
+radio:disabled { opacity: 0.5; }
 
 /* Switch */
 switch {
@@ -2200,25 +2224,32 @@ button.segmented-button.active:checked {
     outline: none;
 }
 
-.singularity checkbutton check {
+.singularity check,
+.singularity radio {
     background-color: alpha(@text_color, 0.1);
-    border: 1px solid alpha(@text_color, 0.3);
-    border-radius: 4px;
-    color: white;
+    border: 1.5px solid alpha(@text_color, 0.35);
+    color: @accent_fg;
     min-width: 18px;
     min-height: 18px;
-    transition: all 0.2s;
+    margin: 2px;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
 }
+.singularity check { border-radius: 5px; }
+.singularity radio { border-radius: 100%; }
 
-.singularity checkbutton check:checked {
+.singularity check:hover,
+.singularity radio:hover { border-color: @accent_color; }
+
+.singularity check:checked,
+.singularity check:indeterminate,
+.singularity radio:checked {
     background-color: @accent_color;
     border-color: @accent_color;
-    color: white;
+    color: @accent_fg;
 }
-
-.singularity checkbutton:hover check {
-    border-color: white;
-}
+.singularity check:checked       { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); }
+.singularity check:indeterminate { -gtk-icon-source: -gtk-icontheme("list-remove-symbolic"); }
+.singularity radio:checked       { -gtk-icon-source: -gtk-icontheme("radio-symbolic"); }
 
 .singularity scale trough {
     background-color: alpha(@text_color, 0.1);
