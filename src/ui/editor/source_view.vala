@@ -26,7 +26,19 @@ namespace Singularity.Widgets {
             set { top_margin = value; }
         }
 
+        /**
+         * When true (default), right-clicking shows the Singularity
+         * {@link ContextMenu} (Undo/Redo, Cut/Copy/Paste, Select All) instead
+         * of GtkSourceView's built-in, unthemed popover menu.
+         */
+        public bool use_context_menu { get; set; default = true; }
+
         public SourceView(GtkSource.Buffer? buf = null) {
+            Object(buffer: buf);
+            init_defaults();
+        }
+
+        public SourceView.with_buffer(GtkSource.Buffer buf) {
             Object(buffer: buf);
             init_defaults();
         }
@@ -58,6 +70,44 @@ namespace Singularity.Widgets {
             bottom_margin = 8;
             left_margin   = 12;
             right_margin  = 12;
+
+            _install_context_menu();
+        }
+
+        // Right-click shows our ContextMenu. A CAPTURE-phase secondary-button
+        // gesture claims the press so GtkSourceView's own popover never opens.
+        private void _install_context_menu() {
+            var click = new Gtk.GestureClick();
+            click.button = Gdk.BUTTON_SECONDARY;
+            click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE);
+            click.pressed.connect((n, x, y) => {
+                if (!use_context_menu) return;
+
+                var menu = new ContextMenu(this);
+                Gdk.Rectangle rect = { (int) x, (int) y, 1, 1 };
+                menu.set_pointing_to(rect);
+
+                menu.add_item("Undo", "edit-undo-symbolic", () => {
+                    if (buffer != null && buffer.can_undo) buffer.undo();
+                });
+                menu.add_item("Redo", "edit-redo-symbolic", () => {
+                    if (buffer != null && buffer.can_redo) buffer.redo();
+                });
+                menu.add_separator();
+                menu.add_item("Cut", "edit-cut-symbolic",
+                    () => activate_action("clipboard.cut", null));
+                menu.add_item("Copy", "edit-copy-symbolic",
+                    () => activate_action("clipboard.copy", null));
+                menu.add_item("Paste", "edit-paste-symbolic",
+                    () => activate_action("clipboard.paste", null));
+                menu.add_separator();
+                menu.add_item("Select All", "edit-select-all-symbolic",
+                    () => activate_action("selection.select-all", null));
+
+                menu.popup();
+                click.set_state(Gtk.EventSequenceState.CLAIMED);
+            });
+            add_controller(click);
         }
     }
 }
