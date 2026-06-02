@@ -146,6 +146,6 @@ pkgconfig.generate(
   name: 'libsingularity',
   description: 'Singularity Desktop application framework library',
   version: meson.project_version(),
-  filebase: 'libsingularity-1.0',
+  filebase: 'singularity-1.0',
   requires: ['gtk4', 'gtk4-layer-shell-0', 'gee-0.8', 'json-glib-1.0', 'libpeas-2'],
 )
