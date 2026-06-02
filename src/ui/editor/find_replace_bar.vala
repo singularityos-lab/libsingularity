@@ -70,6 +70,7 @@ namespace Singularity.Widgets {
             _find_entry = new Entry();
             _find_entry.placeholder_text = _("Find...");
             _find_entry.hexpand = true;
+            ContextMenu.attach_editable(_find_entry);
             _find_entry.activate.connect(() => find_next(_find_entry.text));
             _find_entry.changed.connect(() => {
                 if (_find_entry.text != "") find_next(_find_entry.text);
@@ -119,6 +120,7 @@ namespace Singularity.Widgets {
             _replace_entry = new Entry();
             _replace_entry.placeholder_text = _("Replace with...");
             _replace_entry.hexpand = true;
+            ContextMenu.attach_editable(_replace_entry);
             _replace_entry.activate.connect(() => replace_one(_find_entry.text, _replace_entry.text));
 
             var rep_btn = new Button.with_label(_("Replace"));

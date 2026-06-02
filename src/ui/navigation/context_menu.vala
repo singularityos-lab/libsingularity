@@ -60,5 +60,37 @@ namespace Singularity.Widgets {
         }
         /** Callback type for context-menu item actions. */
         public delegate void ClickedCallback();
+
+        public static void attach_editable(Widget host, bool with_undo = false) {
+            var click = new Gtk.GestureClick();
+            click.button = Gdk.BUTTON_SECONDARY;
+            click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE);
+            click.pressed.connect((n, x, y) => {
+                var menu = new ContextMenu(host);
+                Gdk.Rectangle rect = { (int) x, (int) y, 1, 1 };
+                menu.set_pointing_to(rect);
+
+                if (with_undo) {
+                    menu.add_item("Undo", "edit-undo-symbolic",
+                        () => host.activate_action("text.undo", null));
+                    menu.add_item("Redo", "edit-redo-symbolic",
+                        () => host.activate_action("text.redo", null));
+                    menu.add_separator();
+                }
+                menu.add_item("Cut", "edit-cut-symbolic",
+                    () => host.activate_action("clipboard.cut", null));
+                menu.add_item("Copy", "edit-copy-symbolic",
+                    () => host.activate_action("clipboard.copy", null));
+                menu.add_item("Paste", "edit-paste-symbolic",
+                    () => host.activate_action("clipboard.paste", null));
+                menu.add_separator();
+                menu.add_item("Select All", "edit-select-all-symbolic",
+                    () => host.activate_action("selection.select-all", null));
+
+                menu.popup();
+                click.set_state(Gtk.EventSequenceState.CLAIMED);
+            });
+            host.add_controller(click);
+        }
     }
 }

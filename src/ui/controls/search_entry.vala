@@ -49,17 +49,27 @@ namespace Singularity.Widgets {
             return entry.grab_focus ();
         }
 
+        private bool _menu_attached = false;
+
+        private void _setup_text (Gtk.Text text) {
+            text.xalign = 0.10f;
+            if (!_menu_attached) {
+                _menu_attached = true;
+                ContextMenu.attach_editable (text);
+            }
+        }
+
         private void _apply_xalign () {
             Widget? child = entry.get_first_child ();
             while (child != null) {
                 if (child is Gtk.Text) {
-                    ((Gtk.Text) child).xalign = 0.10f;
+                    _setup_text ((Gtk.Text) child);
                     return;
                 }
                 Widget? grand = child.get_first_child ();
                 while (grand != null) {
                     if (grand is Gtk.Text) {
-                        ((Gtk.Text) grand).xalign = 0.10f;
+                        _setup_text ((Gtk.Text) grand);
                         return;
                     }
                     grand = grand.get_next_sibling ();
