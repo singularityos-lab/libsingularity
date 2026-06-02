@@ -147,5 +147,10 @@ pkgconfig.generate(
   description: 'Singularity Desktop application framework library',
   version: meson.project_version(),
   filebase: 'singularity-1.0',
-  requires: ['gtk4', 'gtk4-layer-shell-0', 'gee-0.8', 'json-glib-1.0', 'libpeas-2'],
+  requires: ['gtk4', 'gtk4-layer-shell-0', 'gee-0.8', 'json-glib-1.0', 'libpeas-2', 'gtksourceview-5'],
+)
+
+install_data(
+  'singularity-1.0.deps',
+  install_dir: get_option('datadir') / 'vala' / 'vapi',
 )
