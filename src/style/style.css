@@ -4050,6 +4050,20 @@ button.flat.singularity-hover-btn.suggested-action:active {
     border-color: alpha(@accent_color, 0.6);
 }
 
+/* Drag-to-reorder: the chip being dragged is dimmed in place while its
+   translucent copy (the drag icon) follows the cursor. */
+.chip.chip-dragging {
+    opacity: 0.35;
+}
+
+/* Insertion marker showing which side the dragged chip will land on. */
+.chip.drop-before {
+    box-shadow: inset 3px 0 0 0 @accent_color;
+}
+.chip.drop-after {
+    box-shadow: inset -3px 0 0 0 @accent_color;
+}
+
 .chip-body {
     padding: 2px 8px 2px 12px;
     font-size: 12px;

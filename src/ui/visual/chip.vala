@@ -211,11 +211,39 @@ namespace Singularity.Widgets {
             src.prepare.connect ((x, y) => {
                 return new Gdk.ContentProvider.for_value (cid);
             });
+            // A translucent live copy of the chip follows the cursor (the
+            // "ghost"); the original is dimmed in place so it reads as the slot
+            // being moved.
+            src.drag_begin.connect ((drag) => {
+                var ghost = new Gtk.WidgetPaintable (chip);
+                src.set_icon (ghost, chip.get_width () / 2, chip.get_height () / 2);
+                chip.add_css_class ("chip-dragging");
+            });
+            src.drag_end.connect ((drag, delete_data) => {
+                chip.remove_css_class ("chip-dragging");
+                _clear_drop_marks ();
+            });
+            src.drag_cancel.connect ((drag, reason) => {
+                chip.remove_css_class ("chip-dragging");
+                _clear_drop_marks ();
+                return false;
+            });
             chip.add_controller (src);
             chip.set_data<Gtk.DragSource> ("singularity-chip-drag-src", src);
 
             var tgt = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            // While hovering, mark which side of this chip the drop will land on
+            // so the user sees where the dragged chip is going.
+            tgt.motion.connect ((x, y) => {
+                _mark_drop (chip, x > (chip.get_width () / 2));
+                return Gdk.DragAction.MOVE;
+            });
+            tgt.leave.connect (() => {
+                chip.remove_css_class ("drop-before");
+                chip.remove_css_class ("drop-after");
+            });
             tgt.drop.connect ((value, x, y) => {
+                _clear_drop_marks ();
                 string dragged_id = value.get_string ();
                 if (dragged_id == cid) return false;
                 var dragged = _find (dragged_id);
@@ -234,6 +262,22 @@ namespace Singularity.Widgets {
             });
             chip.add_controller (tgt);
             chip.set_data<Gtk.DropTarget> ("singularity-chip-drop-tgt", tgt);
+        }
+
+        // Highlight the gap where the dragged chip will be inserted, on the
+        // leading or trailing edge of the hovered chip.
+        private void _mark_drop (Chip chip, bool after) {
+            _clear_drop_marks ();
+            chip.add_css_class (after ? "drop-after" : "drop-before");
+        }
+
+        private void _clear_drop_marks () {
+            Widget? w = _chips_box.get_first_child ();
+            while (w != null) {
+                w.remove_css_class ("drop-before");
+                w.remove_css_class ("drop-after");
+                w = w.get_next_sibling ();
+            }
         }
 
         private void _uninstall_drag (Chip chip) {
