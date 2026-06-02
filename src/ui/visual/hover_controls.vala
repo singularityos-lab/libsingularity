@@ -40,6 +40,8 @@ namespace Singularity.Widgets {
         // Built in construct so .ui/vetro instances are assembled too; content
         // and controls are set imperatively via set_content / add_control.
         construct {
+            orientation = Orientation.VERTICAL;
+            spacing = 0;
             hexpand = true;
             vexpand = true;
 

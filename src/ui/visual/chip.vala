@@ -14,8 +14,11 @@ namespace Singularity.Widgets {
 
         public string chip_id { get; construct; default = ""; }
         /** The label shown on the chip body (named chip_label to avoid clashing
-         *  with the existing set_label method's accessor). */
-        public string chip_label { get; construct; default = ""; }
+         *  with the existing set_label method's accessor) */
+        public string chip_label {
+            get { return _body_label != null ? _body_label.label : ""; }
+            set { if (_body_label != null) _body_label.label = value ?? ""; }
+        }
 
         public signal void activated       ();
         public signal void close_requested ();
@@ -24,9 +27,9 @@ namespace Singularity.Widgets {
         private Button _body_btn;
         private Label  _body_label;
 
-        public Chip (string id, string label) {
-            Object (orientation: Orientation.HORIZONTAL, spacing: 0,
-                    chip_id: id, chip_label: label);
+        public Chip (string id, string? label = null) {
+            Object (orientation: Orientation.HORIZONTAL, spacing: 0, chip_id: id);
+            this.chip_label = label ?? "";
         }
 
         // Built in construct so .ui/vetro instances (created via g_object_new
@@ -35,7 +38,7 @@ namespace Singularity.Widgets {
             add_css_class ("chip");
             valign = Align.CENTER;
 
-            _body_btn = new Button.with_label (chip_label);
+            _body_btn = new Button.with_label ("");
             _body_btn.has_frame = false;
             _body_btn.add_css_class ("chip-body");
             _body_label = (Label) _body_btn.get_child ();

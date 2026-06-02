@@ -9,10 +9,19 @@ namespace Singularity.Widgets {
      * `singularity-button` and `singularity-icon-button` CSS classes.
      */
     public class IconButton : Button {
-        /** The icon name this button was created with. */
-        public string icon { get; construct; default = ""; }
+        private Image _img;
+
+        /** The icon name shown on the button. Backed by the image so it is safe
+         *  to set after construction (e.g. by GtkBuilder from a .ui/vetro). */
+        public string icon {
+            owned get { return _img != null ? (_img.icon_name ?? "") : ""; }
+            set { if (_img != null) _img.icon_name = value; }
+        }
         /** Pixel size of the icon image. */
-        public int icon_size { get; construct; default = 16; }
+        public int icon_size {
+            get { return _img != null ? _img.pixel_size : 16; }
+            set { if (_img != null) _img.pixel_size = value; }
+        }
 
         /**
          * Creates a new icon button.
@@ -22,19 +31,21 @@ namespace Singularity.Widgets {
          * @param size      Icon pixel size; defaults to 16.
          */
         public IconButton(string icon_name, string? tooltip = null, int size = 16) {
-            Object(icon: icon_name, icon_size: size, tooltip_text: tooltip);
+            Object(tooltip_text: tooltip);
+            icon_size = size;
+            icon = icon_name;
         }
 
-        // Setup lives in construct (not the named constructor body) so the widget
-        // is fully built when instantiated from a .ui/vetro template too, where
-        // GtkBuilder passes icon/icon-size at construction via g_object_new.
+        // The image child is built empty in construct so .ui/vetro instances are
+        // assembled too; icon/icon-size are then applied via their setters (by
+        // GtkBuilder post-construct, or by the constructor above).
         construct {
             has_frame = false;
             add_css_class("singularity-button");
             add_css_class("singularity-icon-button");
-            var img = new Image.from_icon_name(icon);
-            img.pixel_size = icon_size;
-            set_child(img);
+            _img = new Image();
+            _img.pixel_size = 16;
+            set_child(_img);
         }
     }
 }

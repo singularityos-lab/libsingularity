@@ -23,6 +23,8 @@ namespace Singularity.Widgets {
 
         // Layout in construct so .ui/vetro instances get it too.
         construct {
+            orientation = Orientation.VERTICAL;
+            spacing = 0;
             add_css_class ("preferences-page");
             margin_top    = 24;
             margin_bottom = 24;

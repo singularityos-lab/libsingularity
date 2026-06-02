@@ -12,23 +12,35 @@ namespace Singularity.Widgets {
      */
     public class SidebarSectionLabel : Box {
 
-        /** Section caption text (rendered uppercase). */
-        public string text { get; construct; default = ""; }
+        private Label _lbl;
+        private string _raw_text = "";
 
-        public SidebarSectionLabel(string text) {
-            Object(orientation: Orientation.HORIZONTAL, spacing: 0, text: text);
+        /** Section caption text (rendered uppercase). Safe to set after
+         *  construction (e.g. by GtkBuilder from a .ui/vetro). */
+        public string text {
+            get { return _raw_text; }
+            set {
+                _raw_text = value ?? "";
+                if (_lbl != null) _lbl.label = _raw_text.up();
+            }
         }
 
-        // Built in construct so .ui/vetro instances are assembled too.
+        public SidebarSectionLabel(string text) {
+            Object(orientation: Orientation.HORIZONTAL, spacing: 0);
+            this.text = text;
+        }
+
+        // The label is built empty in construct so .ui/vetro instances are
+        // assembled too; the text is then applied via its setter.
         construct {
             add_css_class("sidebar-section-label");
 
-            var lbl = new Label(text.up());
-            lbl.add_css_class("dim-label");
-            lbl.add_css_class("caption");
-            lbl.xalign = 0f;
-            lbl.hexpand = true;
-            append(lbl);
+            _lbl = new Label("");
+            _lbl.add_css_class("dim-label");
+            _lbl.add_css_class("caption");
+            _lbl.xalign = 0f;
+            _lbl.hexpand = true;
+            append(_lbl);
         }
     }
 }

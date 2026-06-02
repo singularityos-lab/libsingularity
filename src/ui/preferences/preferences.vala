@@ -93,6 +93,10 @@ namespace Singularity.Widgets {
         // description are then applied by GtkBuilder or the constructor above
         // (each setter reveals the header box on demand).
         construct {
+            // Own layout (GtkBuilder does not run the named constructor's Object()).
+            orientation = Orientation.VERTICAL;
+            spacing = 6;
+            margin_bottom = 10;
             add_css_class("preferences-group");
             header_box = new Box(Orientation.HORIZONTAL, 12);
             header_box.margin_top = 8;

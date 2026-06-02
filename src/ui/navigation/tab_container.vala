@@ -32,6 +32,8 @@ namespace Singularity.Widgets {
         // Built in construct so .ui/vetro instances are assembled too; tabs are
         // added imperatively via add_tab.
         construct {
+            orientation = Orientation.VERTICAL;
+            spacing = 0;
             notebook = new Notebook();
             notebook.hexpand = true;
             notebook.vexpand = true;

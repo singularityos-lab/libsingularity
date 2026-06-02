@@ -10,10 +10,23 @@ namespace Singularity.Widgets {
      */
     public class MenuRow : Button {
 
-        /** Text displayed on the row. */
-        public string label_text { get; construct; default = ""; }
+        private Label _label;
+        private Image _icon;
+
+        /** Text displayed on the row. Safe to set after construction. */
+        public string label_text {
+            get { return _label != null ? _label.label : ""; }
+            set { if (_label != null) _label.label = value ?? ""; }
+        }
         /** Optional symbolic icon shown to the left of the label ("" for none). */
-        public string icon_name { get; construct; default = ""; }
+        public string icon_name {
+            owned get { return _icon != null ? (_icon.icon_name ?? "") : ""; }
+            set {
+                if (_icon == null) return;
+                _icon.icon_name = value;
+                _icon.visible = (value != null && value != "");
+            }
+        }
 
         /**
          * Creates a new menu row.
@@ -22,26 +35,28 @@ namespace Singularity.Widgets {
          * @param icon_name  Optional symbolic icon shown to the left of the label.
          */
         public MenuRow(string label_text, string? icon_name = null) {
-            Object(label_text: label_text, icon_name: icon_name ?? "");
+            Object();
+            this.label_text = label_text;
+            this.icon_name = icon_name ?? "";
         }
 
-        // Built in construct so .ui/vetro instances are assembled too.
+        // Children built empty in construct so .ui/vetro instances are assembled
+        // too; label-text/icon-name are then applied via their setters.
         construct {
             add_css_class("flat");
             add_css_class("menu-row");
             var box = new Box(Orientation.HORIZONTAL, 12);
             box.halign = Align.START;
             box.valign = Align.CENTER;
-            if (icon_name != "") {
-                var icon = new Image.from_icon_name(icon_name);
-                icon.pixel_size = 16;
-                icon.valign = Align.CENTER;
-                box.append(icon);
-            }
-            var label = new Label(label_text);
-            label.halign = Align.START;
-            label.valign = Align.CENTER;
-            box.append(label);
+            _icon = new Image();
+            _icon.pixel_size = 16;
+            _icon.valign = Align.CENTER;
+            _icon.visible = false;
+            box.append(_icon);
+            _label = new Label("");
+            _label.halign = Align.START;
+            _label.valign = Align.CENTER;
+            box.append(_label);
             set_child(box);
         }
     }

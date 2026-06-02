@@ -16,12 +16,22 @@ namespace Singularity.Widgets {
      *   window.set_sidebar(sidebar);
      * }}}
      */
-    public class AppSidebar : Box {
+    public class AppSidebar : Box, Gtk.Buildable {
 
         /** The inner content box. Append your rows here. */
         public Box box { get; private set; }
 
         internal ScrolledWindow _scroll;
+        private int _width = 200;
+
+        /** Preferred width in pixels. Safe to set after construction. */
+        public int sidebar_width {
+            get { return _width; }
+            set {
+                _width = value;
+                if (_scroll != null) _scroll.set_size_request(_width, -1);
+            }
+        }
 
         /**
          * Creates a new AppSidebar with default 200 px width.
@@ -30,9 +40,14 @@ namespace Singularity.Widgets {
          */
         public AppSidebar(int width = 200) {
             Object(orientation: Orientation.VERTICAL, spacing: 0);
+            this.sidebar_width = width;
+        }
 
+        construct {
+            orientation = Orientation.VERTICAL;
+            spacing = 0;
             _scroll = new ScrolledWindow();
-            _scroll.set_size_request(width, -1);
+            _scroll.set_size_request(_width, -1);
             _scroll.hscrollbar_policy = PolicyType.NEVER;
             _scroll.vscrollbar_policy = PolicyType.AUTOMATIC;
             _scroll.vexpand = true;
@@ -48,6 +63,15 @@ namespace Singularity.Widgets {
 
             _scroll.set_child(box);
             append(_scroll);
+        }
+
+        // Buildable: nested <child> widgets populate the inner content box.
+        public void add_child(Gtk.Builder builder, GLib.Object child, string? type) {
+            if (child is Widget && box != null) {
+                box.append((Widget) child);
+            } else {
+                base.add_child(builder, child, type);
+            }
         }
     }
 }
