@@ -33,6 +33,10 @@ namespace Singularity.Widgets {
 
         public ToolBar() {
             Object(orientation: Orientation.HORIZONTAL, spacing: 6);
+        }
+
+        // Built in construct so .ui/vetro instances are assembled too.
+        construct {
             add_css_class("singularity-toolbar");
             set_size_request(-1, 46);
             start_box = new Box(Orientation.HORIZONTAL, 6);

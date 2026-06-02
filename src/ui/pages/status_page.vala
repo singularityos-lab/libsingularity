@@ -53,7 +53,11 @@ namespace Singularity.Widgets {
 
         public StatusPage() {
             Object(orientation: Orientation.VERTICAL, spacing: 12);
+        }
 
+        // Built in construct so .ui/vetro instances are assembled too; the
+        // icon-name/title/description properties are then applied by GtkBuilder.
+        construct {
             add_css_class("status-page");
 
             valign = Align.CENTER;

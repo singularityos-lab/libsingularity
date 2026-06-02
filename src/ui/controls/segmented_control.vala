@@ -27,8 +27,12 @@ namespace Singularity.Widgets {
 
         public SegmentedControl(Stack? stack = null) {
             Object(orientation: Orientation.HORIZONTAL, spacing: 0);
-            _stack = stack;
+            if (stack != null) set_stack(stack);
+        }
 
+        // Built in construct so .ui/vetro instances are assembled too; options
+        // are added imperatively via add_option / a bound stack.
+        construct {
             add_css_class("segmented-control");
             halign = Align.CENTER;
             valign = Align.CENTER;
@@ -36,8 +40,6 @@ namespace Singularity.Widgets {
             _inner_box = new Box(Orientation.HORIZONTAL, 0);
             _inner_box.add_css_class("segmented-inner");
             append(_inner_box);
-
-            if (_stack != null) set_stack(_stack);
         }
 
         public void set_stack(Stack stack) {
