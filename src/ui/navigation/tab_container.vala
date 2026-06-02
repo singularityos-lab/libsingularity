@@ -27,6 +27,11 @@ namespace Singularity.Widgets {
         /** Creates a new tab container. */
         public TabContainer() {
             Object(orientation: Orientation.VERTICAL, spacing: 0);
+        }
+
+        // Built in construct so .ui/vetro instances are assembled too; tabs are
+        // added imperatively via add_tab.
+        construct {
             notebook = new Notebook();
             notebook.hexpand = true;
             notebook.vexpand = true;

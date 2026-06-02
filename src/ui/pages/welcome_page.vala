@@ -81,6 +81,11 @@ namespace Singularity.Widgets {
 
         public WelcomePage() {
             Object(orientation: Orientation.VERTICAL, spacing: 0);
+        }
+
+        // Built in construct so .ui/vetro instances are assembled too; actions
+        // are added imperatively via add_action.
+        construct {
             add_css_class("welcome-page");
 
             // Top bar: close button
