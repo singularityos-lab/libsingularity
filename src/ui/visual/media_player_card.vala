@@ -44,7 +44,7 @@ namespace Singularity.Widgets {
         private uint _poll_timer_id = 0;
         private int64 track_length_us = 0;
         private string? last_art_url = null;
-        private GLib.Settings desktop_settings;
+        private GLib.Settings? desktop_settings;
         private string accent_hex = "#3584e4";
 
         /**
@@ -57,16 +57,18 @@ namespace Singularity.Widgets {
 
         public MediaPlayerCard() {
             Object(orientation: Orientation.VERTICAL, spacing: 0);
-            desktop_settings = new GLib.Settings("dev.sinty.desktop");
+            desktop_settings = Singularity.Core.safe_settings("dev.sinty.desktop");
             update_accent_color();
-            desktop_settings.changed["accent-color"].connect(() => {
-                update_accent_color();
-                queue_draw();
-            });
-            desktop_settings.changed["custom-accent-color"].connect(() => {
-                update_accent_color();
-                queue_draw();
-            });
+            if (desktop_settings != null) {
+                desktop_settings.changed["accent-color"].connect(() => {
+                    update_accent_color();
+                    queue_draw();
+                });
+                desktop_settings.changed["custom-accent-color"].connect(() => {
+                    update_accent_color();
+                    queue_draw();
+                });
+            }
             add_css_class("media-player-card");
             overflow = Overflow.HIDDEN;
             // Hidden by default; shown only when a player is active.
@@ -327,6 +329,7 @@ namespace Singularity.Widgets {
         }
 
         private void update_accent_color() {
+            if (desktop_settings == null) return;
             string name = desktop_settings.get_string("accent-color");
             if (name == "custom" || name == "wallpaper") {
                 accent_hex = desktop_settings.get_string("custom-accent-color");

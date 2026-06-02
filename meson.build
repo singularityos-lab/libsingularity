@@ -83,6 +83,7 @@ libsingularity_sources = files(
   'src/ui/pages/calendar_views.vala',
   'src/calendar/calendar_contract.vala',
   'src/core/environment.vala',
+  'src/core/settings_util.vala',
   'src/core/application.vala',
   'src/core/shell_application.vala',
   'src/core/settings_contract.vala',

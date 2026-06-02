@@ -14,7 +14,8 @@ namespace Singularity.Core {
         // Resolve the current accent color hex from GSettings
         private static string get_accent_hex () {
             try {
-                var s = new GLib.Settings ("dev.sinty.desktop");
+                var s = safe_settings ("dev.sinty.desktop");
+                if (s == null) return "#3584e4";
                 string name = s.get_string ("accent-color");
                 // "custom" e "wallpaper" salvano entrambi il colore calcolato in custom-accent-color
                 if (name == "custom" || name == "wallpaper")
@@ -84,10 +85,9 @@ namespace Singularity.Core {
 
         // Returns true when the desktop is in light mode.
         private static bool is_light_mode () {
-            try {
-                var s = new GLib.Settings ("dev.sinty.desktop");
-                return !s.get_boolean ("dark-mode");
-            } catch { return false; }
+            var s = safe_settings ("dev.sinty.desktop");
+            if (s == null) return false;
+            return !s.get_boolean ("dark-mode");
         }
 
         /**
