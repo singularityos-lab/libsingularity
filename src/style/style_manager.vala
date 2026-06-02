@@ -25,7 +25,7 @@ namespace Singularity.Style {
          * theme that inherits Adwaita, so every icon (including symbolic ones)
          * resolves through Adwaita under our brand name.
          */
-        public const string BRAND_ICON_THEME = "Singularity-Material";
+        public const string BRAND_ICON_THEME = "Singularity";
 
         /**
          * Returns the shared StyleManager instance,
@@ -43,8 +43,8 @@ namespace Singularity.Style {
          * them pinned via notify guards.
          *
          * The "Singularity" GTK theme ships empty CSS so GTK loads nothing from
-         * the theme layer, letting our embedded style.css win. "Singularity-Material"
-         * is an empty icon theme inheriting Adwaita. The notify guards stop the
+         * the theme layer, letting our embedded style.css win. The "Singularity"
+         * icon theme is an empty seam inheriting Adwaita. The notify guards stop the
          * Settings portal (the default settings source on Wayland) from resetting
          * either to hicolor/default, which would drop symbolic icons for coloured
          * fallbacks. Call this once, after Gtk has been initialised (e.g. from an
