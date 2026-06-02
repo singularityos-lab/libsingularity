@@ -112,6 +112,9 @@ namespace Singularity.Style {
                     case "slate":  hex_color = "#787878"; break;
                 }
             }
+            // Expose the resolved accent hex so callers (e.g. the shell's labwc
+            // theming) can derive their own accent-tinted colours.
+            accent_hex = hex_color;
             // Pre-compute surface tint colors in Vala so GTK CSS never needs to
             // resolve mix() at paint time. Use mode-appropriate base colors.
             bool dark = current_dark_mode;
@@ -512,6 +515,9 @@ namespace Singularity.Style {
         private bool current_dark_mode = true;
         private string current_accent = "blue";
         private string? current_accent_wallpaper = null;
+
+        /** The resolved accent colour as a "#rrggbb" hex string. */
+        public string accent_hex { get; private set; default = "#3584e4"; }
 
         /**
          * Switches between dark and light color scheme.
