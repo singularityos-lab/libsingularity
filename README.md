@@ -11,6 +11,7 @@ A GTK4 application and widget framework for the [Singularity Desktop Environment
 - libgee-0.8 ≥ 0.20
 - json-glib-1.0 ≥ 1.6
 - libpeas-2 ≥ 2.0
+- libsoup ≥ 3.0
 
 ## Build & Install
 
