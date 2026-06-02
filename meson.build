@@ -76,6 +76,7 @@ libsingularity_sources = files(
   'src/ui/visual/column_browser.vala',
   'src/ui/navigation/sidebar_row.vala',
   'src/ui/visual/overlay_search.vala',
+  'src/ui/visual/command_palette.vala',
   'src/ui/visual/carousel.vala',
   'src/ui/visual/chip.vala',
   'src/ui/pages/screenshot_carousel.vala',
