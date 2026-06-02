@@ -10,6 +10,11 @@ namespace Singularity.Widgets {
      */
     public class MenuRow : Button {
 
+        /** Text displayed on the row. */
+        public string label_text { get; construct; default = ""; }
+        /** Optional symbolic icon shown to the left of the label ("" for none). */
+        public string icon_name { get; construct; default = ""; }
+
         /**
          * Creates a new menu row.
          *
@@ -17,12 +22,17 @@ namespace Singularity.Widgets {
          * @param icon_name  Optional symbolic icon shown to the left of the label.
          */
         public MenuRow(string label_text, string? icon_name = null) {
+            Object(label_text: label_text, icon_name: icon_name ?? "");
+        }
+
+        // Built in construct so .ui/vetro instances are assembled too.
+        construct {
             add_css_class("flat");
             add_css_class("menu-row");
             var box = new Box(Orientation.HORIZONTAL, 12);
             box.halign = Align.START;
             box.valign = Align.CENTER;
-            if (icon_name != null) {
+            if (icon_name != "") {
                 var icon = new Image.from_icon_name(icon_name);
                 icon.pixel_size = 16;
                 icon.valign = Align.CENTER;

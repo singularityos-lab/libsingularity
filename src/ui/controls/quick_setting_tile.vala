@@ -99,10 +99,15 @@ namespace Singularity.Widgets {
 
         public QuickSettingTile(string title, string icon_name, bool is_active = false) {
             Object();
-            _state = is_active ? 1 : 0;
+            this.title = title;
+            this.icon_name = icon_name;
+            this.active = is_active;
+        }
 
+        // Built in construct so .ui/vetro instances are assembled too; the
+        // title/icon-name/subtitle properties are then applied by GtkBuilder.
+        construct {
             add_css_class("quick-setting-tile");
-            if (_state > 0) add_css_class("active");
 
             var main_box = new Box(Orientation.HORIZONTAL, 10);
             main_box.valign = Align.CENTER;
@@ -111,7 +116,7 @@ namespace Singularity.Widgets {
             main_box.margin_top = 6;
             main_box.margin_bottom = 6;
 
-            _icon = new Image.from_icon_name(icon_name);
+            _icon = new Image();
             _icon.pixel_size = 20;
             _icon.add_css_class("tile-icon");
             main_box.append(_icon);
@@ -120,7 +125,7 @@ namespace Singularity.Widgets {
             text_box.valign = Align.CENTER;
             text_box.hexpand = true;
 
-            _title_label = new Label(title);
+            _title_label = new Label("");
             _title_label.add_css_class("tile-title");
             _title_label.halign = Align.START;
             _title_label.ellipsize = Pango.EllipsizeMode.END;

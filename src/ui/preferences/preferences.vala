@@ -43,7 +43,7 @@ namespace Singularity.Widgets {
      * Analogous to `Adw.PreferencesGroup`. Rows are stacked in a
      * Gtk.ListBox and separated visually from other groups.
      */
-    public class PreferencesGroup : Box {
+    public class PreferencesGroup : Box, Gtk.Buildable {
         private Gee.ArrayList<Widget> rows = new Gee.ArrayList<Widget>();
         private Box header_box;
         private Box title_box;
@@ -85,13 +85,21 @@ namespace Singularity.Widgets {
 
         public PreferencesGroup(string? title = null, string? description = null) {
             Object(orientation: Orientation.VERTICAL, spacing: 6, margin_bottom: 10);
+            if (title != null) this.title = title;
+            if (description != null) this.description = description;
+        }
 
+        // Built in construct so .ui/vetro instances are assembled too; title and
+        // description are then applied by GtkBuilder or the constructor above
+        // (each setter reveals the header box on demand).
+        construct {
             add_css_class("preferences-group");
             header_box = new Box(Orientation.HORIZONTAL, 12);
             header_box.margin_top = 8;
             header_box.margin_bottom = 6;
             header_box.margin_start = 12;
             header_box.margin_end = 12;
+            header_box.visible = false;
             append(header_box);
 
             title_box = new Box(Orientation.VERTICAL, 2);
@@ -103,16 +111,25 @@ namespace Singularity.Widgets {
             header_suffix_box.hexpand = true;
             header_box.append(header_suffix_box);
 
-            if (title != null) this.title = title;
-            if (description != null) this.description = description;
-            if (title == null && description == null) {
-                header_box.visible = false;
-            }
             list_box = new ListBox();
             list_box.add_css_class("preferences-list");
             list_box.selection_mode = SelectionMode.NONE;
             list_box.activate_on_single_click = true;
             append(list_box);
+        }
+
+        // Buildable: <child> rows go to add_row; <child type="header-suffix">
+        // goes to the header. Lets the whole group be declared in markup.
+        public void add_child(Gtk.Builder builder, GLib.Object child, string? type) {
+            if (child is Widget) {
+                if (type == "header-suffix") {
+                    add_header_suffix((Widget) child);
+                } else {
+                    add_row((Widget) child);
+                }
+            } else {
+                base.add_child(builder, child, type);
+            }
         }
 
         /**
@@ -328,6 +345,16 @@ namespace Singularity.Widgets {
         }
 
         public ActionRow(string title, string? subtitle = null, string? icon_name = null) {
+            Object();
+            this.title = title;
+            if (icon_name != null) this.icon_name = icon_name;
+            if (subtitle != null) this.subtitle = subtitle;
+        }
+
+        // Structure built in construct so .ui/vetro instances are assembled too;
+        // title/subtitle/icon-name are then applied by GtkBuilder (or the
+        // constructor above). Subclasses still build their extras after this.
+        construct {
             main_box = new Box(Orientation.HORIZONTAL, 0);
             main_box.margin_top = 8;
             main_box.margin_bottom = 8;
@@ -336,23 +363,17 @@ namespace Singularity.Widgets {
             set_child(main_box);
             prefix_box = new Box(Orientation.HORIZONTAL, 0);
             main_box.append(prefix_box);
-            if (icon_name != null) {
-                this.icon_name = icon_name;
-            }
             labels_box = new Box(Orientation.VERTICAL, 2);
             labels_box.valign = Align.CENTER;
             labels_box.hexpand = true;
             main_box.append(labels_box);
-            title_label = new Label(title);
+            title_label = new Label("");
             title_label.add_css_class("title");
             title_label.halign = Align.START;
             title_label.wrap = true;
             title_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
             title_label.xalign = 0f;
             labels_box.append(title_label);
-            if (subtitle != null) {
-                this.subtitle = subtitle;
-            }
             suffix_box = new Box(Orientation.HORIZONTAL, 6);
             suffix_box.valign = Align.CENTER;
             main_box.append(suffix_box);

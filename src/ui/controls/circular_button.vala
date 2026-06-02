@@ -18,6 +18,10 @@ namespace Singularity.Widgets {
          */
         public CircularButton(string icon_name, string? tooltip = null, int size = 16) {
             base(icon_name, tooltip, size);
+        }
+
+        // In construct so the class is applied for .ui/vetro instances too.
+        construct {
             add_css_class("circular-button");
         }
     }

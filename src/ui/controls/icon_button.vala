@@ -10,7 +10,7 @@ namespace Singularity.Widgets {
      */
     public class IconButton : Button {
         /** The icon name this button was created with. */
-        public string icon { get; construct; }
+        public string icon { get; construct; default = ""; }
         /** Pixel size of the icon image. */
         public int icon_size { get; construct; default = 16; }
 
@@ -22,13 +22,18 @@ namespace Singularity.Widgets {
          * @param size      Icon pixel size; defaults to 16.
          */
         public IconButton(string icon_name, string? tooltip = null, int size = 16) {
-            Object(icon: icon_name, icon_size: size);
+            Object(icon: icon_name, icon_size: size, tooltip_text: tooltip);
+        }
+
+        // Setup lives in construct (not the named constructor body) so the widget
+        // is fully built when instantiated from a .ui/vetro template too, where
+        // GtkBuilder passes icon/icon-size at construction via g_object_new.
+        construct {
             has_frame = false;
-            tooltip_text = tooltip;
             add_css_class("singularity-button");
             add_css_class("singularity-icon-button");
-            var img = new Image.from_icon_name(icon_name);
-            img.pixel_size = size;
+            var img = new Image.from_icon_name(icon);
+            img.pixel_size = icon_size;
             set_child(img);
         }
     }

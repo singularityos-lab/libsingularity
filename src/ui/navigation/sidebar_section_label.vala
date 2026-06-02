@@ -12,8 +12,15 @@ namespace Singularity.Widgets {
      */
     public class SidebarSectionLabel : Box {
 
+        /** Section caption text (rendered uppercase). */
+        public string text { get; construct; default = ""; }
+
         public SidebarSectionLabel(string text) {
-            Object(orientation: Orientation.HORIZONTAL, spacing: 0);
+            Object(orientation: Orientation.HORIZONTAL, spacing: 0, text: text);
+        }
+
+        // Built in construct so .ui/vetro instances are assembled too.
+        construct {
             add_css_class("sidebar-section-label");
 
             var lbl = new Label(text.up());

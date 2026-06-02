@@ -12,30 +12,38 @@ namespace Singularity.Widgets {
      */
     public class Chip : Box {
 
-        public string chip_id { get; construct; }
+        public string chip_id { get; construct; default = ""; }
+        /** The label shown on the chip body (named chip_label to avoid clashing
+         *  with the existing set_label method's accessor). */
+        public string chip_label { get; construct; default = ""; }
 
         public signal void activated       ();
         public signal void close_requested ();
 
         private bool   _active   = false;
         private Button _body_btn;
-        private Label  _label;
+        private Label  _body_label;
 
         public Chip (string id, string label) {
             Object (orientation: Orientation.HORIZONTAL, spacing: 0,
-                    chip_id: id);
+                    chip_id: id, chip_label: label);
+        }
+
+        // Built in construct so .ui/vetro instances (created via g_object_new
+        // with chip-id/label) are fully assembled too.
+        construct {
             add_css_class ("chip");
             valign = Align.CENTER;
 
-            _body_btn = new Button.with_label (label);
+            _body_btn = new Button.with_label (chip_label);
             _body_btn.has_frame = false;
             _body_btn.add_css_class ("chip-body");
-            _label = (Label) _body_btn.get_child ();
+            _body_label = (Label) _body_btn.get_child ();
             // Default: ellipsize with a sensible visible minimum so the
             // chip never collapses to "..." alone.
-            _label.ellipsize       = Pango.EllipsizeMode.END;
-            _label.width_chars     = 6;
-            _label.max_width_chars = 18;
+            _body_label.ellipsize       = Pango.EllipsizeMode.END;
+            _body_label.width_chars     = 6;
+            _body_label.max_width_chars = 18;
             _body_btn.clicked.connect (() => activated ());
             append (_body_btn);
 
@@ -56,18 +64,18 @@ namespace Singularity.Widgets {
         }
 
         public void set_label (string label) {
-            _label.label = label;
+            _body_label.label = label;
         }
 
         /** Toggle ellipsis on the label. False = always show the full label. */
         public void set_ellipsize (bool on) {
-            _label.ellipsize = on ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE;
+            _body_label.ellipsize = on ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE;
         }
 
         /** Visible character bounds when ellipsis is on. */
         public void set_label_chars (int min_chars, int max_chars) {
-            _label.width_chars     = min_chars;
-            _label.max_width_chars = max_chars;
+            _body_label.width_chars     = min_chars;
+            _body_label.max_width_chars = max_chars;
         }
     }
 
@@ -75,7 +83,7 @@ namespace Singularity.Widgets {
      * Horizontal bar of Chip widgets shown at the bottom
      * of a LeafPane when one or more bugs are attached to it.
      */
-    public class ChipBar : Box {
+    public class ChipBar : Box, Gtk.Buildable {
 
         /** Emitted with the chip's id when the chip body is clicked. */
         public signal void chip_activated (string id);
@@ -117,6 +125,10 @@ namespace Singularity.Widgets {
 
         public ChipBar () {
             Object (orientation: Orientation.HORIZONTAL, spacing: 0);
+        }
+
+        // Setup in construct so .ui/vetro instances are assembled too.
+        construct {
             add_css_class ("chip-bar");
 
             _scroll = new ScrolledWindow ();
@@ -140,6 +152,18 @@ namespace Singularity.Widgets {
             notify["reorderable"].connect      (_apply_reorderable_policy);
         }
 
+        // Buildable: a <child> Chip declared in markup is routed into the bar
+        // (appended to the inner box and wired up) instead of GtkBox's default
+        // of adding it as a direct child.
+        public void add_child (Gtk.Builder builder, GLib.Object child, string? type) {
+            var chip = child as Chip;
+            if (chip != null) {
+                _register_chip (chip);
+            } else {
+                base.add_child (builder, child, type);
+            }
+        }
+
         /**
          * Adds a new chip to the bar.
          *
@@ -147,13 +171,18 @@ namespace Singularity.Widgets {
          * @param label Human-readable label shown on the chip.
          */
         public void add_chip (string id, string label) {
-            var chip = new Chip (id, label);
+            _register_chip (new Chip (id, label));
+        }
+
+        // Shared registration used by both add_chip (imperative) and add_child
+        // (markup): apply label policy, relay signals, append, count, drag.
+        private void _register_chip (Chip chip) {
             chip.set_ellipsize (ellipsize_labels);
             chip.set_label_chars (min_label_chars, max_label_chars);
-            string cid = id;
+            string cid = chip.chip_id;
             chip.activated.connect       (() => chip_activated (cid));
             chip.close_requested.connect (() => chip_closed    (cid));
-            _chips_box.append (chip);
+            if (chip.parent != _chips_box) _chips_box.append (chip);
             chip_count++;
             if (reorderable) _install_drag (chip);
         }
