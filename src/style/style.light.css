@@ -7,6 +7,7 @@
 @define-color panel_fg #1a1a1a;
 @define-color dock_bg rgba(240, 240, 240, 0.85);
 @define-color toolbar_bg #e0e0e0;
+@define-color titlebar_bg #f0efee;
 
 /* Cards and borders */
 @define-color card_bg alpha(@text_color, 0.04);

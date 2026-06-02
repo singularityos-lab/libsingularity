@@ -43,12 +43,8 @@ window.tooltip {
     box-shadow: none;
 }
 
-/* GTK default CSD decoration (used when the compositor doesn't draw
-   SSD). We make it look like a single dark-accent strip with round
-   pill window controls, matching the SSD bubblebar color so the
-   fallback feels like a continuation of our visual language. */
 .default-decoration {
-    background-color: mix(@accent_color, black, 0.6);
+    background-color: @toolbar_bg;
     min-height: 0;
     padding: 4px;
     border: 0;
@@ -56,7 +52,7 @@ window.tooltip {
 }
 .default-decoration label.title,
 .default-decoration windowtitle {
-    color: white;
+    color: @text_color;
     font-size: 12px;
     font-weight: 500;
 }
@@ -68,34 +64,34 @@ window.tooltip {
     min-width: 20px;
     min-height: 20px;
     border-radius: 100%;
-    background-color: alpha(white, 0.15);
+    background-color: alpha(@text_color, 0.10);
     border: none;
-    color: white;
+    color: @text_color;
     box-shadow: none;
 }
 .default-decoration .image-button:hover,
 .default-decoration windowcontrols button:hover {
-    background-color: alpha(white, 0.25);
+    background-color: alpha(@text_color, 0.20);
 }
 .default-decoration windowcontrols button image,
 .default-decoration .image-button image {
     -gtk-icon-size: 12px;
-    color: white;
+    color: @text_color;
 }
 
 /* Same treatment as a fallback when GTK draws a full headerbar
    instead of the slim default-decoration (some apps or themes). */
 headerbar {
     min-height: 0;
-    background-color: mix(@accent_color, black, 0.6);
+    background-color: @toolbar_bg;
     padding: 4px;
     border: 0;
     box-shadow: none;
-    color: white;
+    color: @text_color;
 }
 headerbar label.title,
 headerbar windowtitle {
-    color: white;
+    color: @text_color;
     font-size: 12px;
     font-weight: 500;
 }
@@ -104,15 +100,15 @@ headerbar windowcontrols button {
     min-width: 20px;
     padding: 0;
     border-radius: 100%;
-    background-color: alpha(white, 0.15);
+    background-color: alpha(@text_color, 0.10);
     border: none;
 }
 headerbar windowcontrols button:hover {
-    background-color: alpha(white, 0.25);
+    background-color: alpha(@text_color, 0.20);
 }
 headerbar windowcontrols button image {
     -gtk-icon-size: 12px;
-    color: white;
+    color: @text_color;
 }
 
 /* Generic standalone button: pill rounding to match AppDialog
@@ -3941,7 +3937,7 @@ button.flat.singularity-hover-btn.suggested-action:active {
     padding-top: 0px;
 }
 
-.singularity-view-edge .file-view {padding-top:0}
+.singularity-view-edge .file-view { padding-top: 0; }
 
 /* Hard reset on every descendant: GTK's default `flat` button + inner
    Label/Image/Entry keep contributing min-height/padding that snowballs

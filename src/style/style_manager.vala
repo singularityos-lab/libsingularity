@@ -305,18 +305,20 @@ namespace Singularity.Style {
             }
             
             // Extra switch/toggle overrides to ensure they use the accent in the shell
+            // Loaded at PRIORITY_USER + 1, so these win without needing the
+            // (GTK-unsupported) !important keyword.
             string switch_css = """
                 /* Generic toggles */
-                switch:checked { background-color: {HEX} !important; border-color: {HEX} !important; }
-                
+                switch:checked { background-color: {HEX}; border-color: {HEX}; }
+
                 /* Specific sidebar/shell toggles */
-                .singularity switch:checked { background-color: {HEX} !important; border-color: {HEX} !important; }
-                .navigation-sidebar switch:checked { background-color: {HEX} !important; }
-                
+                .singularity switch:checked { background-color: {HEX}; border-color: {HEX}; }
+                .navigation-sidebar switch:checked { background-color: {HEX}; }
+
                 /* Selection in shell lists */
                 .singularity listbox row:selected,
-                .singularity .boxed-list > row:selected { 
-                    background-color: {A20} !important; 
+                .singularity .boxed-list > row:selected {
+                    background-color: {A20};
                 }
             """
             .replace("{HEX}", hex_color)
