@@ -18,6 +18,15 @@ namespace Singularity.Style {
 
         private static StyleManager? _instance;
 
+        /** GTK theme name pinned for all Singularity surfaces (empty CSS theme). */
+        public const string BRAND_GTK_THEME = "Singularity";
+        /**
+         * Icon theme name pinned for all Singularity surfaces. It is an empty
+         * theme that inherits Adwaita, so every icon (including symbolic ones)
+         * resolves through Adwaita under our brand name.
+         */
+        public const string BRAND_ICON_THEME = "Singularity-Material";
+
         /**
          * Returns the shared StyleManager instance,
          * creating it on first call.
@@ -27,6 +36,35 @@ namespace Singularity.Style {
                 _instance = new StyleManager();
             }
             return _instance;
+        }
+
+        /**
+         * Pins the GTK and icon themes to the Singularity brand themes and keeps
+         * them pinned via notify guards.
+         *
+         * The "Singularity" GTK theme ships empty CSS so GTK loads nothing from
+         * the theme layer, letting our embedded style.css win. "Singularity-Material"
+         * is an empty icon theme inheriting Adwaita. The notify guards stop the
+         * Settings portal (the default settings source on Wayland) from resetting
+         * either to hicolor/default, which would drop symbolic icons for coloured
+         * fallbacks. Call this once, after Gtk has been initialised (e.g. from an
+         * application's startup), for both apps and shells.
+         */
+        public static void pin_brand_themes() {
+            var gs = Gtk.Settings.get_default();
+            if (gs == null) return;
+            gs.gtk_theme_name = BRAND_GTK_THEME;
+            gs.notify["gtk-theme-name"].connect(() => {
+                if (gs.gtk_theme_name != BRAND_GTK_THEME) {
+                    gs.gtk_theme_name = BRAND_GTK_THEME;
+                }
+            });
+            gs.gtk_icon_theme_name = BRAND_ICON_THEME;
+            gs.notify["gtk-icon-theme-name"].connect(() => {
+                if (gs.gtk_icon_theme_name != BRAND_ICON_THEME) {
+                    gs.gtk_icon_theme_name = BRAND_ICON_THEME;
+                }
+            });
         }
 
         /**

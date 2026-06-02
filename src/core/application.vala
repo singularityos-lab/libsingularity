@@ -58,17 +58,12 @@ namespace Singularity {
         protected override void startup() {
             base.startup();
 
-            // Override gtk-theme in-process only (per-process, NOT via GSettings).
-            // The "Singularity" theme has empty CSS files so GTK4 loads nothing from
-            // the theme layer, letting our style.css at PRIORITY_APPLICATION win.
-            // The notify guard ensures GSettings binding changes can't reset it.
-            var _gs = Gtk.Settings.get_default();
-            _gs.gtk_theme_name = "Singularity";
-            _gs.notify["gtk-theme-name"].connect(() => {
-                if (_gs.gtk_theme_name != "Singularity") {
-                    _gs.gtk_theme_name = "Singularity";
-                }
-            });
+            // Pin the brand GTK and icon themes in-process (per-process, NOT via
+            // GSettings). The "Singularity" GTK theme has empty CSS so GTK loads
+            // nothing from the theme layer, letting our style.css win; the icon
+            // theme pin keeps symbolic icons working on Wayland. Shared with the
+            // shell via the same helper so the policy lives in one place.
+            Singularity.Style.StyleManager.pin_brand_themes();
 
             Singularity.Style.StyleManager.get_default().load_theme();
             Singularity.Accessibility.AccessibilityManager.get_default();
