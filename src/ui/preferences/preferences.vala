@@ -435,8 +435,11 @@ namespace Singularity.Widgets {
 
         public SwitchRow(string title, string? subtitle = null, bool active = false) {
             base(title, subtitle);
+            this.active = active;
+        }
+
+        construct {
             switch_btn = new Switch();
-            switch_btn.active = active;
             switch_btn.valign = Align.CENTER;
             switch_btn.can_focus = false;
             // Do NOT set can_target = false: that silently breaks GTK4 event
@@ -468,6 +471,12 @@ namespace Singularity.Widgets {
     public class SpinRow : ActionRow {
     /** The underlying Gtk.SpinButton widget. */
         public SpinButton spin_btn;
+        /** Spin range minimum (set at construction). */
+        public double min_value { get; construct; default = 0; }
+        /** Spin range maximum (set at construction). */
+        public double max_value { get; construct; default = 100; }
+        /** Spin increment step (set at construction). */
+        public double step { get; construct; default = 1; }
         public double value {
             get { return spin_btn.value; }
             set { spin_btn.value = value; }
@@ -484,9 +493,16 @@ namespace Singularity.Widgets {
          * @param value    Initial value.
          */
         public SpinRow(string title, string? subtitle = null, double min, double max, double step, double value) {
-            base(title, subtitle);
-            spin_btn = new SpinButton.with_range(min, max, step);
-            spin_btn.value = value;
+            // Call Object directly (not base()) so the construct properties are
+            // set before construct builds the spin button.
+            Object(min_value: min, max_value: max, step: step);
+            this.title = title;
+            if (subtitle != null) this.subtitle = subtitle;
+            this.value = value;
+        }
+
+        construct {
+            spin_btn = new SpinButton.with_range(min_value, max_value, step);
             spin_btn.valign = Align.CENTER;
             add_suffix(spin_btn);
             this.activated.connect(() => {
@@ -500,7 +516,7 @@ namespace Singularity.Widgets {
      * Add child rows with `add_row()`. Toggle programmatically via the
      * `expanded` property. Users can also click the row to toggle.
      */
-    public class ExpanderRow : ActionRow {
+    public class ExpanderRow : ActionRow, Gtk.Buildable {
         private Box content_box;
         private Revealer revealer;
         private Image arrow_icon;
@@ -522,6 +538,9 @@ namespace Singularity.Widgets {
 
         public ExpanderRow(string title, string? subtitle = null, string? icon_name = null) {
             base(title, subtitle, icon_name);
+        }
+
+        construct {
             arrow_icon = new Image.from_icon_name("go-down-symbolic");
             add_suffix(arrow_icon);
             var internal_box = new Box(Orientation.VERTICAL, 0);
@@ -549,6 +568,15 @@ namespace Singularity.Widgets {
                 header.add_controller(gesture);
             } else {
                 this.add_controller(gesture);
+            }
+        }
+
+        // Buildable: nested <child> rows go into the expander content.
+        public void add_child(Gtk.Builder builder, GLib.Object child, string? type) {
+            if (child is Widget && content_box != null) {
+                add_row((Widget) child);
+            } else {
+                base.add_child(builder, child, type);
             }
         }
 
@@ -585,7 +613,9 @@ namespace Singularity.Widgets {
 
         public EntryRow(string title, string? icon_name = null) {
             base(title, null, icon_name);
+        }
 
+        construct {
             // Tighten vertical margins - row has title + entry stacked
             var mb = this.get_child() as Box;
             if (mb != null) {
@@ -596,12 +626,14 @@ namespace Singularity.Widgets {
             labels_box.valign = Align.CENTER;
 
             entry = new Entry();
-            entry.placeholder_text = title;
             entry.hexpand = true;
             entry.has_frame = false;
             entry.add_css_class("flat");
             entry.add_css_class("preferences-entry");
             entry.margin_top = 3;
+            // Mirror the row title into the entry placeholder, working for both
+            // the constructor and GtkBuilder (which sets title post-construct).
+            bind_property("title", entry, "placeholder-text", BindingFlags.SYNC_CREATE);
             labels_box.append(entry);
 
             status_icon = new Image();
@@ -624,6 +656,9 @@ namespace Singularity.Widgets {
 
         public PasswordRow(string title) {
             base(title);
+        }
+
+        construct {
             entry.visibility = false;
             entry.input_purpose = InputPurpose.PASSWORD;
             reveal_btn = new Button.from_icon_name("view-reveal-symbolic");
@@ -657,6 +692,9 @@ namespace Singularity.Widgets {
 
         public EmailRow(string title) {
             base(title);
+        }
+
+        construct {
             entry.input_purpose = InputPurpose.EMAIL;
             entry.changed.connect(validate);
         }
@@ -696,6 +734,9 @@ namespace Singularity.Widgets {
 
         public SearchableExpanderRow(string title, string? subtitle = null, string? icon_name = null) {
             base(title, subtitle, icon_name);
+        }
+
+        construct {
             var container = new Box(Orientation.VERTICAL, 12);
             container.margin_top = 12;
             container.margin_bottom = 12;
