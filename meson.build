@@ -121,6 +121,8 @@ libsingularity = shared_library('singularity',
   version: meson.project_version(),
 )
 
+libsingularity_gir = libsingularity.vala_gir()
+
 if get_option('introspection') and introspection_dep.found()
   g_ir_compiler = find_program('g-ir-compiler')
   custom_target('libsingularity-typelib',
