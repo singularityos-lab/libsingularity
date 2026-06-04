@@ -1,7 +1,7 @@
 project('libsingularity', ['vala', 'c'],
   version: '0.1.0',
   license: 'LGPL-2.1-only',
-  meson_version: '>= 0.59.0',
+  meson_version: '>= 1.10.0',
 )
 
 gnome     = import('gnome')
