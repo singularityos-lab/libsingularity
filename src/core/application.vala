@@ -45,13 +45,9 @@ namespace Singularity {
             // runs after init, so we read the user's force-ssd setting
             // here and disable GTK's CSD so labwc draws its own SSD via
             // xdg-decoration instead of GTK's fallback titlebar.
-            try {
-                var ds = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
-                if (ds.get_boolean("force-ssd")) {
-                    GLib.Environment.set_variable("GTK_CSD", "0", true);
-                }
-            } catch (Error e) {
-                // schema not installed - fall through with CSD on (default)
+            var ds = Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
+            if (ds != null && ds.get_boolean("force-ssd")) {
+                GLib.Environment.set_variable("GTK_CSD", "0", true);
             }
         }
 
@@ -71,8 +67,8 @@ namespace Singularity {
             string fallback_accent = detect_system_accent();
             bool fallback_dark = false;
 
-            try {
-                desktop_settings = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
+            desktop_settings = Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
+            if (desktop_settings != null) {
                 desktop_settings.changed["accent-color"].connect(() => {
                     update_accent_color();
                 });
@@ -93,16 +89,15 @@ namespace Singularity {
                 // Load user theme after accent/dark mode so CSS variables are ready.
                 Singularity.Style.StyleManager.get_default().load_user_theme(
                     desktop_settings.get_string("singularity-theme"));
-            } catch (Error e) {
-                warning("Desktop settings unavailable, using system fallbacks: %s", e.message);
+            } else {
                 Singularity.Style.StyleManager.get_default().apply_accent_color(fallback_accent);
             }
             // React to system color-scheme changes only as a fallback when
             // desktop_settings is unavailable. When desktop_settings is present,
             // our dark-mode key owns gtk_application_prefer_dark_theme and the
             // system setting must not override it.
-            try {
-                iface_settings = new GLib.Settings("org.gnome.desktop.interface");
+            iface_settings = Core.safe_settings("org.gnome.desktop.interface");
+            if (iface_settings != null) {
                 iface_settings.changed["color-scheme"].connect(() => {
                     if (!has_desktop_settings) {
                         apply_color_scheme(iface_settings.get_string("color-scheme"));
@@ -113,13 +108,8 @@ namespace Singularity {
                     apply_color_scheme(iface_settings.get_string("color-scheme"));
                     fallback_dark = iface_settings.get_string("color-scheme") == "prefer-dark";
                 }
-            } catch (Error e) {
-                // This is expected, org.gnome.desktop.interface may not be present in
-                // all environments.
-                if (!fallback_dark) {
-                    var scheme = Environment.get_variable("XDG_CURRENT_DESKTOP");
-                    fallback_dark = (Environment.get_variable("GTK_THEME") ?? "").contains(":dark");
-                }
+            } else if (!fallback_dark) {
+                fallback_dark = (Environment.get_variable("GTK_THEME") ?? "").contains(":dark");
             }
             // Apply our own dark-mode preference last so it always wins over
             // any system-level setting applied above.
@@ -163,13 +153,11 @@ namespace Singularity {
                     return "#%02x%02x%02x".printf((uint)(r * 255 + 0.5), (uint)(g * 255 + 0.5), (uint)(b * 255 + 0.5));
                 }
             } catch {}
-            try {
-                var iface = new GLib.Settings("org.gnome.desktop.interface");
-                if (iface.settings_schema.has_key("accent-color")) {
-                    string name = iface.get_string("accent-color");
-                    if (name != null && name != "") return name;
-                }
-            } catch {}
+            var iface = Core.safe_settings("org.gnome.desktop.interface");
+            if (iface != null && iface.settings_schema.has_key("accent-color")) {
+                string name = iface.get_string("accent-color");
+                if (name != null && name != "") return name;
+            }
             return "blue";
         }
 

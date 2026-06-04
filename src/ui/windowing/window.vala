@@ -123,7 +123,7 @@ namespace Singularity.Widgets {
         private Revealer sidebar_revealer;
         private ScrolledWindow sidebar_scroll_wrap;
         private int _sidebar_width = 180;
-        private GLib.Settings desktop_settings;
+        private GLib.Settings? desktop_settings;
         private bool _flat = false;
         private bool _show_close = true;
         private bool _force_ssd = false;
@@ -148,17 +148,19 @@ namespace Singularity.Widgets {
             add_css_class("singularity");
             add_css_class("singularity-app");
 
-            desktop_settings = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
-            _force_ssd = desktop_settings.get_boolean("force-ssd");
+            desktop_settings = Singularity.Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
+            _force_ssd = desktop_settings != null && desktop_settings.get_boolean("force-ssd");
 
             if (_force_ssd) {
                 add_css_class("ssd-mode");
             }
 
             _apply_rounded_corners_setting();
-            _rounded_corners_handler = desktop_settings.changed["window-rounded-corners"].connect(
-                _apply_rounded_corners_setting
-            );
+            if (desktop_settings != null) {
+                _rounded_corners_handler = desktop_settings.changed["window-rounded-corners"].connect(
+                    _apply_rounded_corners_setting
+                );
+            }
 
             if (!_force_ssd) {
                 var hidden_titlebar = new Box(Orientation.VERTICAL, 0);
@@ -271,7 +273,7 @@ namespace Singularity.Widgets {
         // -- Window state persistence -----------------------------------
 
         public override void dispose() {
-            if (_rounded_corners_handler != 0) {
+            if (_rounded_corners_handler != 0 && desktop_settings != null) {
                 desktop_settings.disconnect(_rounded_corners_handler);
                 _rounded_corners_handler = 0;
             }
@@ -299,7 +301,7 @@ namespace Singularity.Widgets {
         }
 
         private void _apply_rounded_corners_setting() {
-            if (desktop_settings.get_boolean("window-rounded-corners")) {
+            if (desktop_settings == null || desktop_settings.get_boolean("window-rounded-corners")) {
                 remove_css_class("no-rounded-corners");
             } else {
                 add_css_class("no-rounded-corners");
@@ -309,6 +311,7 @@ namespace Singularity.Widgets {
         private void restore_window_state() {
             var app_id = application?.application_id;
             if (app_id == null) return;
+            if (desktop_settings == null) return;
 
             var states = desktop_settings.get_value("window-states");
             var state  = states.lookup_value(app_id, new GLib.VariantType("(iib)"));
@@ -364,6 +367,7 @@ namespace Singularity.Widgets {
         private void save_window_state() {
             var app_id = application?.application_id;
             if (app_id == null) return;
+            if (desktop_settings == null) return;
 
             int  w = get_width();
             int  h = get_height();

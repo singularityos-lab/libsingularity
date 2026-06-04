@@ -16,7 +16,7 @@ namespace Singularity.Accessibility {
     public class AccessibilityManager : Object {
 
         private static AccessibilityManager? _instance;
-        private GLib.Settings settings;
+        private GLib.Settings? settings;
 
         /** Whether high-contrast mode is currently active. */
         public bool high_contrast { get; private set; default = false; }
@@ -45,16 +45,11 @@ namespace Singularity.Accessibility {
         }
 
         private AccessibilityManager() {
-            try {
-                settings = new GLib.Settings(Singularity.Runtime.desktop_settings_schema);
+            settings = Singularity.Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
+            if (settings != null) {
                 high_contrast = settings.get_boolean("high-contrast");
                 large_text = settings.get_boolean("large-text");
                 screen_reader_enabled = settings.get_boolean("screen-reader-enabled");
-            } catch (Error e) {
-                warning("AccessibilityManager: failed to load settings: %s", e.message);
-                high_contrast = false;
-                large_text = false;
-                screen_reader_enabled = false;
             }
 
             Singularity.Style.StyleManager.get_default().set_high_contrast(high_contrast);
@@ -95,7 +90,7 @@ namespace Singularity.Accessibility {
          * @param enabled `true` to enable high-contrast, `false` to disable.
          */
         public void toggle_high_contrast(bool enabled) {
-            settings.set_boolean("high-contrast", enabled);
+            if (settings != null) settings.set_boolean("high-contrast", enabled);
         }
 
         /**
@@ -107,7 +102,7 @@ namespace Singularity.Accessibility {
          * @param enabled `true` to enable large text, `false` to disable.
          */
         public void toggle_large_text(bool enabled) {
-            settings.set_boolean("large-text", enabled);
+            if (settings != null) settings.set_boolean("large-text", enabled);
         }
 
         /**
@@ -122,7 +117,7 @@ namespace Singularity.Accessibility {
             if (screen_reader_enabled == enabled) return;
 
             screen_reader_enabled = enabled;
-            settings.set_boolean("screen-reader-enabled", enabled);
+            if (settings != null) settings.set_boolean("screen-reader-enabled", enabled);
             _apply_screen_reader(enabled);
         }
 
