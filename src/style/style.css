@@ -1410,15 +1410,13 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 
 .app-grid-item {
     background-color: transparent;
-    border-radius: 24px;
-    padding: 20px;
+    border-radius: 18px;
+    padding: 8px;
     transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     border: none;
     box-shadow: none;
-    margin: 10px;
+    margin: 2px;
     color: white;
-    min-width: 160px;
-    min-height: 160px;
 }
 
 .app-grid-item.app-item-hidden {
@@ -1456,8 +1454,8 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 }
 
 .app-grid {
-    padding: 40px;
-    padding-bottom: 120px;
+    padding: 12px;
+    padding-bottom: 80px;
 }
 
 /* App Folders */
@@ -1629,6 +1627,43 @@ window.app-menu-window {
     box-shadow:
         0 1px 2px alpha(black, 0.22),
         0 6px 14px alpha(black, 0.34);
+}
+
+.app-menu-list {
+    background: transparent;
+    padding: 0 6px 8px;
+}
+
+.app-menu-list row.app-menu-row {
+    padding: 6px 10px;
+    border-radius: 10px;
+    margin: 1px 0;
+}
+
+.app-menu-list row.app-menu-row:hover {
+    background-color: alpha(@accent_color, 0.16);
+}
+
+.app-menu-list row.app-menu-section {
+    padding: 0;
+    margin: 0;
+    background: transparent;
+}
+
+.app-menu-section-label {
+    font-size: 12px;
+    font-weight: bold;
+    opacity: 0.55;
+    padding: 8px 12px 2px;
+}
+
+.app-menu-sticky-letter {
+    font-size: 12px;
+    font-weight: bold;
+    opacity: 0.9;
+    padding: 6px 12px 4px;
+    background-color: @window_tint;
+    box-shadow: 0 4px 6px alpha(black, 0.18);
 }
 
 .sidebar-window .settings-page-content {
@@ -1876,13 +1911,11 @@ window.singularity .panel-window,
 
 .singularity .app-grid-item {
     background-color: transparent;
-    border-radius: 24px;
-    padding: 20px;
+    border-radius: 18px;
+    padding: 8px;
     box-shadow: none;
     outline: none;
-    margin: 10px;
-    min-width: 160px;
-    min-height: 160px;
+    margin: 2px;
 }
 
 .singularity .app-grid-item:hover {
