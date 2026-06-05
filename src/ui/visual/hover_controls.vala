@@ -149,7 +149,10 @@ namespace Singularity.Widgets {
                                                          bool with_drag  = true,
                                                          bool with_close = true) {
             if (window is Singularity.Widgets.Window
-                && ((Singularity.Widgets.Window) window).force_ssd) {
+                && (((Singularity.Widgets.Window) window).force_ssd
+                    || ((Singularity.Widgets.Window) window).legacy_titlebar)) {
+                // SSD and the legacy titlebar both want app buttons routed into
+                // the static toolbar instead of a floating bubble bar.
                 var hc = new HoverControls.empty_passthrough ();
                 hc._ssd_bypass        = true;
                 hc._ssd_target_window = window;

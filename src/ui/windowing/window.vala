@@ -130,6 +130,11 @@ namespace Singularity.Widgets {
         /** True when the user has opted into server-side decorations.
             HoverControls reads this to switch to its SSD fallback. */
         public bool force_ssd { get { return _force_ssd; } }
+        private bool _legacy_titlebar = false;
+        /** True when the user prefers the classic static titlebar over the
+            floating hover controls. HoverControls redirects app bubbles into
+            the toolbar (same bypass path as SSD). Ignored while force_ssd is on. */
+        public bool legacy_titlebar { get { return _legacy_titlebar; } }
         private WindowHandle? _flat_drag_handle  = null;
         private Button?       _flat_close_btn    = null;
         private RoundedFrame? _app_frame         = null;
@@ -150,6 +155,9 @@ namespace Singularity.Widgets {
 
             desktop_settings = Singularity.Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
             _force_ssd = desktop_settings != null && desktop_settings.get_boolean("force-ssd");
+            // Legacy titlebar is a CSD mode, so it only applies when SSD is off.
+            _legacy_titlebar = !_force_ssd && desktop_settings != null
+                && desktop_settings.get_boolean("legacy-titlebar");
 
             if (_force_ssd) {
                 add_css_class("ssd-mode");
@@ -196,6 +204,16 @@ namespace Singularity.Widgets {
                 // (SSD bypass) packs buttons into it.
                 toolbar.visible = false;
                 outer_box.append(toolbar);
+            } else if (_legacy_titlebar) {
+                // Classic static titlebar: a real toolbar at the top of the
+                // window flow with its own close button and centred title.
+                // App bubbles get redirected into it by HoverControls.
+                toolbar.is_static = true;
+                toolbar.visible = true;
+                var legacy_handle = new WindowHandle();
+                legacy_handle.set_child(toolbar);
+                legacy_handle.valign = Align.START;
+                outer_box.append(legacy_handle);
             }
 
             main_container = new Box(Orientation.HORIZONTAL, 0);
@@ -228,7 +246,7 @@ namespace Singularity.Widgets {
             content_area.vexpand = true;
             main_container.append(content_area);
 
-            if (!_force_ssd) {
+            if (!_force_ssd && !_legacy_titlebar) {
                 // Regular toolbar overlay (drag handle = toolbar itself)
                 var handle = new WindowHandle();
                 handle.set_child(toolbar);
@@ -399,13 +417,16 @@ namespace Singularity.Widgets {
         // -- Layout / helpers ------------------------------------------
 
         private void _update_flat_mode() {
-            if (_force_ssd) return;
+            // Legacy/SSD keep the toolbar in the box flow and never go flat.
+            if (_force_ssd || _legacy_titlebar) return;
             toolbar.visible = !_flat;
             if (_flat) main_container.margin_top = 0;
         }
 
         private void update_layout() {
-            if (_force_ssd) {
+            // Legacy/SSD toolbars take real layout space, so the content needs
+            // no top margin (only the overlay hover toolbar is pushed down).
+            if (_force_ssd || _legacy_titlebar) {
                 main_container.margin_top = 0;
                 return;
             }
