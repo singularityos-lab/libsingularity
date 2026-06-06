@@ -168,7 +168,7 @@ namespace Singularity.Widgets {
             // side a comma-separated list of control names. We honour
             // close, minimize, maximize; ignore "icon", "menu",
             // "appmenu" and anything else.
-            string layout = Gtk.Settings.get_default ().gtk_decoration_layout ?? ":close";
+            string layout = _resolve_decoration_layout ();
             string[] parts = layout.split (":");
             string left_str  = parts.length > 0 ? parts[0] : "";
             string right_str = parts.length > 1 ? parts[1] : "";
@@ -213,6 +213,22 @@ namespace Singularity.Widgets {
             }
 
             return hc;
+        }
+
+        // Resolve the decoration layout, preferring the host's
+        // org.gnome.desktop.wm.preferences button-layout (so first-party apps
+        // honour the minimize/maximize preference directly) and falling back to
+        // GTK's gtk_decoration_layout, which sandboxed apps receive over the
+        // settings portal.
+        private static string _resolve_decoration_layout () {
+            var src = GLib.SettingsSchemaSource.get_default ();
+            if (src != null
+                    && src.lookup ("org.gnome.desktop.wm.preferences", true) != null) {
+                var wm = new GLib.Settings ("org.gnome.desktop.wm.preferences");
+                string bl = wm.get_string ("button-layout");
+                if (bl != null && bl != "") return bl;
+            }
+            return Gtk.Settings.get_default ().gtk_decoration_layout ?? ":close";
         }
 
         private void _install_drag_bubble (Gtk.Window window, Box target) {
