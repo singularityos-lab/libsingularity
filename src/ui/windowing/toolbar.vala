@@ -18,6 +18,12 @@ namespace Singularity.Widgets {
         /** Container on the trailing (right) side of the toolbar. */
         public Box end_box { get; private set; }
 
+        /** The window minimize button in the trailing area (hidden by default). */
+        public Button minimize_btn { get; private set; }
+
+        /** The window maximize button in the trailing area (hidden by default). */
+        public Button maximize_btn { get; private set; }
+
         /** The window close button in the trailing area. */
         public CloseButton close_btn { get; private set; }
 
@@ -57,6 +63,32 @@ namespace Singularity.Widgets {
             end_box.halign = Align.END;
             end_box.set_margin_top(3);
             end_box.set_margin_bottom(3);
+            minimize_btn = new Button.from_icon_name("window-minimize-symbolic");
+            minimize_btn.add_css_class("flat");
+            minimize_btn.add_css_class("image-button");
+            minimize_btn.valign = Align.CENTER;
+            minimize_btn.visible = false;
+            minimize_btn.tooltip_text = _("Minimize Window");
+            minimize_btn.clicked.connect(() => {
+                var w = get_root() as Gtk.Window;
+                if (w != null) w.minimize();
+            });
+            end_box.append(minimize_btn);
+
+            maximize_btn = new Button.from_icon_name("window-maximize-symbolic");
+            maximize_btn.add_css_class("flat");
+            maximize_btn.add_css_class("image-button");
+            maximize_btn.valign = Align.CENTER;
+            maximize_btn.visible = false;
+            maximize_btn.tooltip_text = _("Maximize Window");
+            maximize_btn.clicked.connect(() => {
+                var w = get_root() as Gtk.Window;
+                if (w == null) return;
+                if (w.maximized) w.unmaximize();
+                else w.maximize();
+            });
+            end_box.append(maximize_btn);
+
             close_btn = new Singularity.Widgets.CloseButton();
             close_btn.clicked.connect(() => {
                 var window = (Gtk.Window)get_root();
@@ -74,11 +106,23 @@ namespace Singularity.Widgets {
             add_css_class("toolbar-scroll-under");
         }
 
+        /**
+         * Shows the minimize/maximize controls following the user's window
+         * button-layout. Used by the legacy static titlebar.
+         */
+        public void enable_window_controls() {
+            string layout = Gtk.Settings.get_default().gtk_decoration_layout ?? ":close";
+            minimize_btn.visible = "minimize" in layout;
+            maximize_btn.visible = "maximize" in layout;
+        }
+
         /** Enables or disables server-side-decoration mode on this toolbar. */
         public void set_ssd_mode(bool enabled) {
             if (enabled) {
                 add_css_class("ssd-mode");
                 close_btn.visible = false;
+                minimize_btn.visible = false;
+                maximize_btn.visible = false;
                 is_static = true;
             } else {
                 remove_css_class("ssd-mode");
