@@ -691,6 +691,14 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     margin: 4px 8px 0 8px;
 }
 
+.dock-reveal-barrier,
+.dock-reveal-barrier > * {
+    background: transparent;
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+}
+
 .dock-panel-mode .dock-box {
     background-color: transparent;
     border-radius: 0;
@@ -3390,12 +3398,12 @@ window.singularity.dialog {
     border-bottom-right-radius: 24px;
 }
 
-.preferences-row .title {
+.title {
     font-weight: 800;
     font-size: 15px;
 }
 
-.preferences-row .subtitle {
+.subtitle {
     font-size: 12px;
     opacity: 0.7;
     margin-top: 2px;
@@ -4321,6 +4329,151 @@ flowboxchild.disk-card-child:focus {
     font-size: 11px;
     color: @window_fg_color;
     opacity: 0.9;
+}
+
+/* DevTools modular overlay - shares the debug-hud d3d aesthetic */
+.devtools-overlay {
+    background: transparent;
+}
+
+.devtools-sidebar {
+    background-color: alpha(@window_bg_color, 0.92);
+    border-radius: 0 12px 12px 0;
+    border: 1px solid alpha(@accent_color, 0.45);
+    border-left: none;
+    box-shadow: 0 4px 24px alpha(black, 0.5);
+    padding: 10px 8px;
+}
+
+.devtools-sidebar-title {
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: @accent_color;
+    margin-bottom: 4px;
+}
+
+.devtools-sidebar-section {
+    font-family: monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: @window_fg_color;
+    opacity: 0.45;
+}
+
+.devtools-sidebar-btn {
+    font-family: monospace;
+    font-size: 11px;
+    color: @window_fg_color;
+    padding: 4px 8px;
+    border-radius: 6px;
+    min-height: 0;
+}
+
+.devtools-sidebar-btn:hover {
+    background-color: alpha(@accent_color, 0.18);
+}
+
+.devtools-sidebar-btn.devtools-active {
+    background-color: alpha(@accent_color, 0.30);
+    color: @accent_color;
+}
+
+.devtools-panel {
+    background-color: alpha(@window_bg_color, 0.90);
+    border-radius: 10px;
+    border: 1px solid alpha(@accent_color, 0.45);
+    box-shadow: 0 6px 28px alpha(black, 0.55);
+}
+
+.devtools-panel-header {
+    background-color: alpha(@accent_color, 0.22);
+    border-radius: 9px 9px 0 0;
+    padding: 4px 6px 4px 10px;
+}
+
+.devtools-panel-title {
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: @accent_color;
+}
+
+.devtools-panel-close {
+    font-family: monospace;
+    font-size: 11px;
+    color: @window_fg_color;
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0;
+    border-radius: 5px;
+}
+
+.devtools-panel-close:hover {
+    background-color: alpha(#ff4d4d, 0.6);
+    color: white;
+}
+
+.devtools-panel-body {
+    padding: 8px;
+}
+
+.devtools-row {
+    padding: 2px 0;
+}
+
+.devtools-row-key,
+.devtools-tree-node,
+.devtools-event-row,
+.devtools-note {
+    font-family: monospace;
+    font-size: 11px;
+    color: @window_fg_color;
+}
+
+.devtools-note {
+    opacity: 0.5;
+}
+
+.devtools-tree-sing {
+    color: @accent_color;
+    font-weight: bold;
+}
+
+.devtools-tree-root {
+    font-family: monospace;
+    font-size: 11px;
+    color: @accent_color;
+}
+
+.devtools-event-row {
+    font-size: 10px;
+    opacity: 0.92;
+}
+
+.devtools-events {
+    background: transparent;
+}
+
+.devtools-events row {
+    padding: 1px 2px;
+}
+
+.devtools-outline {
+    outline: 2px solid #39ff14;
+    outline-offset: -2px;
+}
+
+.devtools-resize {
+    background-image: linear-gradient(135deg,
+        transparent 0%, transparent 55%,
+        alpha(@accent_color, 0.7) 55%, alpha(@accent_color, 0.7) 70%,
+        transparent 70%, transparent 80%,
+        alpha(@accent_color, 0.7) 80%, alpha(@accent_color, 0.7) 95%,
+        transparent 95%);
+    border-radius: 0 0 9px 0;
 }
 
 
