@@ -210,6 +210,7 @@ namespace Singularity.Widgets {
                 // App bubbles get redirected into it by HoverControls.
                 toolbar.is_static = true;
                 toolbar.visible = true;
+                toolbar.enable_window_controls();
                 var legacy_handle = new WindowHandle();
                 legacy_handle.set_child(toolbar);
                 legacy_handle.valign = Align.START;
