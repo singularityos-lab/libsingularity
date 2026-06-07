@@ -43,6 +43,7 @@ namespace Singularity.Widgets {
         private uint _signal_sub_id = 0;
         private uint _poll_timer_id = 0;
         private int64 track_length_us = 0;
+        private string track_id = "";
         private string? last_art_url = null;
         private GLib.Settings? desktop_settings;
         private string accent_hex = "#3584e4";
@@ -438,6 +439,8 @@ namespace Singularity.Widgets {
                     }
                     var art_variant = metadata_variant.lookup_value("mpris:artUrl", null);
                     if (art_variant != null) art_url = art_variant.get_string();
+                    var tid_variant = metadata_variant.lookup_value("mpris:trackid", null);
+                    track_id = (tid_variant != null) ? tid_variant.get_string() : "";
                     var length_variant = metadata_variant.lookup_value("mpris:length", null);
                     if (length_variant != null) {
                         // MPRIS spec says int64 ("x"), but some players send uint64 ("t")
@@ -576,6 +579,17 @@ namespace Singularity.Widgets {
 
         private void seek_to(int64 pos_us) {
             if (player_proxy == null) return;
+            // SetPosition is absolute and unambiguous; prefer it when the player
+            // gives us a track id. Fall back to a relative Seek otherwise (some
+            // players only implement Seek).
+            if (track_id != "" && track_id != "/org/mpris/MediaPlayer2/TrackList/NoTrack") {
+                try {
+                    player_proxy.call_sync("SetPosition",
+                        new Variant("(ox)", track_id, pos_us),
+                        DBusCallFlags.NONE, -1, null);
+                    return;
+                } catch (Error e) {}
+            }
             try {
                 player_proxy.call_sync("Seek",
                     new Variant("(x)", pos_us - (int64)((progress_scale.get_value()) * track_length_us)),
