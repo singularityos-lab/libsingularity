@@ -50,6 +50,8 @@ namespace Singularity.Style {
          * fallbacks. Call this once, after Gtk has been initialised (e.g. from an
          * application's startup), for both apps and shells.
          */
+        private static string _desired_icon_theme = BRAND_ICON_THEME;
+
         public static void pin_brand_themes() {
             var gs = Gtk.Settings.get_default();
             if (gs == null) return;
@@ -59,10 +61,27 @@ namespace Singularity.Style {
                     gs.gtk_theme_name = BRAND_GTK_THEME;
                 }
             });
-            gs.gtk_icon_theme_name = BRAND_ICON_THEME;
+
+            // The icon theme follows the user's chosen pack (dev.sinty.desktop
+            // icon-theme), defaulting to the brand seam. The notify guard only
+            // blocks the Settings portal from resetting to hicolor; it re-pins to
+            // the desired pack, not a hardcoded brand, so picking another pack
+            // applies to Singularity apps too.
+            var src = GLib.SettingsSchemaSource.get_default();
+            if (src != null && src.lookup("dev.sinty.desktop", true) != null) {
+                var ds = new GLib.Settings("dev.sinty.desktop");
+                string it = ds.get_string("icon-theme");
+                if (it != "") _desired_icon_theme = it;
+                ds.changed["icon-theme"].connect(() => {
+                    string n = ds.get_string("icon-theme");
+                    _desired_icon_theme = (n != "") ? n : BRAND_ICON_THEME;
+                    gs.gtk_icon_theme_name = _desired_icon_theme;
+                });
+            }
+            gs.gtk_icon_theme_name = _desired_icon_theme;
             gs.notify["gtk-icon-theme-name"].connect(() => {
-                if (gs.gtk_icon_theme_name != BRAND_ICON_THEME) {
-                    gs.gtk_icon_theme_name = BRAND_ICON_THEME;
+                if (gs.gtk_icon_theme_name != _desired_icon_theme) {
+                    gs.gtk_icon_theme_name = _desired_icon_theme;
                 }
             });
         }
