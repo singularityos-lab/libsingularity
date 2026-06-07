@@ -619,7 +619,7 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
 
 /* Text and icon shadows in transparent (non-flat) panel mode - Pantheon-style contrast */
 .panel-window:not(.flat-panel):not(.light-bg) .panel label {
-
+    text-shadow: 0 1px 3px alpha(@shadow_color, 0.9);
 }
 
 .panel-window:not(.flat-panel):not(.light-bg) .panel image {
