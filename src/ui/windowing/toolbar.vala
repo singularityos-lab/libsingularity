@@ -110,10 +110,40 @@ namespace Singularity.Widgets {
          * Shows the minimize/maximize controls following the user's window
          * button-layout. Used by the legacy static titlebar.
          */
+        private GLib.Settings? _wm_layout_settings = null;
+
         public void enable_window_controls() {
-            string layout = Gtk.Settings.get_default().gtk_decoration_layout ?? ":close";
+            apply_button_layout();
+            // React live to button-layout changes from Settings.
+            if (_wm_layout_settings == null) {
+                var src = GLib.SettingsSchemaSource.get_default();
+                if (src != null && src.lookup("org.gnome.desktop.wm.preferences", true) != null) {
+                    _wm_layout_settings = new GLib.Settings("org.gnome.desktop.wm.preferences");
+                    _wm_layout_settings.changed["button-layout"].connect((k) => apply_button_layout());
+                }
+            }
+        }
+
+        private void apply_button_layout() {
+            string layout = resolve_button_layout();
             minimize_btn.visible = "minimize" in layout;
             maximize_btn.visible = "maximize" in layout;
+            close_btn.visible = "close" in layout;
+        }
+
+        // Prefer the host org.gnome.desktop.wm.preferences button-layout (which
+        // the Settings min/max toggles write to) and fall back to GTK's
+        // gtk_decoration_layout, matching HoverControls. Without this the legacy
+        // titlebar / SSD toolbar read only the GTK default (":close") and never
+        // showed the minimize/maximize buttons even when enabled in Settings.
+        private static string resolve_button_layout() {
+            var src = GLib.SettingsSchemaSource.get_default();
+            if (src != null && src.lookup("org.gnome.desktop.wm.preferences", true) != null) {
+                var wm = new GLib.Settings("org.gnome.desktop.wm.preferences");
+                string bl = wm.get_string("button-layout");
+                if (bl != null && bl != "") return bl;
+            }
+            return Gtk.Settings.get_default().gtk_decoration_layout ?? ":close";
         }
 
         /** Enables or disables server-side-decoration mode on this toolbar. */

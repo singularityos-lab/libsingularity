@@ -19,6 +19,10 @@ namespace Singularity.Widgets {
         private Box      _left_box;
         private Box      _right_box;
         private Box      _custom_box;
+        private Gtk.Window? _bubble_window = null;
+        private bool _bubble_with_drag = true;
+        private bool _bubble_with_close = true;
+        private GLib.Settings? _wm_layout_settings = null;
 
         private Button?     _close_btn          = null;
         private Gtk.Window? _close_target_window = null;
@@ -167,6 +171,38 @@ namespace Singularity.Widgets {
                 sw.show_close = false;
             }
 
+            hc._bubble_window     = window;
+            hc._bubble_with_drag  = with_drag;
+            hc._bubble_with_close = with_close;
+            hc._build_bubbles ();
+
+            // Rebuild live when the user changes the button-layout in Settings.
+            var src = GLib.SettingsSchemaSource.get_default ();
+            if (src != null && src.lookup ("org.gnome.desktop.wm.preferences", true) != null) {
+                hc._wm_layout_settings = new GLib.Settings ("org.gnome.desktop.wm.preferences");
+                hc._wm_layout_settings.changed["button-layout"].connect ((k) => hc._build_bubbles ());
+            }
+
+            return hc;
+        }
+
+        // (Re)build the window-control bubbles from the current button-layout.
+        // _custom_box (app buttons) lives inside _right_box, so it is preserved.
+        private void _build_bubbles () {
+            if (_bubble_window == null) return;
+            var window = _bubble_window;
+            bool with_drag  = _bubble_with_drag;
+            bool with_close = _bubble_with_close;
+
+            Widget? c = _left_box.get_first_child ();
+            while (c != null) { Widget? n = c.get_next_sibling (); _left_box.remove (c); c = n; }
+            c = _right_box.get_first_child ();
+            while (c != null) {
+                Widget? n = c.get_next_sibling ();
+                if (c != _custom_box) _right_box.remove (c);
+                c = n;
+            }
+
             // Parse the GTK decoration layout: "left:right" with each
             // side a comma-separated list of control names. We honour
             // close, minimize, maximize; ignore "icon", "menu",
@@ -183,39 +219,29 @@ namespace Singularity.Widgets {
             bool min_right   = right_str.contains ("minimize");
             bool max_right   = right_str.contains ("maximize");
 
-            // Window controls cluster together with drag on whichever
-            // side the close button lives. If neither side asks for
-            // close (rare), default to right.
-            Box target = hc._right_box;
+            Box target = _right_box;
             bool cluster_on_left = close_left || (!close_right && (min_left || max_left));
-            if (cluster_on_left) target = hc._left_box;
+            if (cluster_on_left) target = _left_box;
 
-            // Visual order:
-            //   right cluster (close at the rightmost edge):
-            //     [custom_box] drag, minimize, maximize, close
-            //   left cluster (close at the leftmost edge):
-            //     close, maximize, minimize, drag
             if (cluster_on_left) {
                 if (with_close && (close_left || close_right))
-                    hc._install_close_bubble (window, target);
+                    _install_close_bubble (window, target);
                 if (max_left || max_right)
-                    hc._install_maximize_bubble (window, target);
+                    _install_maximize_bubble (window, target);
                 if (min_left || min_right)
-                    hc._install_minimize_bubble (window, target);
+                    _install_minimize_bubble (window, target);
                 if (with_drag)
-                    hc._install_drag_bubble (window, target);
+                    _install_drag_bubble (window, target);
             } else {
                 if (with_drag)
-                    hc._install_drag_bubble (window, target);
+                    _install_drag_bubble (window, target);
                 if (min_left || min_right)
-                    hc._install_minimize_bubble (window, target);
+                    _install_minimize_bubble (window, target);
                 if (max_left || max_right)
-                    hc._install_maximize_bubble (window, target);
+                    _install_maximize_bubble (window, target);
                 if (with_close && (close_left || close_right))
-                    hc._install_close_bubble (window, target);
+                    _install_close_bubble (window, target);
             }
-
-            return hc;
         }
 
         // Resolve the decoration layout, preferring the host's
