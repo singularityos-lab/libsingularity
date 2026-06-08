@@ -1,0 +1,18 @@
+custom_target('sing-gtk-4.0-light',
+  input: files('singularity.scss'),
+  output: 'gtk.css',
+  command: [python3_exe, sing_build_css, sassc_exe, sing_accent, '@INPUT@', '@OUTPUT@'],
+  depend_files: sing_theme_sass,
+  build_by_default: true,
+  install: true,
+  install_dir: sing_theme_dir / 'gtk-4.0',
+)
+custom_target('sing-gtk-4.0-dark',
+  input: files('singularity-dark.scss'),
+  output: 'gtk-dark.css',
+  command: [python3_exe, sing_build_css, sassc_exe, sing_accent, '@INPUT@', '@OUTPUT@'],
+  depend_files: sing_theme_sass,
+  build_by_default: true,
+  install: true,
+  install_dir: sing_theme_dir / 'gtk-4.0',
+)

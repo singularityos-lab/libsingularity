@@ -156,3 +156,42 @@ install_data(
   'singularity-1.0.deps',
   install_dir: get_option('datadir') / 'vala' / 'vapi',
 )
+
+# Build the Singularity GTK3/GTK4 theme for third-party apps. Orchis supplies
+# only the widget skeleton; data/gtk-theme/_sass/_singularity.scss reassigns
+# every colour role to a Singularity token (accent-tinted surfaces, our accent
+# everywhere) mirroring StyleManager and the style.*.css tokens. sassc bakes the
+# default accent; the live accent still reaches apps via the portal and the
+# ~/.config/gtk-*/gtk.css overrides StyleManager writes. Our own apps pin the
+# empty SingularityShell theme and keep reading style.css at PRIORITY_USER.
+sassc_exe = find_program('sassc')
+python3_exe = find_program('python3')
+sing_build_css = files('data/gtk-theme/build-css.py')
+# Default baked accent (the 'blue' swatch). build-css.py rewrites it to the
+# named @accent_color so the live accent still wins at runtime.
+sing_accent = '#3584e4'
+sing_theme_dir = get_option('datadir') / 'themes' / 'Singularity'
+# Every partial the entry scss pulls in; a change to any retriggers sassc.
+sing_theme_sass = files(
+  'data/gtk-theme/_sass/_singularity.scss',
+  'data/gtk-theme/_sass/_colors.scss',
+  'data/gtk-theme/_sass/_variables.scss',
+  'data/gtk-theme/_sass/_tweaks.scss',
+  'data/gtk-theme/_sass/_tweaks-temp.scss',
+  'data/gtk-theme/_sass/_color-palette.scss',
+  'data/gtk-theme/_sass/_color-palette-default.scss',
+  'data/gtk-theme/build-css.py',
+)
+# Separate subdirs so each toolkit emits its own gtk.css / gtk-dark.css into a
+# distinct build path (otherwise the two gtk.css ninja targets collide).
+subdir('data/gtk-theme/gtk/3.0')
+subdir('data/gtk-theme/gtk/4.0')
+
+# Widget assets (png) plus scalable (svg) the generated CSS references as
+# assets/... and assets/scalable/..., installed beside each toolkit's gtk.css.
+foreach dir : ['gtk-3.0', 'gtk-4.0']
+  install_subdir('data/gtk-theme/gtk/assets', install_dir: sing_theme_dir / dir)
+  install_subdir('data/gtk-theme/gtk/scalable', install_dir: sing_theme_dir / dir / 'assets')
+endforeach
+
+install_data('data/gtk-theme/index.theme', install_dir: sing_theme_dir)

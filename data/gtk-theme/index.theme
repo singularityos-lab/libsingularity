@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Singularity
+Comment=The Singularity GTK theme for third-party apps
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Singularity
+IconTheme=Singularity
+CursorTheme=Adwaita

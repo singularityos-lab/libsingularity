@@ -55,10 +55,10 @@ namespace Singularity {
             base.startup();
 
             // Pin the brand GTK and icon themes in-process (per-process, NOT via
-            // GSettings). The "Singularity" GTK theme has empty CSS so GTK loads
-            // nothing from the theme layer, letting our style.css win; the icon
-            // theme pin keeps symbolic icons working on Wayland. Shared with the
-            // shell via the same helper so the policy lives in one place.
+            // GSettings). The pinned "SingularityShell" GTK theme has empty CSS so
+            // GTK loads nothing from the theme layer, letting our style.css win;
+            // the icon theme pin keeps symbolic icons working on Wayland. Shared
+            // with the shell via the same helper so the policy lives in one place.
             Singularity.Style.StyleManager.pin_brand_themes();
 
             Singularity.Style.StyleManager.get_default().load_theme();

@@ -1,0 +1,2293 @@
+//
+// Nautilus
+//
+.nautilus-window {
+  &.background.csd {
+    color: if($topbar =='dark' and $variant =='light', $titlebar-text-secondary, $text-secondary);
+
+    &, &:backdrop {
+      background-image: none;
+      background-color: if($topbar =='dark' and $variant =='light', $titlebar, $base);
+    }
+  }
+
+  &:not(.view) {
+    headerbar {
+      background-color: transparent;
+      box-shadow: inset 0 1px highlight($titlebar);
+    }
+  }
+
+  headerbar popover.background {
+
+    // reset
+    > contents {
+      button:not(.suggested-action):not(.destructive-action) {
+        @extend %button-basic;
+
+        &.flat {
+          @extend %button-flat;
+        }
+      }
+    }
+  }
+
+  .content-pane {
+    &, &:backdrop {
+      background-color: transparent;
+    }
+  }
+
+  @if $variant =='light' and $topbar =='dark' {
+
+    .sidebar-pane,
+    .content-pane {
+      headerbar {
+        color: $titlebar-text;
+
+        .subtitle,
+        .dim-label {
+          color: $titlebar-text-secondary;
+
+          &:backdrop {
+            color: $titlebar-text-disabled;
+          }
+        }
+
+        popover.background {
+
+          // reset
+          > contents {
+            background-color: $surface;
+            color: $text;
+
+            .dim-label {
+              color: $text-secondary;
+
+              &:backdrop {
+                color: $text-disabled;
+              }
+            }
+
+            button {
+              border-radius: $menuitem-radius;
+            }
+
+            .linked:not(.vertical) > button:not(.suggested-action):not(.destructive-action):not(.close):not(.maximize):not(.minimize) {
+              border-radius: 0;
+
+              &:first-child {
+                border-radius: $menuitem-radius 0 0 $menuitem-radius;
+              }
+
+              &:last-child {
+                border-radius: 0 $menuitem-radius $menuitem-radius 0;
+              }
+
+              &:only-child {
+                border-radius: $menuitem-radius;
+              }
+            }
+          }
+
+          > contents > grid stack > scrolledwindow {
+            border: 1px solid $border;
+
+            row + separator {
+              background-color: transparent;
+            }
+          }
+        }
+      }
+    }
+
+    .content-pane {
+      headerbar {
+        &, &:backdrop {
+          box-shadow: inset 0 1px highlight($titlebar);
+        }
+
+        entry {
+          @extend %titlebar-entry;
+        }
+
+        @if $mac_style =='true' {
+          button:not(.suggested-action):not(.destructive-action):not(.close):not(.maximize):not(.minimize) {
+            @extend %titlebar-button;
+          }
+        }
+
+        @else {
+          button:not(.suggested-action):not(.destructive-action) {
+            @extend %titlebar-button;
+          }
+        }
+
+        popover.background {
+
+          // reset
+          > contents {
+            @if $mac_style =='true' {
+              button:not(.suggested-action):not(.destructive-action):not(.close):not(.maximize):not(.minimize) {
+                @extend %button-basic;
+
+                &.flat {
+                  @extend %button-flat;
+                }
+              }
+            }
+
+            @else {
+              button:not(.suggested-action):not(.destructive-action) {
+                @extend %button-basic;
+
+                &.flat {
+                  @extend %button-flat;
+                }
+              }
+            }
+          }
+
+          entry {
+            @extend %titlebar-entry-reset;
+          }
+        }
+      }
+
+      .toolbar {
+        color: $text;
+        background-color: $base;
+        border-radius: $window-radius - $space-size;
+        margin: 0 $space-size $space-size 0;
+      }
+    }
+
+    #NautilusProgressIndicator {
+      > menubutton > button {
+        listview.view {
+          color: $titlebar-text-secondary;
+
+          > row {
+            color: $titlebar-text-secondary;
+          }
+        }
+      }
+    }
+  }
+
+  flap > separator {
+    background: none;
+    min-width: 0;
+  }
+
+  .sidebar-pane {
+    &, &:backdrop {
+      background-color: transparent;
+    }
+
+    &:dir(ltr), &.end:dir(rtl) {
+      &, banner > revealer > widget {
+        box-shadow: none;
+        border-right: none;
+      }
+    }
+
+    &:dir(rtl), &.end:dir(ltr) {
+      &, banner > revealer > widget {
+        box-shadow: none;
+        border-left: none;
+      }
+    }
+
+    .toolbar {
+      margin: 0 0 $space-size * 2 $space-size;
+    }
+  }
+
+  flap.unfolded > placessidebar,
+  .sidebar-pane > toolbarview > placessidebar {
+    background-color: if($topbar =='dark' and $variant =='light', $titlebar, $base);
+    border-radius: $window-radius;
+    color: $titlebar-text-secondary;
+
+    > scrolledwindow {
+      margin: 0 0 $space-size * 2 $space-size * 2;
+      border-radius: $window-radius - $space-size;
+      background-color: if($topbar =='dark' and $variant =='light', transparent, rgba(theme($theme), 0.08));
+
+      > overshoot, > undershoot {
+        &.top {
+          border-radius: $window-radius - $space-size $window-radius - $space-size 0 0;
+        }
+
+        &.bottom {
+          border-radius: 0 0 $window-radius - $space-size $window-radius - $space-size;
+        }
+      }
+
+      > viewport {
+        > list.navigation-sidebar {
+          padding: 16px 0 16px 0;
+          background: none;
+          border-radius: $window-radius - $space-size;
+
+          > separator {
+            background: none;
+          }
+
+          > row.activatable {
+            border-radius: 0;
+            padding: 0;
+            margin: -8px 0 -8px 0;
+            animation: none;
+
+            > revealer.sidebar-revealer {
+              padding-left: 12px;
+              padding-right: 0;
+
+              > box {
+                padding-right: 12px + $space-size;
+                padding-left: 0;
+              }
+            }
+
+            &, &:focus, &:hover, &:active {
+              background: none;
+              box-shadow: none;
+              animation: none;
+            }
+
+            &, image.sidebar-icon, label.sidebar-label {
+              color: $titlebar-text-secondary;
+            }
+
+            image.sidebar-icon {
+              padding-right: $space-size;
+            }
+
+            label.sidebar-label {
+              color: inherit;
+              min-height: 54px;
+              padding-left: $space-size;
+            }
+
+            &.sidebar-placeholder-row {
+              background-color: transparent;
+            }
+
+            &:drop(active) {
+              border-radius: 0;
+
+              @if $topbar =='dark' {
+                border-radius: $circular_radius 0 0 $circular_radius;
+              }
+
+              background-color: rgba($drop_target_color, 0.1);
+
+              &, image.sidebar-icon, label.sidebar-label {
+                color: $drop_target_color;
+              }
+            }
+
+            button.sidebar-button {
+              @if $topbar =='dark' {
+                @extend %button-on-dark;
+              }
+            }
+
+            &:hover {
+              image.sidebar-icon, label.sidebar-label {
+                color: $primary;
+              }
+            }
+
+            &:selected {
+              background-color: transparent;
+              font-weight: 700;
+              // font-size: larger;
+
+              image.sidebar-icon {
+                color: $primary;
+              }
+
+              image.sidebar-icon, label.sidebar-label {
+                color: $primary;
+              }
+
+              button.sidebar-button {
+                color: $primary;
+
+                @extend %button-flat-simple;
+              }
+
+              > revealer > box {
+                color: $primary;
+                background-color: $base;
+                border: none;
+                border-image-width: 16px 9px 16px 46px;
+                border-image-slice: 16 9 16 46;
+                border-image-repeat: stretch;
+                border-image-source: -gtk-scaled(url("assets/row-selected#{$blackness-asset-suffix}#{$theme-asset-suffix}.png"),
+                  url("assets/row-selected#{$blackness-asset-suffix}#{$theme-asset-suffix}@2.png"));
+              }
+
+              label.sidebar-label {
+                margin-left: $space-size + 4px;
+              }
+
+              button.sidebar-button {
+                color: $primary;
+
+                @extend %button-flat-simple;
+              }
+            }
+
+            &:disabled {
+              &, image.sidebar-icon, label.sidebar-label {
+                color: $titlebar-text-secondary-disabled;
+              }
+            }
+          }
+        }
+      }
+
+      > scrollbar {
+        margin: $space-size / 2 $space-size / 2 $space-size / 2 0;
+        background: none;
+        border: none;
+
+        though {
+          background: none;
+
+          > slider {
+            border: none;
+          }
+        }
+      }
+    }
+  }
+
+  tabbar {
+    .box {
+      padding: 0 $window-radius - $space-size;
+      background-color: transparent;
+      box-shadow: inset 0 -1px if($topbar =='dark' and $variant =='light', transparent, $solid-border);
+    }
+
+    tab {
+      color: $titlebar-text-secondary;
+
+      @if $topbar =='dark' and $variant =='light' {
+        border: none;
+      }
+
+      &:hover:not(:selected):not(:active):not(:checked) {
+        color: $titlebar-text;
+        background-color: if($topbar =='dark', rgba($titlebar-text, 0.05), transparent);
+      }
+
+      &:active, &:checked, &:selected {
+        color: $text;
+
+        &:disabled {
+          color: $text-disabled;
+        }
+
+        & > button.flat {
+          @extend %button-flat-simple;
+        }
+      }
+
+      &:disabled {
+        color: $titlebar-text-secondary-disabled;
+      }
+
+      & > button.flat {
+        @if $topbar =='dark' {
+          @extend %button-on-dark;
+        }
+
+        @else {
+          @extend %button-flat-simple;
+        }
+      }
+    }
+  }
+
+  @if $variant =='light' and $topbar =='dark' {
+    tabview stack {
+      background-color: transparent;
+
+      statuspage {
+        color: $text;
+        background-color: $base;
+        border-radius: $window-radius - $space-size;
+        margin: 0 $space-size $space-size 0;
+      }
+    }
+
+    banner > revealer > widget {
+      border-radius: $window-radius - $space-size;
+      margin: 0 $space-size $space-size 0;
+    }
+
+    placesview > .toolbar {
+      border-bottom-left-radius: $window-radius - $space-size;
+      border-bottom-right-radius: $window-radius - $space-size;
+    }
+
+    .nautilus-grid-view {
+      &, gridview.view {
+        color: $text;
+        background-color: $base;
+        border-radius: $window-radius - $space-size;
+        margin: 0 $space-size $space-size 0;
+      }
+    }
+
+    .nautilus-network-view,
+    .nautilus-list-view {
+      color: $text;
+      background-color: $base;
+      border-radius: $window-radius - $space-size;
+      margin: 0 $space-size $space-size 0;
+
+      .view {
+        background-color: transparent;
+      }
+    }
+
+    placesview {
+      border-radius: $window-radius - $space-size;
+      margin: 0 $space-size $space-size 0;
+      background-color: $base;
+
+      list, actionbar, actionbar > revealer > box {
+        background-color: transparent;
+      }
+    }
+  }
+
+  placesview {
+    label {
+      color: $text-secondary;
+
+      &:disabled {
+        color: $text-secondary-disabled;
+      }
+    }
+  }
+
+  .nautilus-list-view {
+    #NautilusViewCell {
+      padding: 0;
+    }
+  }
+
+  infobar {
+    margin: $space-size / 2;
+
+    > revealer > box {
+      border-radius: $space-size;
+    }
+  }
+
+  label.search-information {
+    margin: $space-size / 2;
+    border-radius: $space-size;
+  }
+
+  #NautilusPathBar {
+    background-color: $titlebar-fill;
+
+    #NautilusPathButton {
+      &.current-dir {
+        color: $titlebar-text;
+      }
+    }
+  }
+}
+
+.floating-bar {
+  min-height: $menuitem-size;
+  padding: $space-size / 2;
+  margin: if($variant =='light' and $topbar =='dark', $space-size * 2, $space-size);
+  border: none;
+  border-radius: $circular-radius;
+  background-color: rgba($background, 0.95);
+  box-shadow: none;
+  color: $text;
+
+  button {
+    margin: (32px - $small-size) / 2;
+
+    @extend %small-button;
+  }
+}
+
+.nautilus-grid-view {
+  child.activatable {
+    padding: 0;
+
+    #NautilusViewCell {
+      padding: $space-size;
+
+      clamp box {
+        margin: 0;
+        border-spacing: 0;
+      }
+
+      .icon-ui-labels-box {
+        margin: 0 0 $space-size * 2;
+        border-spacing: 0;
+      }
+
+      .dim-label {
+        border-spacing: 0;
+      }
+    }
+  }
+}
+
+#NautilusQueryEditor {
+  // search entry
+  border-radius: $circular-radius;
+  padding: 0 ($medium-size - $menuitem-size) / 2 0 ($space-size + 2px);
+
+  > menubutton > button.image-button {
+    min-width: $menuitem-size;
+    min-height: $menuitem-size;
+    padding: 0;
+    margin: ($medium-size - $menuitem-size) / 2 0;
+  }
+
+  > * {
+    margin: 0;
+  }
+}
+
+#NautilusPathBar {
+  background-color: $fill;
+  border-radius: $circular-radius;
+
+  #NautilusPathButton {
+    margin: 0 $space-size / 2;
+    border-radius: $circular-radius;
+
+    &.current-dir {
+      color: $text;
+
+      &:hover, &:active {
+        background: none;
+        box-shadow: none;
+      }
+    }
+
+    &:first-child {
+      margin-left: 0;
+    }
+  }
+
+  > menubutton > button {
+    border-radius: $circular-radius;
+  }
+}
+
+#NautilusQueryEditorTag {
+  border-radius: $circular-radius;
+
+  > button {
+    margin: $space-size / 2;
+    padding: 0;
+    min-height: $small-size - 2px;
+    min-width: $small-size - 2px;
+  }
+}
+
+#NautilusFileChooser {
+  .content-pane {
+    background-color: $base;
+  }
+}
+
+//
+// Gnome Control Center
+//
+
+window.dialog {
+  > box > stack > box > box {
+    > notebook.frame {
+      border-width: 0 0 0 1px;
+      border-radius: 0;
+    }
+  }
+}
+
+// leaflet
+window > contents {
+  leaflet {
+    background-color: transparent;
+
+    stack.background {
+      background-color: transparent;
+    }
+
+    &.unfolded {
+
+      stack.background leaflet box:last-child > headerbar,
+      stack.background leaflet + headerbar {
+        border-top-left-radius: 0;
+      }
+
+      > separator + box > headerbar {
+        border-top-right-radius: 0;
+      }
+    }
+
+    > box > scrolledwindow > viewport > widget > stack {
+      background-color: $base;
+    }
+  }
+}
+
+window > widget {
+  leaflet {
+    background-color: transparent;
+
+    stack.background {
+      background-color: transparent;
+    }
+
+    &.unfolded {
+      stack.background > widget > overlay > leaflet > box > headerbar, // Control display header
+
+      stack.background > widget > box > widget > headerbar,
+      > box:not(:last-child) headerbar {
+        // Calendar and Builder right header
+        border-top-left-radius: 0;
+      }
+
+      > separator + box > headerbar {
+        // Calendar and control left header
+        border-top-right-radius: 0;
+      }
+    }
+
+    > box > scrolledwindow > viewport > widget > stack {
+      background-color: $base;
+    }
+  }
+}
+
+//
+// Gnome Tweaks
+//
+
+.tweak-titlebar-left + separator {
+  background-color: $titlebar;
+
+  &:backdrop {
+    background-color: $titlebar-backdrop;
+  }
+}
+
+//
+// Gnome Clocks
+//
+
+.large-button {
+  padding: $space-size;
+}
+
+// alarms
+.alarm-time {
+  font-size: 2.5em;
+  font-weight: 300;
+}
+
+.clocks-ampm-toggle-button,
+.clocks-secondary-standalone-label {
+  font-size: 18pt;
+}
+
+.clocks-standalone-label,
+.clocks-ringing-label {
+  font-size: 6em;
+  font-weight: 300;
+}
+
+.clocks-ringing-title {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.clocks-alarm-setup-time {
+  font-size: 32pt;
+}
+
+// Timer Panel
+.clocks-timer-label,
+.clocks-spinbutton {
+  font-size: 48pt;
+}
+
+// disguise insensitive spinbuttons as normal labels
+.timer-panel .timer-header {
+  font-size: 20pt;
+  font-weight: 300;
+}
+
+.timer-countdown {
+  font-size: 40pt;
+  font-weight: 300;
+}
+
+/* Stopwatch Panel */
+.lap-time {
+  font-weight: bold;
+}
+
+.stopped-stopwatch label,
+.running-stopwatch label,
+.paused-stopwatch label {
+  font-size: 70px;
+  font-weight: lighter;
+}
+
+.stopped-stopwatch .seconds-label {
+  font-weight: 300;
+}
+
+.running-stopwatch .seconds-label,
+.running-stopwatch .miliseconds-label {
+  color: $primary;
+}
+
+.stopped-stopwatch .miliseconds-label,
+.running-stopwatch .miliseconds-label,
+.paused-stopwatch .miliseconds-label {
+  font-size: 50px;
+}
+
+.running-stopwatch .seconds-label,
+.paused-stopwatch .seconds-label {
+  font-weight: 300;
+}
+
+// World
+.clock-location {
+  font-weight: bolder;
+}
+
+.hidden {
+  opacity: 0;
+}
+
+.clock-time {
+  font-size: 2em;
+  padding: 0.2em 0.5em;
+  border-radius: 1em;
+}
+
+.none .clock-time {
+  background: gtkalpha(currentColor, 0.2);
+}
+
+.night .clock-time {
+  color: $blue-dark;
+  background-color: gtkalpha($blue-light, 0.25);
+}
+
+.naut .clock-time,
+.astro .clock-time {
+  color: $orange-dark;
+  background-color: gtkalpha($orange-light, 0.25);
+}
+
+.civil .clock-time,
+.day .clock-time {
+  color: $yellow-dark;
+  background: gtkalpha($yellow-light, 0.25);
+}
+
+//
+// Contacts
+//
+
+.contacts-contact-list list.navigation-sidebar {
+  background: none;
+}
+
+window > contents leaflet {
+  &.unfolded {
+    > box.vertical > headerbar {
+      border-top-left-radius: 0;
+    }
+  }
+}
+
+//
+// Calculator
+//
+
+.history-view {
+  background-color: $base;
+}
+
+#displayitem {
+  border-top: 1px solid $border;
+}
+
+.small .card {
+  border-radius: 0;
+  box-shadow: none;
+
+  &.forecast-card {
+    border-width: 1px 0;
+  }
+
+  &.display-container {
+    border-width: 0 0 1px 0;
+  }
+}
+
+leaflet {
+  button.number-button {
+    background-color: rgba($text, 0.1);
+
+    &:hover {
+      background-color: rgba($text, 0.2);
+    }
+
+    &:active {
+      background-color: rgba($text, 0.3);
+    }
+  }
+
+  button.clear-button.image-button {
+    border-radius: $corner-radius;
+  }
+}
+
+//
+// Calendar
+//
+
+// labels
+label {
+  &.primary-label, &.month-name, &.secondary-label {
+    font-size: 16pt;
+    font-weight: bold;
+    padding: $space-size * 2;
+  }
+
+  &.primary-label, &.month-name {
+    color: $primary;
+  }
+
+  &.secondary-label {
+    color: $text-disabled;
+  }
+}
+
+calendar-view {
+  font-size: 10pt;
+
+  &:selected {
+    color: $primary;
+    font-weight: bold;
+  }
+}
+
+calendar-view.header,
+label.header {
+  font-size: 10pt;
+  font-weight: bold;
+  color: $text-disabled;
+}
+
+calendar-view.current,
+weekgrid.current {
+  background-color: gtkalpha($primary, 0.3);
+}
+
+popover.events {
+  background-color: $popover;
+  padding: 0;
+
+  box {
+    border-top-left-radius: $corner-radius;
+    border-top-right-radius: $corner-radius;
+  }
+
+  list {
+    background-color: $base;
+    border-radius: $corner-radius;
+  }
+
+  scrolledwindow {
+    border-width: 0;
+  }
+
+  button {
+    border-radius: $corner-radius;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-style: solid none none;
+    box-shadow: none;
+  }
+}
+
+// Event widget
+event {
+  margin: 1px;
+  font-size: 0.9rem;
+
+  widget.content {
+    margin: 4px;
+  }
+
+  weekgrid > & {
+    margin: 5px 4px 0 3px;
+  }
+
+  &.timed,
+  &:not(.slanted):not(.slanted-start):not(.slanted-end) {
+    border-radius: $menuitem-radius;
+  }
+
+  &.timed widget.edge {
+    border-radius: $menuitem-radius;
+    min-width: 5px;
+  }
+
+  &.slanted-start,
+  &.slanted-end:dir(rtl) {
+    padding-left: $space-size * 2 + 4px;
+    border-radius: 0 $menuitem-radius $menuitem-radius 0;
+  }
+
+  &.slanted-end,
+  &.slanted-start:dir(rtl) {
+    padding-right: $space-size * 2 + 4px;
+    border-radius: $menuitem-radius 0 0 $menuitem-radius;
+  }
+
+  &:not(.timed).color-dark {
+    color: white;
+    outline-color: rgba(0, 0, 0, 0.3);
+  }
+
+  &:not(.timed).color-light {
+    color: gtkalpha(black, 0.75);
+    outline-color: rgba(255, 255, 255, 0.5);
+  }
+
+  &.timed {
+    color: $text-secondary;
+  }
+}
+
+// Event Popover
+popover.event-popover,
+popover.event-popover > contents {
+  padding: 0;
+}
+
+.search-viewport {
+  background-color: $base;
+}
+
+// calendar popover
+.calendar-list {
+  background-color: transparent;
+
+  > list {
+    border-radius: 4px;
+  }
+}
+
+// defeats the ugly hover effect of the calendar color dot on buttons
+.calendar-color-image {
+  -gtk-icon-filter: none;
+}
+
+// adds a subtle shadow to the calendar color dot when it makes sense
+image.calendar-color-image,
+button:active:not(:backdrop) .calendar-color-image,
+button:checked:not(:backdrop) .calendar-color-image,
+.calendars-list .calendar-color-image:not(:backdrop):not(:disabled),
+.calendar-list .calendar-color-image:not(:backdrop):not(:disabled),
+.sources-button:not(:backdrop):not(:disabled) .calendar-color-image {
+  -gtk-icon-shadow: 0 1px gtkalpha(black, 0.1);
+}
+
+// Date chooser
+
+// month/year controls
+datechooser {
+  padding: $space-size;
+
+  .current-week {
+    // Month selector
+    background-color: $fill;
+    color: $text;
+    border-radius: $corner-radius;
+  }
+
+  navigator {
+    // add some space between the two controls
+    margin-right: $space-size;
+    margin-left: $space-size;
+    margin-bottom: $space-size;
+  }
+
+  navigator {
+    label {
+      font-weight: bold;
+    }
+
+    button, button.popup, button.image-button {
+      min-height: $medium-size;
+      min-width: $medium-size;
+      padding: 0;
+    }
+  }
+
+  // day names and week numbers
+  .weeknum, .weekday {
+    color: $text-disabled;
+    font-size: smaller;
+  }
+
+  .sidebar-pane & {
+    .current-week {
+      // Month selector
+      background-color: $titlebar-fill;
+      color: $titlebar-text;
+    }
+
+    .weeknum, .weekday {
+      color: $titlebar-text-disabled;
+    }
+  }
+
+  // days
+  button.day, button.day.text-button {
+    font-size: 10pt;
+    font-weight: normal;
+    margin: $space-size / 2;
+    padding: 0;
+    min-height: $medium-size;
+    min-width: $medium-size;
+    transition: none;
+
+    dot {
+      background-color: $text;
+      border-radius: 50%;
+      min-height: $space-size / 2;
+      min-width: $space-size / 2;
+    }
+
+    &:selected, &.today:selected {
+      background-color: $primary;
+      color: $primary-text;
+      font-weight: bold;
+
+      dot {
+        background-color: $primary-text;
+      }
+    }
+
+    &.today {
+      color: $primary;
+
+      dot {
+        background-color: $primary;
+      }
+    }
+
+    &.other-month {
+
+      &:not(:hover),
+      &:backdrop {
+        color: $text-secondary-disabled;
+
+        dot {
+          background-color: $text-secondary-disabled;
+        }
+      }
+    }
+  }
+}
+
+// Week View CSS
+.week-header {
+  padding: 0;
+
+  & > box:first-child {
+    border-bottom: 1px solid $border;
+  }
+
+  .week-number {
+    font-size: 16pt;
+    font-weight: bold;
+    padding: $space-size * 2 $space-size * 2 $space-size * 3 $space-size * 2;
+    color: $track;
+  }
+
+  &.week-temperature {
+    font-size: 10pt;
+    font-weight: bold;
+    color: $text-disabled;
+  }
+
+  &.lines {
+    color: $border;
+  }
+}
+
+weekhourbar > label {
+  font-size: 10pt;
+  padding: 4px $space-size;
+}
+
+.week-view .lines {
+  color: $border;
+}
+
+weekgrid > widget.now-strip {
+  background-color: gtkalpha($primary, 0.8);
+  margin: 0 0 0 1px;
+  min-height: 3px;
+}
+
+weekgrid,
+.week-header {
+  &:selected, &.dnd {
+    background-color: gtkalpha($primary, 0.25);
+  }
+}
+
+// Month cell
+monthcell {
+  border: solid 1px $border;
+  border-width: 1px 0 0 1px;
+  background-color: transparent;
+  transition: background-color 200ms;
+
+  &:hover:not(.out-of-month):not(.today) {
+    background-color: $base-alt;
+    transition: background-color 200ms;
+    color: $text;
+  }
+
+  &:selected {
+    background-color: gtkalpha($primary, 0.1);
+
+    &:hover {
+      background-color: gtkalpha($primary, 0.2);
+    }
+
+    label.day-label {
+      font-weight: bold;
+    }
+  }
+
+  &:nth-child(7n + 1) {
+    border-left-width: 0;
+  }
+
+  &.today {
+    background-color: gtkalpha($primary, 0.2);
+
+    &:hover {
+      background-color: gtkalpha($primary, 0.3);
+      color: $primary;
+    }
+
+    &:selected {
+      background-color: gtkalpha($primary, 0.25);
+
+      &:hover {
+        background-color: gtkalpha($primary, 0.35);
+      }
+    }
+  }
+
+  label {
+    color: $text;
+    font-size: 0.9rem;
+
+    &.day-label {
+      font-size: 1rem;
+    }
+  }
+
+  &.out-of-month {
+    background-color: $fill;
+
+    label {
+      color: $text-secondary;
+    }
+  }
+
+  button {
+    padding: 0 $space-size;
+    border-radius: 0;
+    border-bottom: none;
+    border-right: none;
+  }
+}
+
+// Month popover
+monthpopover > box {
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+}
+
+.notes-section box > textview {
+  border-radius: $corner-radius;
+  padding: $space-size;
+
+  > text {
+    background: none;
+  }
+}
+
+// Agenda View CSS
+agenda-view list {
+  > row {
+    padding: 2px $space-size * 2;
+  }
+
+  > label {
+    padding: $space-size $space-size * 2;
+  }
+}
+
+label.no-events {
+  font-style: italic;
+}
+
+// Search
+searchbutton > popover > arrow {
+  background: none;
+  border: none;
+}
+
+menubutton {
+  &.sources-button {
+    margin-top: 0;
+    margin-bottom: 0;
+    border-radius: 0;
+    border-top-style: none;
+    border-bottom-style: none;
+
+    &:hover:not(:backdrop) {
+      background-image: none;
+      text-shadow: none;
+    }
+
+    > button {
+      border-radius: 0;
+
+      .title {
+        font-size: 10pt;
+        font-weight: normal;
+        padding: 0 $space-size;
+      }
+
+      .subtitle {
+        font-size: 8pt;
+        padding: 0 $space-size;
+      }
+
+      .calendar-color-image {
+        -gtk-icon-size: 12px;
+      }
+    }
+  }
+
+  stack > box {
+    border-spacing: $space-size;
+  }
+
+  .topbar headerbar &.sources-button {
+    > button {
+      border-radius: 0 0 $corner-radius $corner-radius;
+    }
+  }
+}
+
+agenda-view > scrolledwindow > viewport > list.background {
+  background-color: transparent;
+}
+
+//
+// Gnome Software
+//
+
+flowboxchild {
+  &.card:not(.category-tile) {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    background: none;
+  }
+}
+
+.card {
+  &.category-tile {
+    padding: $space-size * 3.5;
+    border: none;
+    border-radius: $corner-radius;
+    box-shadow: 0 2px 6px rgba(black, 0.1);
+  }
+
+  &.category-tile-iconless {
+    padding: $space-size * 1.5 $space-size * 2.5;
+    box-shadow: none;
+    background-color: $button;
+    @extend %button-flat-simple;
+  }
+}
+
+app-context-bar {
+  > box:not(:first-child) > button.flat {
+    border-radius: 0;
+
+    &:last-child {
+      border-radius: 0 $corner-radius $corner-radius 0;
+    }
+  }
+
+  > box:first-child > button.flat {
+    border-radius: 0;
+
+    &:first-child {
+      border-radius: $corner-radius 0 0 $corner-radius;
+    }
+  }
+
+  > box > button.flat {
+    border-left-color: $border;
+  }
+}
+
+carousel.card {
+  border: none;
+}
+
+.context-tile-lozenge {
+  min-height: 28px;
+  min-width: 28px;
+  padding: $space-size;
+  margin: $space-size;
+
+  &.grey {
+    color: $text;
+    background-color: $divider;
+  }
+
+  &.green, &.details-rating-0 {
+    color: darken($success, 15%);
+    background-color: rgba($success, 0.15);
+  }
+
+  &.blue,
+  &.details-rating-5 {
+    color: $blue-dark;
+    background-color: rgba($blue-dark, 0.15);
+  }
+
+  &.yellow, &.details-rating-12 {
+    color: darken($warning, 15%);
+    background-color: rgba($warning, 0.15);
+  }
+
+  &.details-rating-15 {
+    color: $orange-dark;
+    background-color: rgba($orange-dark, .15);
+  }
+
+  &.red, &.details-rating-18 {
+    color: darken($error, 15%);
+    background-color: rgba($error, 0.15);
+  }
+}
+
+screenshot-carousel box.frame.view {
+  border-width: 1px 0;
+  border-radius: 0;
+}
+
+/* Styling for specific category buttons. */
+.category-tile.category-create {
+  background: linear-gradient(180deg, #ce8cd7 0%, #2861c6 100%);
+  color: white;
+
+  &:hover {
+    background: linear-gradient(180deg, shade(#ce8cd7, 1.07) 0%, shade(#2861c6, 1.1) 100%);
+  }
+
+  &:active {
+    background: linear-gradient(180deg, shade(#ce8cd7, .95) 0%, shade(#2861c6, .95) 100%);
+  }
+}
+
+.category-tile.category-develop {
+  background: #5e5c64;
+  color: white;
+
+  &:hover {
+    background: shade(#5e5c64, 1.2);
+  }
+
+  &:active {
+    background-color: shade(#5e5c64, .95);
+  }
+}
+
+.category-tile.category-learn {
+  background: linear-gradient(180deg, #2ec27e 30%, #27a66c 100%);
+  color: white;
+
+  &:hover {
+    background: linear-gradient(180deg, shade(#2ec27e, 1.06) 30%, shade(#27a66c, 1.06) 100%);
+  }
+
+  &:active {
+    background: linear-gradient(180deg, shade(#2ec27e, .95) 30%, shade(#27a66c, .95) 100%);
+  }
+}
+
+.category-tile.category-play {
+  background: linear-gradient(75deg, #f9e2a7 0%, #eb5ec3 50%, #6d53e0 100%);
+  color: #393484;
+
+  &:hover {
+    background: linear-gradient(75deg, shade(#f9e2a7, 1.07) 0%, shade(#eb5ec3, 1.07) 50%, shade(#6d53e0, 1.07) 100%);
+  }
+
+  &:active {
+    background: linear-gradient(75deg, shade(#f9e2a7, .97) 0%, shade(#eb5ec3, .95) 50%, shade(#6d53e0, 1.07) 100%);
+  }
+}
+
+.category-tile.category-socialize {
+  background: linear-gradient(90deg, #ef4e9b 0%, #f77466 100%);
+  color: $text-secondary;
+
+  &:hover {
+    background: linear-gradient(90deg, shade(#ef4e9b, 1.08) 0%, shade(#f77466, 1.08) 100%);
+  }
+
+  &:active {
+    background: linear-gradient(90deg, shade(#ef4e9b, .95) 0%, shade(#f77466, .95) 100%);
+  }
+}
+
+.category-tile.category-work {
+  padding: 1px;
+  /* FIXME: work around https://gitlab.gnome.org/GNOME/gtk/-/issues/4324 */
+  color: #1c71d8;
+  background-color: #fdf8d7;
+  background-image: linear-gradient($border 1px, transparent 1px),
+    linear-gradient(90deg, $border 1px, transparent 1px);
+  background-size: 10px 10px, 10px 10px;
+  background-position: -1px -4px, center -1px;
+
+  &:hover {
+    background-color: lighten(#fdf8d7, 5%);
+    background-image: linear-gradient($border 1px, transparent 1px),
+      linear-gradient(90deg, $border 1px, transparent 1px);
+  }
+
+  &:active {
+    background-color: darken(#fdf8d7, 5%);
+    background-image: linear-gradient($border 1px, transparent 1px),
+      linear-gradient(90deg, $border 1px, transparent 1px);
+  }
+}
+
+//
+// Gnome Weather
+//
+
+@define-color weather_temp_chart_fill_color #{rgba($warning, 0.5)};
+@define-color weather_temp_chart_stroke_color #{darken($warning, 10%)};
+@define-color weather_thermometer_warm_color #{if($variant == 'light', $yellow-dark, $yellow-light)};
+@define-color weather_thermometer_cold_color #{if($variant == 'light', $blue-dark, $blue-light)};
+
+$weather_thermometer_high_color: $yellow-light;
+$weather_thermometer_low_color: $blue-light;
+$weather_forecast_color: darken($warning, 10%);
+
+#places-label {
+  font-weight: bold;
+}
+
+#temperature-label {
+  font-size: 32pt;
+  font-weight: 900;
+  margin-left: 9px;
+}
+
+#conditions-grid *:backdrop {
+  color: $text-secondary;
+}
+
+.content-view.cell {
+  font-weight: bold;
+}
+
+#locationEntry {
+  margin: 0;
+  padding-bottom: $space-size;
+}
+
+.weather-popover {
+  margin-top: $space-size;
+}
+
+.forecast-card {
+  transition: border-radius 100ms ease-out;
+  border-radius: $corner-radius;
+}
+
+.forecast-card separator {
+  background-color: $border;
+}
+
+#daily-forecast-box {
+  > separator:last-child {
+    background-color: transparent;
+    min-width: 0;
+  }
+}
+
+#conditions-grid,
+#attributionGrid {
+  margin-left: $space-size * 3;
+  margin-right: $space-size * 3;
+}
+
+#weather-page .small .forecast-card {
+  margin-left: 0;
+  margin-right: 0;
+  border-radius: 0;
+  border-width: 1px 0;
+}
+
+.forecast-temperature-label {
+  font-weight: bold;
+  color: $weather_forecast_color;
+}
+
+WeatherThermometer {
+  margin-bottom: $space-size * 2;
+}
+
+WeatherThermometer > label.high {
+  font-weight: bold;
+  color: $weather_thermometer_high_color;
+}
+
+WeatherThermometer > label.low {
+  font-weight: bold;
+  color: $weather_thermometer_low_color;
+}
+
+.forecast-button {
+  margin: 0 $space-size * 2;
+}
+
+.forecast-graphic {
+  margin: $space-size * 3;
+}
+
+button.osd.circular {
+  border-radius: $circular-radius;
+  min-width: $small-size;
+  min-height: $small-size;
+}
+
+button.osd.circular > image {
+  padding: 0;
+}
+
+scrolledwindow.inline list,
+scrolledwindow.inline listview {
+  background: none;
+  color: inherit;
+}
+
+scrolledwindow.inline undershoot.top {
+  box-shadow: inset 0 1px $border;
+}
+
+.search-view {
+  background-color: $blue-dark;
+  color: on($blue-dark);
+}
+
+.search-view menubutton button:focus:focus-visible {
+  outline-color: rgba(white, 0.3);
+}
+
+image.circular {
+  min-width: $medium-size;
+  min-height: $medium-size;
+  padding: 0;
+  border-radius: $circular-radius;
+}
+
+//
+// Polari
+//
+.polari-room-list {
+  .sidebar {
+    background: none;
+
+    > row.activatable:selected {
+      background-color: $primary;
+      color: $primary-text;
+    }
+  }
+
+  popover.background {
+
+    > arrow,
+    > contents {
+      padding: 0;
+    }
+  }
+}
+
+//
+// Builder
+//
+
+window.org-gnome-Builder {
+  headerbar {
+    splitbutton {
+      notification button {
+        margin: 0;
+        min-height: $small-size;
+        min-width: $small-size;
+        padding: 0;
+      }
+    }
+  }
+}
+
+popover.background.global-search {
+
+  > arrow,
+  > contents {
+    padding: 0;
+  }
+}
+
+panelframeswitcher {
+  padding: $space-size;
+  border-bottom: 1px solid $border;
+}
+
+panelframetabbar {
+  border-bottom: none;
+}
+
+.frameheader.header {
+  min-height: $small-size;
+  background-color: $fill;
+
+  > button {
+    border: none;
+    margin: 0;
+    padding: $space-size / 2;
+  }
+
+  tabbar.inline {
+    > revealer > box {
+      min-height: $small-size;
+
+      .start-action {
+        padding: 0;
+        border: none;
+      }
+
+      .end-action {
+        padding: 0;
+        border-left: 1px solid $border;
+
+        menubutton > button {
+          margin: $space-size / 2;
+          min-height: $small-size;
+          min-width: $small-size;
+          padding: $space-size;
+          border-radius: $corner-radius;
+        }
+      }
+
+      tabbox {
+        border: none;
+        background: none;
+      }
+    }
+  }
+}
+
+// panelframe {
+//   tabview > stack {
+//     background-color: $fill;
+//
+//     textview.sourceview.view {
+//       background-color: $fill;
+//     }
+//   }
+// }
+
+panelstatusbar {
+  background-color: $background;
+
+  > menubutton > button,
+  > paneltogglebutton button.image-button {
+    border-radius: 0;
+  }
+}
+
+// Setting window
+.style-variant {
+  padding: 0 $space-size * 2;
+
+  button.toggle {
+    padding: 0;
+
+    &, &:hover, &:focus, &:active, &:checked {
+      background: none;
+      outline: none;
+      border: none;
+      box-shadow: none;
+    }
+
+    > stylevariantpreview > .wallpaper {
+      border-radius: $corner-radius;
+      outline-color: transparent;
+      outline-width: 3px;
+      outline-offset: $space-size / 2;
+      outline-style: solid;
+      box-shadow: none;
+    }
+
+    &:hover > stylevariantpreview > .wallpaper {
+      outline-color: $fill;
+    }
+
+    &:active > stylevariantpreview > .wallpaper {
+      outline-color: $track;
+    }
+
+    &:checked > stylevariantpreview > .wallpaper {
+      outline-color: $primary;
+    }
+  }
+}
+
+//
+// dialogs
+//
+
+window.dialog {
+  > .dialog-vbox > box > scrolledwindow > viewport > widget {
+    > list.boxed-list {
+      border: none;
+      border-radius: 0;
+
+      > row {
+        &:first-child, &:last-child {
+          border-radius: 0;
+        }
+      }
+    }
+  }
+}
+
+//
+// Extensions
+//
+
+popover.details-popover {
+  > contents {
+    padding: $space-size * 2;
+  }
+}
+
+//
+// Rnote
+//
+
+@function gtkcolor($c) {
+  @return unquote("@#{$c}");
+}
+
+button.colorpad {
+  padding: 0px;
+  margin: 0px;
+  background-blend-mode: screen;
+  background-image: linear-gradient(45deg, #0f0f0f55 25%, transparent 25%, transparent 75%, #0f0f0f55 75%, #0f0f0f55),
+    linear-gradient(45deg, #0f0f0f55 25%, transparent 25%, transparent 75%, #0f0f0f55 75%, #0f0f0f55);
+  background-color: gtkcolor(colorpad_color);
+  color: gtkcolor(colorpad_fg_color);
+  background-size: 18px 18px;
+  background-position: 0px 0px, 9px 9px;
+
+  &:hover {
+    filter: brightness(93%);
+  }
+
+  &:active {
+    filter: brightness(86%);
+  }
+
+  &:checked {
+    filter: brightness(100%);
+  }
+}
+
+window#desktopwindow {
+  background: none;
+}
+
+// ThemeSelector
+themeselector, // Gnome text editor
+
+panelthemeselector {
+  // Gnome builder
+  margin: $space-size * 1.5;
+
+  checkbutton {
+    padding: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 1px;
+    background-clip: content-box;
+    border-radius: $circular-radius;
+    box-shadow: inset 0 0 0 1px $border;
+
+    &.follow:checked,
+    &.light:checked,
+    &.dark:checked {
+      box-shadow: inset 0 0 0 2px $primary;
+    }
+
+    &.follow {
+      background-image: linear-gradient(to bottom right, #ffffff 50%, #202020 50%);
+    }
+
+    &.light {
+      background-color: #ffffff;
+    }
+
+    &.dark {
+      background-color: #202020;
+    }
+
+    &.theme-selector radio {
+      -gtk-icon-source: none;
+      border: none;
+      background: none;
+      box-shadow: none;
+      min-height: 20px;
+      min-width: 20px;
+      padding: 0;
+      margin: 0;
+
+      &:hover, &:active, &:checked {
+        background-color: transparent;
+        background-image: none;
+      }
+
+      &:checked {
+        -gtk-icon-size: 20px;
+        -gtk-icon-source: -gtk-scaled(-gtk-recolor(url("assets/scalable/select-symbolic.svg")), -gtk-recolor(url("assets/scalable/select-symbolic@2.svg")));
+        color: $primary-text;
+        background-color: $primary;
+
+        &, &:hover, &:active {
+          box-shadow: 0 2px 3px -1px rgba(black, 0.08), 0 1px 2px 0 rgba(black, 0.1);
+        }
+      }
+    }
+  }
+}
+
+themeswitcher {
+  // Gnome console
+  padding: $space-size;
+
+  .check {
+    min-height: 20px;
+    min-width: 20px;
+    background: none;
+    padding: 0;
+    margin: 0;
+    border-radius: $circular-radius;
+    color: $primary-text;
+    background-color: $primary;
+
+    &, &:hover, &:active {
+      box-shadow: 0 2px 3px -1px rgba(black, 0.08), 0 1px 2px 0 rgba(black, 0.1);
+    }
+  }
+
+  checkbutton {
+    padding: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 1px;
+    background-clip: content-box;
+    border-radius: $circular-radius;
+    box-shadow: inset 0 0 0 1px $border;
+
+    &:checked {
+      box-shadow: inset 0 0 0 2px $primary;
+    }
+
+    radio {
+      &, &:hover, &:active, &:checked, &:checked:hover, &:checked:active {
+        background-color: transparent;
+        border: none;
+        background: none;
+        box-shadow: none;
+        color: transparent;
+        -gtk-icon-source: none;
+        -gtk-icon-size: 0;
+      }
+    }
+
+    &.system {
+      background: linear-gradient(-45deg, #1e1e1e 50%, white 50%);
+    }
+
+    &.light {
+      color: gtkalpha(black, .8);
+      background-color: white;
+    }
+
+    &.dark {
+      color: white;
+      background-color: #1e1e1e;
+    }
+  }
+}
+
+// Sticky note
+styleselector {
+  checkbutton {
+    padding: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+    background-clip: content-box;
+    border-radius: $circular-radius;
+    box-shadow: inset 0 0 0 1px $border;
+
+    &:hover {
+      box-shadow: inset 0 0 0 2px $border;
+    }
+
+    &:checked {
+      box-shadow: inset 0 0 0 2px $primary;
+    }
+
+    > radio {
+      min-height: 20px;
+      min-width: 20px;
+      padding: 0;
+      margin: 0;
+
+      &, &:hover, &:focus, &:not(:focus) {
+        color: transparent;
+        border: none;
+        background: none;
+        box-shadow: none;
+        -gtk-icon-source: none;
+        -gtk-icon-size: 0;
+      }
+
+      &:checked, &:active {
+        &, &:hover, &:focus, &:not(:focus) {
+          -gtk-icon-size: 20px;
+          -gtk-icon-source: -gtk-scaled(-gtk-recolor(url("assets/scalable/select-symbolic.svg")), -gtk-recolor(url("assets/scalable/select-symbolic@2.svg")));
+          color: $primary-text;
+          background-color: $primary;
+          box-shadow: 0 2px 3px -1px rgba(black, 0.08), 0 1px 2px 0 rgba(black, 0.1);
+        }
+      }
+    }
+  }
+}
+
+.note-window {
+  headerbar {
+    &, &:backdrop {
+      box-shadow: none;
+    }
+  }
+
+  &.style-yellow {
+    &, .text-view.view, .text-view.view > text, headerbar {
+      background-color: $yellow-light;
+      color: on($yellow-light);
+    }
+
+    * {
+      color: on($yellow-light);
+    }
+
+    .text-view.view > text > selection {
+      background-color: on($yellow-light, track);
+    }
+
+    popover {
+
+      > arrow,
+      > contents {
+        background-color: lighten($yellow-light, 10%);
+        color: on($yellow-light);
+      }
+    }
+  }
+
+  &.style-pink {
+    &, .text-view.view, .text-view.view > text, headerbar {
+      background-color: $pink-light;
+      color: on($pink-light);
+    }
+
+    * {
+      color: on($pink-light);
+    }
+
+    .text-view.view > text > selection {
+      background-color: on($pink-light, track);
+    }
+
+    popover {
+
+      > arrow,
+      > contents {
+        background-color: lighten($pink-light, 10%);
+        color: on($pink-light);
+      }
+    }
+  }
+
+  &.style-green {
+    &, .text-view.view, .text-view.view > text, headerbar {
+      background-color: $green-light;
+      color: on($green-light);
+    }
+
+    * {
+      color: on($green-light);
+    }
+
+    .text-view.view > text > selection {
+      background-color: on($green-light, track);
+    }
+
+    popover {
+
+      > arrow,
+      > contents {
+        background-color: lighten($green-light, 10%);
+        color: on($green-light);
+      }
+    }
+  }
+
+  &.style-purple {
+    &, .text-view.view, .text-view.view > text, headerbar {
+      background-color: $purple-light;
+      color: on($purple-light);
+    }
+
+    * {
+      color: on($purple-light);
+    }
+
+    .text-view.view > text > selection {
+      background-color: on($purple-light, track);
+    }
+
+    popover {
+
+      > arrow,
+      > contents {
+        background-color: lighten($purple-light, 10%);
+        color: on($purple-light);
+      }
+    }
+  }
+
+  &.style-blue {
+    &, .text-view.view, .text-view.view > text, headerbar {
+      background-color: $blue-light;
+      color: on($blue-light);
+    }
+
+    * {
+      color: on($blue-light);
+    }
+
+    .text-view.view > text > selection {
+      background-color: on($blue-light, track);
+    }
+
+    popover {
+
+      > arrow,
+      > contents {
+        background-color: lighten($blue-light, 10%);
+        color: on($blue-light);
+      }
+    }
+  }
+
+  &.style-gray {
+    &, .text-view.view, .text-view.view > text, headerbar {
+      background-color: $grey-500;
+      color: on($grey-500);
+    }
+
+    * {
+      color: on($grey-500);
+    }
+
+    .text-view.view > text > selection {
+      background-color: on($grey-500, track);
+    }
+
+    popover {
+
+      > arrow,
+      > contents {
+        background-color: lighten($grey-500, 10%);
+        color: on($grey-500);
+      }
+    }
+  }
+
+  &.style-charcoal {
+    &, .text-view.view, .text-view.view > text, headerbar {
+      background-color: #333333;
+      color: white;
+    }
+
+    * {
+      color: white;
+    }
+
+    .text-view.view > text > selection {
+      background-color: on(#333333, track);
+    }
+
+    popover {
+
+      > arrow,
+      > contents {
+        background-color: #444444;
+        color: white;
+      }
+    }
+  }
+}
+
+//
+// Chrome
+//
+
+window.background.chromium {
+  background-color: $base;
+
+  headerbar.header-bar.titlebar {
+    padding: 0 $space-size * 2;
+    background-color: $background;
+    color: $text;
+    border-radius: $window-radius $window-radius 0 0;
+    box-shadow: inset 0 1px 0 rgba(white, 0.1);
+    border: none;
+
+    &:backdrop {
+      background-color: $background;
+      color: $text-disabled;
+      box-shadow: inset 0 1px 0 rgba(white, 0.1);
+      border: none;
+    }
+
+    button.titlebutton {
+      min-height: $small-size;
+      min-width: $small-size;
+      margin: $space-size $space-size / 2;
+      padding: 0;
+    }
+  }
+}
+
+//
+// io.bassi.Amberol
+//
+
+.main-window {
+  background: linear-gradient(127deg, color-mix(in srgb, var(--background-color-0) 55%, transparent), color-mix(in srgb, var(--background-color-0) 0%, transparent) 70.71%),
+    linear-gradient(217deg, color-mix(in srgb, var(--background-color-1) 55%, transparent), color-mix(in srgb, var(--background-color-1) 0%, transparent) 70.71%),
+    linear-gradient(336deg, color-mix(in srgb, var(--background-color-2) 55%, transparent), color-mix(in srgb, var(--background-color-2) 0%, transparent) 70.71%);
+  transition-property: background;
+  transition-duration: 250ms;
+  transition-timing-function: ease;
+
+  .content-pane, .sidebar-pane {
+    &, &:backdrop {
+      background-color: transparent;
+    }
+  }
+}
+
+scrollbar,
+scrollbar.overlay-indicator {
+  border: none;
+
+  &,
+  &.dragging,
+  &.hovering {
+    background-color: transparent;
+  }
+}
+
+.main-window > overlay-split-view > widget.background > playlistview {
+  background: linear-gradient(127deg, color-mix(in srgb, var(--background-color-0) 55%, transparent), color-mix(in srgb, var(--background-color-0) 0%, transparent) 70.71%),
+    linear-gradient(217deg, color-mix(in srgb, var(--background-color-1) 55%, transparent), color-mix(in srgb, var(--background-color-1) 0%, transparent) 70.71%),
+    linear-gradient(336deg, color-mix(in srgb, var(--background-color-2) 55%, transparent), color-mix(in srgb, var(--background-color-2) 0%, transparent) 70.71%),
+    var(--window-bg-color);
+  transition-property: background;
+  transition-duration: 250ms;
+  transition-timing-function: ease;
+}
+
+.main-window volume > scale trough highlight {
+  background: color-mix(in srgb, var(--accent-bg-color) var(--dim-opacity), transparent);
+}
+
+.main-window songcover picture.cover {
+  background: linear-gradient(to bottom, var(--background-color-0), var(--background-color-1));
+}
+
+.drag-overlay-status-page {
+  background-color: color-mix(in srgb, var(--accent-bg-color) 50%, transparent);
+  color: var(--accent-fg-color);
+  padding: 32px;
+}

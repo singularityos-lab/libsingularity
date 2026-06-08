@@ -18,8 +18,14 @@ namespace Singularity.Style {
 
         private static StyleManager? _instance;
 
-        /** GTK theme name pinned for all Singularity surfaces (empty CSS theme). */
-        public const string BRAND_GTK_THEME = "Singularity";
+        /**
+         * GTK theme name pinned for all first-party Singularity surfaces. It is
+         * an empty CSS theme so the theme layer contributes nothing and styling
+         * comes solely from libsingularity's style.css (PRIORITY_USER). This is
+         * deliberately NOT the full "Singularity" theme, which is for
+         * third-party GTK apps; our surfaces must never inherit that base.
+         */
+        public const string BRAND_GTK_THEME = "SingularityShell";
         /**
          * Icon theme name pinned for all Singularity surfaces. It is an empty
          * theme that inherits Adwaita, so every icon (including symbolic ones)
@@ -42,9 +48,11 @@ namespace Singularity.Style {
          * Pins the GTK and icon themes to the Singularity brand themes and keeps
          * them pinned via notify guards.
          *
-         * The "Singularity" GTK theme ships empty CSS so GTK loads nothing from
-         * the theme layer, letting our embedded style.css win. The "Singularity"
-         * icon theme is an empty seam inheriting Adwaita. The notify guards stop the
+         * The pinned "SingularityShell" GTK theme ships empty CSS so GTK loads
+         * nothing from the theme layer, letting our embedded style.css win. (The
+         * full "Singularity" GTK theme, built from our tokens, is for third-party
+         * apps only.) The "Singularity" icon theme is an empty seam inheriting
+         * Adwaita. The notify guards stop the
          * Settings portal (the default settings source on Wayland) from resetting
          * either to hicolor/default, which would drop symbolic icons for coloured
          * fallbacks. Call this once, after Gtk has been initialised (e.g. from an

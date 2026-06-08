@@ -1,0 +1,43 @@
+// Singularity token overrides for the Orchis widget skeleton.
+//
+// Orchis supplies only the widget structure. Every colour role below is
+// reassigned to a Singularity token so third-party GTK apps match first-party
+// Singularity surfaces. The base values and the accent tint maths mirror
+// libsingularity's StyleManager (src/style/style_manager.vala apply_accent_color)
+// and the token files (src/style/style.dark.css / style.light.css): window and
+// frame surfaces carry an 8% accent tint, toolbars a 5% accent tint, exactly
+// like our own apps. Imported AFTER _colors so these win over Orchis defaults
+// and propagate into drawing/common/apps.
+
+$sg-accent: #3584e4 !default;
+
+$sg-base-bg:      if($variant == 'dark', #242424, #f6f5f4);
+$sg-toolbar-base: if($variant == 'dark', #1a1a1a, #e8e8e8);
+
+// mix($a, $b, $w) keeps $w of $a; mirrors _mix_hex(base, accent, factor).
+$sg-window-tint:  mix($sg-accent, $sg-base-bg, 8%);
+$sg-toolbar-tint: mix($sg-accent, $sg-toolbar-base, 5%);
+$sg-toolbar:      mix($sg-toolbar-tint, $sg-base-bg, 75%);
+
+$sg-text:         if($variant == 'dark', #ffffff, #1a1a1a);
+$sg-view:         $sg-base-bg;
+$sg-surface-mid:  if($variant == 'dark', #2a2a2a, #f0f0f0);
+$sg-surface-alt:  if($variant == 'dark', #303030, #ebebeb);
+
+// Accent
+$primary:                   $sg-accent;
+$primary-fixed:             $sg-accent;
+$drop_target_color:         $sg-accent;
+$suggested:                 $sg-accent;
+$link:                      $sg-accent;
+$check_radio_primary:       $sg-accent;
+
+// Surfaces
+$background:                 $sg-window-tint;
+$base:                       $sg-view;
+$base-alt:                   $sg-surface-mid;
+$surface:                    $sg-surface-alt;
+$titlebar:                   $sg-toolbar;
+$titlebar-backdrop:          if($variant == 'dark', darken($sg-toolbar, 3%), darken($sg-toolbar, 4%));
+$popover:                    $sg-surface-alt;
+$osd:                        $sg-surface-alt;
