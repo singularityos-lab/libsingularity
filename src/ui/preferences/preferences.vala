@@ -652,6 +652,11 @@ namespace Singularity.Widgets {
                 entry.grab_focus();
             });
         }
+
+        /** Focus the inner text entry rather than the row container. */
+        public override bool grab_focus() {
+            return entry.grab_focus();
+        }
     }
     /** An EntryRow with masked input and a reveal toggle button. */
     public class PasswordRow : EntryRow {
