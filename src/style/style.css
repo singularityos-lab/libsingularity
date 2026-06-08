@@ -638,6 +638,11 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
 .panel-window:not(.flat-panel) .notification-button label {
 }
 
+.panel .battery-percentage {
+    margin-left: 4px;
+    font-size: 0.85em;
+}
+
 .clock {
     font-weight: bold;
     font-size: 14px;
