@@ -11,6 +11,7 @@ namespace Singularity.Widgets {
      */
     public class ContextMenu : Popover {
         private Box content_box;
+        private Widget parent_widget;
 
         /**
          * Creates a new context menu attached to the given widget.
@@ -22,6 +23,7 @@ namespace Singularity.Widgets {
         private const int SHADOW_OFFSET = 10;
 
         public ContextMenu(Widget parent_widget) {
+            this.parent_widget = parent_widget;
             set_parent(parent_widget);
             has_arrow = false;
             content_box = new Box(Orientation.VERTICAL, 0);
@@ -50,6 +52,34 @@ namespace Singularity.Widgets {
             content_box.append(item);
         }
 
+        /**
+         * Appends a labelled item using a GIcon (e.g. an application icon)
+         * instead of a themed icon name. Mirrors the Files "Open With" rows.
+         */
+        public void add_item_gicon(string label, GLib.Icon? gicon, owned ClickedCallback callback) {
+            var btn = new Button();
+            btn.has_frame = false;
+            btn.add_css_class("flat");
+            btn.add_css_class("menu-row");
+            btn.halign = Align.FILL;
+            var hbox = new Box(Orientation.HORIZONTAL, 10);
+            hbox.halign = Align.START;
+            var ico = (gicon != null)
+                ? new Image.from_gicon(gicon)
+                : new Image.from_icon_name("application-x-executable-symbolic");
+            ico.pixel_size = 16;
+            hbox.append(ico);
+            var lbl = new Label(label);
+            lbl.halign = Align.START;
+            hbox.append(lbl);
+            btn.set_child(hbox);
+            btn.clicked.connect(() => {
+                popdown();
+                callback();
+            });
+            content_box.append(btn);
+        }
+
         /** Appends a horizontal separator between groups of items. */
         public void add_widget(Widget widget) {
             content_box.append(widget);
@@ -57,6 +87,28 @@ namespace Singularity.Widgets {
 
         public void add_separator() {
             content_box.append(new Separator(Orientation.HORIZONTAL));
+        }
+
+        /**
+         * Appends an item that opens a nested submenu when clicked.
+         *
+         * Returns the child ContextMenu so the caller can populate it with
+         * `add_item()` calls. The submenu opens at the same anchor as this menu.
+         */
+        public ContextMenu add_submenu(string label, string? icon_name) {
+            var sub = new ContextMenu(parent_widget);
+            var item = new MenuRow(label, icon_name);
+            item.halign = Align.FILL;
+            item.add_css_class("has-submenu");
+            item.clicked.connect(() => {
+                Gdk.Rectangle rect;
+                bool has_rect = get_pointing_to(out rect);
+                popdown();
+                if (has_rect) sub.set_pointing_to(rect);
+                sub.popup();
+            });
+            content_box.append(item);
+            return sub;
         }
         /** Callback type for context-menu item actions. */
         public delegate void ClickedCallback();
