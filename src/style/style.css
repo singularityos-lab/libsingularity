@@ -2580,7 +2580,7 @@ button.flat.menu-row label {
 }
 
 .singularity popover.context-menu>contents {
-    padding: 0;
+    padding: 4px;
 }
 
 .singularity popover.context-menu separator {
