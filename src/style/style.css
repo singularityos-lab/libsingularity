@@ -688,6 +688,11 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     transition: none;
 }
 
+.dock-box.dock-hiding {
+    transform: translateY(90px);
+    opacity: 0;
+}
+
 .dock-window:backdrop .dock-box,
 .dock-box:backdrop {
     background-color: @surface_overlay;
