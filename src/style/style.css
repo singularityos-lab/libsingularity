@@ -2364,7 +2364,7 @@ button.segmented-button.active:checked {
 }
 
 .singularity popover.global-menu-popover {
-    padding: 0;
+    padding: 4px;
 }
 
 .singularity popover {
@@ -2507,16 +2507,16 @@ popover .menu-row {
     box-shadow: none;
     outline: none;
     border-radius: 6px;
-    padding: 0 4px;
+    padding: 2px 8px;
     min-height: 28px;
-    min-width: 160px;
+    min-width: 180px;
     transition: background-color 0.1s;
 }
 
 /* Override GTK4 Adwaita default button padding with high specificity */
 .singularity popover.context-menu button.flat.menu-row,
 .singularity popover.context-menu .menu-row {
-    padding: 0 4px;
+    padding: 2px 8px;
     min-height: 28px;
 }
 
