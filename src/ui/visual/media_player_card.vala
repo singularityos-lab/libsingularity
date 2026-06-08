@@ -46,7 +46,6 @@ namespace Singularity.Widgets {
         private int64 _last_seek_us = 0;
         private string track_id = "";
         private string? last_art_url = null;
-        private GLib.Settings? desktop_settings;
         private string accent_hex = "#3584e4";
 
         /**
@@ -59,18 +58,11 @@ namespace Singularity.Widgets {
 
         public MediaPlayerCard() {
             Object(orientation: Orientation.VERTICAL, spacing: 0);
-            desktop_settings = Singularity.Core.safe_settings("dev.sinty.desktop");
             update_accent_color();
-            if (desktop_settings != null) {
-                desktop_settings.changed["accent-color"].connect(() => {
-                    update_accent_color();
-                    queue_draw();
-                });
-                desktop_settings.changed["custom-accent-color"].connect(() => {
-                    update_accent_color();
-                    queue_draw();
-                });
-            }
+            Singularity.Style.StyleManager.get_default().notify["accent-hex"].connect(() => {
+                update_accent_color();
+                queue_draw();
+            });
             add_css_class("media-player-card");
             overflow = Overflow.HIDDEN;
             // Hidden by default; shown only when a player is active.
@@ -332,24 +324,8 @@ namespace Singularity.Widgets {
         }
 
         private void update_accent_color() {
-            if (desktop_settings == null) return;
-            string name = desktop_settings.get_string("accent-color");
-            if (name == "custom" || name == "wallpaper") {
-                accent_hex = desktop_settings.get_string("custom-accent-color");
-                if (accent_hex == "") accent_hex = "#3584e4";
-                return;
-            }
-            switch (name) {
-                case "teal":   accent_hex = "#2190a4"; break;
-                case "green":  accent_hex = "#3a944a"; break;
-                case "yellow": accent_hex = "#c88800"; break;
-                case "orange": accent_hex = "#e66100"; break;
-                case "red":    accent_hex = "#e01b24"; break;
-                case "pink":   accent_hex = "#d56199"; break;
-                case "purple": accent_hex = "#9141ac"; break;
-                case "slate":  accent_hex = "#6f8396"; break;
-                default:        accent_hex = "#3584e4"; break;
-            }
+            string resolved = Singularity.Style.StyleManager.get_default().accent_hex;
+            accent_hex = (resolved != "") ? resolved : "#3584e4";
         }
 
         [DBus (name = "org.freedesktop.DBus")]

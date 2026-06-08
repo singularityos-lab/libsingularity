@@ -11,28 +11,13 @@ namespace Singularity.Core {
      */
     public class TerminalThemes : Object {
 
-        // Resolve the current accent color hex from GSettings
+        // Resolve the current accent color hex. StyleManager already resolves
+        // every accent mode (named, custom and wallpaper) into a single hex, so
+        // reuse it instead of re-deriving here (which used to break the
+        // "wallpaper" case by reading the empty custom-accent-color key).
         private static string get_accent_hex () {
-            try {
-                var s = safe_settings ("dev.sinty.desktop");
-                if (s == null) return "#3584e4";
-                string name = s.get_string ("accent-color");
-                // "custom" e "wallpaper" salvano entrambi il colore calcolato in custom-accent-color
-                if (name == "custom" || name == "wallpaper")
-                    return s.get_string ("custom-accent-color");
-                switch (name) {
-                    case "blue":   return "#3584e4";
-                    case "teal":   return "#2190a4";
-                    case "green":  return "#3a944a";
-                    case "yellow": return "#c88800";
-                    case "orange": return "#e66100";
-                    case "red":    return "#e01b24";
-                    case "pink":   return "#d56199";
-                    case "purple": return "#9141ac";
-                    case "slate":  return "#6f8396";
-                    default:       return "#3584e4";
-                }
-            } catch { return "#3584e4"; }
+            string hex = Singularity.Style.StyleManager.get_default ().accent_hex;
+            return (hex != "") ? hex : "#3584e4";
         }
 
         // Mix accent with black for a dark-mode background.
