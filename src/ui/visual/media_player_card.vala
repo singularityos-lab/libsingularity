@@ -43,6 +43,7 @@ namespace Singularity.Widgets {
         private uint _signal_sub_id = 0;
         private uint _poll_timer_id = 0;
         private int64 track_length_us = 0;
+        private int64 _last_seek_us = 0;
         private string track_id = "";
         private string? last_art_url = null;
         private GLib.Settings? desktop_settings;
@@ -164,6 +165,7 @@ namespace Singularity.Widgets {
             progress_scale.sensitive = false;
             progress_scale.change_value.connect((scroll, value) => {
                 if (player_proxy != null && track_length_us > 0) {
+                    _last_seek_us = GLib.get_monotonic_time();
                     int64 pos_us = (int64)(value.clamp(0.0, 1.0) * track_length_us);
                     seek_to(pos_us);
                 }
@@ -467,21 +469,22 @@ namespace Singularity.Widgets {
                 } else {
                     play_btn.icon_name = "media-playback-start-symbolic";
                 }
+                prev_btn.sensitive = (player != null && player.can_go_previous);
+                next_btn.sensitive = (player != null && player.can_go_next);
                 // Show widget only when a track is actively playing or paused
                 // (unless `always_visible` is on - used by the overview widget,
                 // which renders its own slot regardless of media state).
                 this.visible = always_visible || (status == "Playing" || status == "Paused");
                 if (art_url != "") {
                     load_cover(art_url);
-                } else {
-                    last_art_url = null;
-                    cover_stack.visible_child_name = "icon";
                 }
                 // Update progress bar
                 if (track_length_us > 0) {
-                    double fraction = (double)pos_us / (double)track_length_us;
-                    progress_scale.set_value(fraction.clamp(0.0, 1.0));
-                    time_current_label.label = format_time(pos_us);
+                    if (GLib.get_monotonic_time() - _last_seek_us > 1500000) {
+                        double fraction = (double)pos_us / (double)track_length_us;
+                        progress_scale.set_value(fraction.clamp(0.0, 1.0));
+                        time_current_label.label = format_time(pos_us);
+                    }
                     time_total_label.label = format_time(track_length_us);
                     progress_scale.sensitive = true;
                 } else {
