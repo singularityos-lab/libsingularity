@@ -52,7 +52,7 @@ namespace Singularity.Widgets {
         private bool _menu_attached = false;
 
         private void _setup_text (Gtk.Text text) {
-            text.xalign = 0.10f;
+            text.margin_start = 6;
             if (!_menu_attached) {
                 _menu_attached = true;
                 ContextMenu.attach_editable (text);
