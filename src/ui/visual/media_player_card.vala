@@ -497,7 +497,11 @@ namespace Singularity.Widgets {
             if (url.has_prefix("file://")) {
                 var path = Uri.unescape_string(url.substring(7));
                 try {
-                    var pixbuf = new Gdk.Pixbuf.from_file_at_scale(path, 256, 256, true);
+                    // The cover Picture sizes to its texture, and the card slot
+                    // is 64px, so load it at the display size (a bigger texture
+                    // made the whole card huge). The blurred background below is
+                    // a drawn paintable, not a widget, so it stays higher-res.
+                    var pixbuf = new Gdk.Pixbuf.from_file_at_scale(path, 64, 64, true);
                     var texture = Gdk.Texture.for_pixbuf(pixbuf);
                     cover_art_picture.set_paintable(texture);
                     cover_stack.visible_child_name = "art";
@@ -536,8 +540,8 @@ namespace Singularity.Widgets {
                         _bg_texture = Gdk.Texture.for_pixbuf(pixbuf);
                     }
                     queue_draw();
-                    if (pixbuf.width > 256 || pixbuf.height > 256) {
-                        double scale = double.min(256.0 / pixbuf.width, 256.0 / pixbuf.height);
+                    if (pixbuf.width > 64 || pixbuf.height > 64) {
+                        double scale = double.min(64.0 / pixbuf.width, 64.0 / pixbuf.height);
                         int new_w = (int)(pixbuf.width * scale);
                         int new_h = (int)(pixbuf.height * scale);
                         pixbuf = pixbuf.scale_simple(new_w, new_h, Gdk.InterpType.BILINEAR);
