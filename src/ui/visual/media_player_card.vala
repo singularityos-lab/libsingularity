@@ -497,12 +497,12 @@ namespace Singularity.Widgets {
             if (url.has_prefix("file://")) {
                 var path = Uri.unescape_string(url.substring(7));
                 try {
-                    var pixbuf = new Gdk.Pixbuf.from_file_at_scale(path, 64, 64, true);
+                    var pixbuf = new Gdk.Pixbuf.from_file_at_scale(path, 256, 256, true);
                     var texture = Gdk.Texture.for_pixbuf(pixbuf);
                     cover_art_picture.set_paintable(texture);
                     cover_stack.visible_child_name = "art";
                     try {
-                        var bg_pixbuf = new Gdk.Pixbuf.from_file_at_scale(path, 192, 192, true);
+                        var bg_pixbuf = new Gdk.Pixbuf.from_file_at_scale(path, 384, 384, true);
                         _bg_texture = Gdk.Texture.for_pixbuf(bg_pixbuf);
                     } catch { _bg_texture = texture; }
                     queue_draw();
@@ -527,8 +527,8 @@ namespace Singularity.Widgets {
                 var input_stream = yield session.send_async(msg, Priority.DEFAULT, null);
                 if (msg.status_code == 200) {
                     var pixbuf = yield new Gdk.Pixbuf.from_stream_async(input_stream, null);
-                    if (pixbuf.width > 192 || pixbuf.height > 192) {
-                        double bg_scale = double.min(192.0 / pixbuf.width, 192.0 / pixbuf.height);
+                    if (pixbuf.width > 384 || pixbuf.height > 384) {
+                        double bg_scale = double.min(384.0 / pixbuf.width, 384.0 / pixbuf.height);
                         int bg_w = int.max(1, (int)(pixbuf.width * bg_scale));
                         int bg_h = int.max(1, (int)(pixbuf.height * bg_scale));
                         _bg_texture = Gdk.Texture.for_pixbuf(pixbuf.scale_simple(bg_w, bg_h, Gdk.InterpType.BILINEAR));
@@ -536,8 +536,8 @@ namespace Singularity.Widgets {
                         _bg_texture = Gdk.Texture.for_pixbuf(pixbuf);
                     }
                     queue_draw();
-                    if (pixbuf.width > 64 || pixbuf.height > 64) {
-                        double scale = double.min(64.0 / pixbuf.width, 64.0 / pixbuf.height);
+                    if (pixbuf.width > 256 || pixbuf.height > 256) {
+                        double scale = double.min(256.0 / pixbuf.width, 256.0 / pixbuf.height);
                         int new_w = (int)(pixbuf.width * scale);
                         int new_h = (int)(pixbuf.height * scale);
                         pixbuf = pixbuf.scale_simple(new_w, new_h, Gdk.InterpType.BILINEAR);
