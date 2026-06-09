@@ -84,7 +84,7 @@ namespace Singularity.Widgets {
         widget.realize.connect (() => {
             var root = widget.get_root () as Singularity.Widgets.Window;
             if (root == null) return;
-            widget.margin_top = root.force_ssd ? 0 : VIEW_EDGE_INSET_HEIGHT;
+            widget.margin_top = (root.force_ssd || root.legacy_titlebar) ? 0 : VIEW_EDGE_INSET_HEIGHT;
         });
     }
 }

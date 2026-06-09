@@ -44,10 +44,11 @@ def hexs(c):
 
 
 a = rgb(accent)
+is_gtk3 = "/gtk/3.0/" in src.replace("\\", "/")
 # Mirror StyleManager apply_accent_color base colours.
 base = "#242424" if dark else "#f6f5f4"
 tbbase = "#1a1a1a" if dark else "#e8e8e8"
-border = "rgba(255, 255, 255, 0.1)" if dark else "rgba(0, 0, 0, 0.08)"
+text = "#ffffff" if dark else "#1a1a1a"
 
 # Baked tint hexes sassc emitted for the default accent, and the GTK mix()
 # expressions that reproduce them dynamically from @accent_color.
@@ -79,20 +80,22 @@ header = (
     "@define-color theme_selected_fg_color #ffffff;\n\n"
 ) % accent
 
-footer = (
-    "\n/* Singularity window edge: 1px accent-neutral border and 12px radius,\n"
-    " * matching libsingularity's .singularity-app-frame. */\n"
-    "decoration {\n"
-    "  border-radius: 12px;\n"
-    "  border: 1px solid %s;\n"
+# Window corner rounding is left to the Orchis base: it rounds window.csd
+# (GTK4) / decoration (GTK3) on all corners and coordinates the headerbar and
+# content rounding to match. Overriding only the window radius here desynced it
+# from the children and left white gaps at the corners (issue #135), so we no
+# longer touch it.
+
+# Keep the titlebar accent-tinted (a touch darker) when the window is
+# unfocused, instead of falling back to a flat gray backdrop.
+backdrop = (
+    "headerbar:backdrop, .titlebar:backdrop {\n"
+    "  background-color: shade(%s, 0.92);\n"
+    "  color: %s;\n"
     "}\n"
-    ".maximized decoration,\n"
-    ".fullscreen decoration,\n"
-    ".tiled decoration {\n"
-    "  border-radius: 0;\n"
-    "  border: none;\n"
-    "}\n"
-) % border
+) % (tb_expr, text)
+
+footer = "\n/* Singularity backdrop tint */\n" + backdrop
 
 with open(out, "w") as f:
     f.write(header + css + footer)
