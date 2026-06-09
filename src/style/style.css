@@ -3125,6 +3125,7 @@ togglebutton.close-button:checked {
     font-size: 12px;
     font-weight: 500;
     color: white;
+    text-shadow: 0 1px 3px alpha(@shadow_color, 0.9);
 }
 
 .desktop-icon-placeholder {
