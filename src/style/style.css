@@ -29,6 +29,11 @@ window.csd {
    around the rounded card. Restate the two-layer shadow at matching
    specificity and zero the radius (the visible rounded shape comes
    from .singularity-app-frame). */
+window.singularity-app,
+window.background.singularity-app {
+    background-color: transparent;
+}
+
 window.csd.singularity-app {
     border-radius: 0;
     background-color: transparent;
