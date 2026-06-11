@@ -984,7 +984,7 @@ window.singularity-blur .dock-window:backdrop .dock-box,
 }
 
 .dock-indicator-row {
-    min-height: 4px;
+    min-height: 6px;
     margin-top: 1px;
     margin-bottom: 0;
 }
