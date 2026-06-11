@@ -1003,6 +1003,47 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     padding-right: 12px;
 }
 
+.singularity popover.dock-window-previews,
+popover.dock-window-previews {
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+}
+
+popover.dock-window-previews > contents {
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+}
+
+.dock-window-previews-row {
+    padding: 8px;
+    border-radius: 16px;
+    background-color: @surface_overlay;
+    border: 1px solid alpha(@text_color, 0.18);
+    box-shadow: 0 4px 14px alpha(@shadow_color, 0.45), 0 1px 0 alpha(@text_color, 0.08) inset;
+}
+
+.dock-window-preview {
+    border-radius: 8px;
+    background-color: @card_bg;
+}
+
+.dock-window-preview picture {
+    border-radius: 8px;
+}
+
+.dock-window-preview-title {
+    margin: 4px 6px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background-color: alpha(black, 0.55);
+    color: white;
+    font-size: 0.8em;
+}
+
 .dock-item-title {
     font-size: 13px;
     font-weight: 500;
