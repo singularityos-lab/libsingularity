@@ -90,6 +90,7 @@ libsingularity_sources = files(
   'src/core/shell_contract.vala',
   'src/core/app_settings_contract.vala',
   'src/core/plugin_contract.vala',
+  'src/core/files_plugin_contract.vala',
   'src/core/overview_widget_registry.vala',
   'src/core/shell_surface_contract.vala',
   'src/core/search_provider.vala',
