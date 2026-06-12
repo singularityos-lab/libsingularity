@@ -875,6 +875,10 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     background-color: alpha(@text_color, 0.16);
 }
 
+.dock-item-pill.expanded {
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .dock-suffix-area {
     padding-left: 4px;
     padding-right: 2px;
