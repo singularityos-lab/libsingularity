@@ -1033,10 +1033,23 @@ popover.dock-window-previews > contents {
 .dock-window-preview {
     border-radius: 8px;
     background-color: @card_bg;
+    transition: box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.dock-window-preview:hover {
+    background-color: @hover_white;
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.7);
 }
 
 .dock-window-preview picture {
     border-radius: 8px;
+}
+
+.dock-window-preview button.circular-button,
+.singularity .dock-window-preview button.circular-button {
+    min-width: 22px;
+    min-height: 22px;
+    padding: 4px;
 }
 
 .dock-window-preview-title {
