@@ -1052,6 +1052,20 @@ popover.dock-window-previews > contents {
     padding: 4px;
 }
 
+.emoji-grid > flowboxchild {
+    border-radius: 8px;
+    padding: 2px;
+    transition: background-color 100ms ease;
+}
+
+.emoji-grid > flowboxchild:hover {
+    background-color: @hover_white;
+}
+
+.emoji-grid > flowboxchild:selected {
+    background-color: alpha(@accent_color, 0.25);
+}
+
 .dock-window-preview-title {
     margin: 4px 6px;
     padding: 1px 6px;
@@ -4039,6 +4053,10 @@ button.flat.singularity-hover-btn.suggested-action:active {
 .files-path-bubble {
     min-height: 0;
     padding: 2px;
+}
+
+.path-separator {
+    color: alpha(@text_color, 0.3);
 }
 
 /* Standard content surface auto-applied by Window.set_content().
