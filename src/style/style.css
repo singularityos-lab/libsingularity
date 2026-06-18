@@ -665,6 +665,16 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
     color: inherit;
 }
 
+.bt-indicator.calling {
+    background-color: #2ec27e;
+    border-radius: 999px;
+    padding: 1px 4px;
+}
+
+.bt-indicator.calling image {
+    color: white;
+}
+
 .dock-window {
     background-color: transparent;
 }
