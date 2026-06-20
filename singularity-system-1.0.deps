@@ -1,0 +1,9 @@
+gio-2.0
+gio-unix-2.0
+gee-0.8
+libpulse
+libpulse-mainloop-glib
+gudev-1.0
+upower-glib
+libnm
+libsoup-3.0

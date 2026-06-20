@@ -1,0 +1,2 @@
+Client.new_async skip
+UpowerGlib.Client.new_async skip

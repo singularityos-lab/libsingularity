@@ -25,7 +25,10 @@ soup_dep       = dependency('libsoup-3.0')
 gtksource_dep  = dependency('gtksourceview-5')
 introspection_dep = dependency('gobject-introspection-1.0', required: get_option('introspection'))
 
-libsingularity_deps = [gtk4_dep, layershell_dep, gee_dep, json_dep, peas_dep, gmodule_dep, soup_dep, gtksource_dep]
+cc = meson.get_compiler('c')
+m_dep = cc.find_library('m', required: false)
+
+libsingularity_deps = [gtk4_dep, layershell_dep, gee_dep, json_dep, peas_dep, gmodule_dep, soup_dep, gtksource_dep, m_dep]
 
 libsingularity_resources = gnome.compile_resources(
   'libsingularity-resources',
@@ -105,6 +108,10 @@ libsingularity_sources = files(
   'src/ui/visual/media_player_card.vala',
   'src/ui/pages/browser_pill.vala',
   'src/core/terminal_themes.vala',
+  'src/util/color_util.vala',
+  'src/util/tiling_layout.vala',
+  'src/util/grid_layout.vala',
+  'src/util/hot_corner_logic.vala',
   'src/file_system/file_provider.vala',
   'src/file_system/recent_provider.vala',
   'src/file_system/samba_provider.vala',
@@ -157,6 +164,82 @@ install_data(
   'singularity-1.0.deps',
   install_dir: get_option('datadir') / 'vala' / 'vapi',
 )
+
+if get_option('system')
+  gio_dep        = dependency('gio-2.0')
+  giounix_dep    = dependency('gio-unix-2.0')
+  pulse_dep      = dependency('libpulse')
+  pulse_glib_dep = dependency('libpulse-mainloop-glib')
+  gudev_dep      = dependency('gudev-1.0')
+  upower_dep     = dependency('upower-glib', version: '>= 0.99.0')
+  libnm_dep      = dependency('libnm', version: '>= 1.0.0')
+  soup_sys_dep   = dependency('libsoup-3.0')
+
+  libsingularity_system_deps = [
+    gio_dep, giounix_dep, gee_dep,
+    pulse_dep, pulse_glib_dep, gudev_dep, upower_dep,
+    libnm_dep, soup_sys_dep,
+  ]
+
+  libsingularity_system_sources = files(
+    'src/system/bluetooth_manager.vala',
+    'src/system/datetime_manager.vala',
+    'src/system/locale_manager.vala',
+    'src/system/accounts_service.vala',
+    'src/system/app_menu_registrar.vala',
+    'src/system/shared_clock.vala',
+    'src/system/power_profiles_manager.vala',
+    'src/system/gamemode_manager.vala',
+    'src/system/audio_manager.vala',
+    'src/system/brightness_manager.vala',
+    'src/system/kbd_brightness_manager.vala',
+    'src/system/power_manager.vala',
+    'src/system/nm_wrapper.vala',
+    'src/system/call_monitor.vala',
+    'src/system/now_playing_cache.vala',
+    'src/system/session_manager.vala',
+    'src/system/timezone_util.vala',
+    'src/system/input_source_util.vala',
+    'src/system/resource_monitor.vala',
+    'src/system/night_light_manager.vala',
+    'src/system/autostart_manager.vala',
+    'src/system/hardware_info.vala',
+  )
+
+  libsingularity_system = shared_library('singularity-system',
+    libsingularity_system_sources,
+    dependencies: libsingularity_system_deps,
+    vala_args: ['--pkg', 'posix', '--vapidir', meson.current_source_dir() / 'src/vapi'],
+    vala_header: 'singularity-system.h',
+    vala_vapi: 'singularity-system-1.0.vapi',
+    install: true,
+    install_dir: [get_option('libdir'), true, true],
+    soversion: '0',
+    version: meson.project_version(),
+  )
+
+  libsingularity_system_dep = declare_dependency(
+    link_with: libsingularity_system,
+    include_directories: include_directories('.'),
+    dependencies: libsingularity_system_deps,
+  )
+
+  libsingularity_system_vapi = meson.current_build_dir() / 'singularity-system-1.0.vapi'
+
+  pkgconfig.generate(
+    libsingularity_system,
+    name: 'libsingularity-system',
+    description: 'Singularity Desktop headless system backends',
+    version: meson.project_version(),
+    filebase: 'singularity-system-1.0',
+    requires: ['gio-2.0', 'gio-unix-2.0', 'gee-0.8', 'libpulse', 'libpulse-mainloop-glib', 'gudev-1.0', 'upower-glib', 'libnm', 'libsoup-3.0'],
+  )
+
+  install_data(
+    'singularity-system-1.0.deps',
+    install_dir: get_option('datadir') / 'vala' / 'vapi',
+  )
+endif
 
 # Build the Singularity GTK3/GTK4 theme for third-party apps. Orchis supplies
 # only the widget skeleton; data/gtk-theme/_sass/_singularity.scss reassigns
