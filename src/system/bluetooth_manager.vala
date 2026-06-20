@@ -246,22 +246,63 @@ namespace Singularity {
         }
 
         public async void start_discovery() {
-            if (adapter != null) {
-                try {
-                    yield adapter.start_discovery();
-                } catch (Error e) {
-                    warning("Start discovery failed: %s", e.message);
-                }
+            if (adapter == null) return;
+            try {
+                yield adapter.start_discovery();
+            } catch (Error e) {
+            }
+            if (!is_discovering) {
+                is_discovering = true;
+                state_changed();
             }
         }
 
         public async void stop_discovery() {
-            if (adapter != null) {
-                try {
-                    yield adapter.stop_discovery();
-                } catch (Error e) {
-                    warning("Stop discovery failed: %s", e.message);
+            if (adapter == null) return;
+            try {
+                yield adapter.stop_discovery();
+            } catch (Error e) {
+            }
+            if (is_discovering) {
+                is_discovering = false;
+                state_changed();
+            }
+        }
+
+        public async void refresh() {
+            if (object_manager == null) return;
+            HashTable<ObjectPath, HashTable<string, HashTable<string, Variant>>> objects;
+            try {
+                objects = object_manager.get_managed_objects();
+            } catch (Error e) {
+                return;
+            }
+            var present = new GenericArray<string>();
+            objects.foreach((path, interfaces) => {
+                if (interfaces.contains("org.bluez.Device1")) present.add(path);
+            });
+            for (int i = 0; i < present.length; i++) {
+                string p = present.get(i);
+                bool known = false;
+                for (int j = 0; j < devices.length(); j++) {
+                    if (devices.nth_data(j).path == p) { known = true; break; }
                 }
+                if (!known) add_device(p, null);
+            }
+            var gone = new GenericArray<string>();
+            for (int j = 0; j < devices.length(); j++) {
+                string p = devices.nth_data(j).path;
+                bool still = false;
+                for (int i = 0; i < present.length; i++) {
+                    if (present.get(i) == p) { still = true; break; }
+                }
+                if (!still) gone.add(p);
+            }
+            for (int k = 0; k < gone.length; k++) {
+                remove_device_from_list(gone.get(k));
+            }
+            if (is_powered && adapter != null && !adapter.discovering) {
+                start_discovery.begin();
             }
         }
 

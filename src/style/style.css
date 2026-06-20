@@ -20,7 +20,7 @@ window,
 }
 
 window.csd {
-    border-radius: 8px 8px 0 0;
+    border-radius: 8px;
     box-shadow: 0 4px 14px alpha(@shadow_color, 0.55);
 }
 
@@ -35,14 +35,31 @@ window.background.singularity-app {
 }
 
 window.csd.singularity-app {
-    border-radius: 0;
+    border-radius: 12px;
     background-color: transparent;
     box-shadow:
         0 1px 2px alpha(@shadow_color, 0.30),
         0 6px 14px alpha(@shadow_color, 0.42);
 }
 
-window.popup,
+window.csd.singularity-app.no-rounded-corners,
+window.csd.singularity-app.maximized,
+window.csd.singularity-app.fullscreen,
+window.csd.singularity-app.tiled,
+window.csd.singularity-app.tiled-left,
+window.csd.singularity-app.tiled-right,
+window.csd.singularity-app.tiled-top,
+window.csd.singularity-app.tiled-bottom,
+window.csd.singularity-app.ssd-mode {
+    border-radius: 0;
+}
+
+window.popup {
+    border-radius: 6px;
+    box-shadow: none;
+    background-color: transparent;
+}
+
 window.tooltip {
     border-radius: 6px;
     box-shadow: none;
