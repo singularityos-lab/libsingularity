@@ -712,9 +712,10 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     background-color: @surface_overlay;
     border-radius: 16px;
     padding: 7px 6px 2px 6px;
-    box-shadow: 0 4px 14px alpha(@shadow_color, 0.45), 0 1px 0 alpha(@text_color, 0.08) inset;
+    box-shadow: 0 4px 14px alpha(@shadow_color, 0.45), 0 1px 0 alpha(@text_color, 0.3) inset;
     transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.24s cubic-bezier(0.2, 0.85, 0.25, 1), opacity 0.22s ease-out;
-    border: 1px solid alpha(@text_color, 0.18);
+    border: 1px solid alpha(@text_color, 0.03);
+    border-top: 0;
 }
 
 /* Reveal slide-up: applied without transition to offset the dock below its
@@ -897,13 +898,12 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     padding-right: 6px;
 }
 
-.dock-item-pill.has-suffix:hover,
-.dock-item-pill.expanded {
-    background-color: alpha(@text_color, 0.16);
+.dock-item-pill.has-suffix:hover {
+	background-color: alpha(@text_color, 0.20);
 }
 
-.dock-item-pill.expanded {
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+.dock-item-pill.has-suffix {
+	border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .dock-suffix-area {
@@ -2066,6 +2066,10 @@ window.singularity .panel-window,
 
 .singularity .dock-item:hover {
     background-color: alpha(@text_color, 0.15);
+}
+
+.singularity .dock-item-pill.has-suffix .dock-item:hover {
+    background-color: transparent;
 }
 
 .singularity button.clock-button,
