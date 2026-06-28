@@ -14,6 +14,10 @@
 @define-color card_hover_bg alpha(@text_color, 0.07);
 @define-color border_color alpha(@text_color, 0.08);
 
+/* Floating hover buttons (overlay controls) */
+@define-color hover_btn_bg alpha(black, 0.4);
+@define-color hover_btn_border alpha(black, 0.18);
+
 /* Shadows (softer in light mode) */
 @define-color shadow_color rgba(0, 0, 0, 0.45);
 

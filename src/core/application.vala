@@ -77,7 +77,7 @@ namespace Singularity {
                         update_accent_color();
                     }
                 });
-                desktop_settings.changed["dark-mode"].connect(() => {
+                Singularity.Style.ThemeMode.get_default().changed.connect(() => {
                     update_theme_mode();
                 });
                 desktop_settings.changed["singularity-theme"].connect(() => {
@@ -180,10 +180,11 @@ namespace Singularity {
         }
 
         private void update_theme_mode() {
-            if (desktop_settings == null) return;
-            bool dark_mode = desktop_settings.get_boolean("dark-mode");
-            Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark_mode;
-            Singularity.Style.StyleManager.get_default().apply_color_scheme(dark_mode);
+            // Applications follow the app tone: light unless the effective mode
+            // is full Dark. The shell chrome follows a different (shell) tone.
+            bool dark = Singularity.Style.ThemeMode.get_default().app_dark();
+            Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark;
+            Singularity.Style.StyleManager.get_default().apply_color_scheme(dark);
             // Re-apply accent so base tint colors use the correct light/dark base.
             update_accent_color();
         }
