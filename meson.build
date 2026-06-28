@@ -74,6 +74,8 @@ libsingularity_sources = files(
   'src/ui/controls/quick_setting_tile.vala',
   'src/ui/controls/search_entry.vala',
   'src/ui/visual/hover_controls.vala',
+  'src/ui/visual/step_island.vala',
+  'src/ui/visual/sectioned_list.vala',
   'src/ui/visual/search_bubble.vala',
   'src/ui/visual/data_list_view.vala',
   'src/ui/visual/data_grid_view.vala',

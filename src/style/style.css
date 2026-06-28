@@ -526,12 +526,14 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
 }
 
 /* ...but NOT inside popovers/menus opened from the panel: those are
-   descendants of the panel button in the GTK4 widget tree, so the rule
-   above bleeds dark text onto their (dark) body - black-on-black. Reset
-   them to the theme foreground so submenus stay readable. */
-.panel-window.light-bg:not(.flat-panel) .panel popover,
-.panel-window.light-bg:not(.flat-panel) .panel popover * {
-    color: @window_fg_color;
+   descendants of the panel button in the GTK4 widget tree, so the panel
+   color rules above bleed onto their own (theme-coloured) body. Reset them
+   to the theme foreground in every panel state so popups stay readable. */
+.panel-window .panel popover,
+.panel-window .panel popover *,
+.panel-window.flat-panel .panel popover,
+.panel-window.flat-panel .panel popover * {
+    color: @text_color;
 }
 
 /* Active state always gets white text on accent bg regardless of mode. */
@@ -2301,6 +2303,20 @@ button.segmented-button.active:checked {
     box-shadow: 0 1px 3px alpha(black, 0.18);
 }
 
+/* TimePicker: compact HH:MM stepper fields with a dim colon. */
+.time-picker spinbutton.time-picker-field {
+    min-width: 0;
+    border-radius: 6px;
+}
+.time-picker spinbutton.time-picker-field text {
+    min-width: 1.4em;
+    padding: 2px 2px;
+}
+.time-picker-colon {
+    font-weight: 700;
+    opacity: 0.55;
+}
+
 /* SegmentedControl inside toolbar: no vertical margin so toolbar stays 46px */
 .singularity-toolbar .segmented-control {
     margin: 0 4px;
@@ -3927,8 +3943,8 @@ button.flat.singularity-hover-btn {
     min-height: 28px;
     padding: 0;
     border-radius: 99px;
-    background-color: alpha(black, 0.45);
-    border: 1px solid alpha(white, 0.18);
+    background-color: @hover_btn_bg;
+    border: 1px solid @hover_btn_border;
     color: white;
     box-shadow: none;
     transition: background-color 0.12s ease, border-color 0.12s ease;
@@ -3976,6 +3992,15 @@ button.flat.singularity-hover-btn:hover {
 button.singularity-hover-btn:active,
 button.flat.singularity-hover-btn:active {
     background-color: alpha(black, 0.75);
+}
+/* Popovers/menus anchored to a hover button are descendants of it in the
+   GTK4 widget tree, so the white-on-glass color above bleeds onto their own
+   themed body. Reset their content to the theme foreground. */
+.singularity-hover-btn popover,
+.singularity-hover-btn popover *,
+.singularity-hover-on-content popover,
+.singularity-hover-on-content popover * {
+    color: @text_color;
 }
 
 /* Label bubble (status text in the bubble bar). Tight horizontal
@@ -4323,13 +4348,17 @@ window.monitor-osd {
 
 /* Disk cards in Disks page */
 button.disk-card {
-    border-radius: 10px;
+    border-radius: 14px;
     padding: 0;
     min-width: 160px;
     min-height: 160px;
+    background-color: alpha(@text_color, 0.03);
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 button.disk-card:hover {
-    background-color: alpha(@text_color, 0.08);
+    background-color: alpha(@text_color, 0.12);
+    border-color: alpha(@text_color, 0.14);
 }
 .disk-card-child,
 flowboxchild.disk-card-child {
@@ -4855,4 +4884,85 @@ popover.context-menu > contents {
 }
 .singularity-carousel-dot.active {
     background-color: @accent_color;
+}
+
+.singularity-step-island {
+    background-color: @hover_btn_bg;
+    border: 1px solid @hover_btn_border;
+    border-radius: 99px;
+    padding: 6px 8px;
+    box-shadow: 0 8px 28px alpha(@shadow_color, 0.4);
+}
+.singularity-step-island button {
+    border-radius: 99px;
+    min-height: 30px;
+    padding: 0 16px;
+    box-shadow: none;
+}
+.singularity-step-island button.flat {
+    color: white;
+    background: transparent;
+    border: none;
+}
+.singularity-step-island button.flat:hover {
+    background-color: alpha(white, 0.14);
+}
+.singularity-step-island button.flat:disabled {
+    color: alpha(white, 0.4);
+}
+.singularity-step-island-title {
+    color: white;
+    font-weight: 600;
+    margin: 0 2px;
+}
+.singularity-step-dot {
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 99px;
+    background-color: alpha(white, 0.3);
+    transition: background-color 0.15s ease;
+}
+.singularity-step-dot.active {
+    background-color: white;
+}
+.singularity-step-dot.done {
+    background-color: alpha(white, 0.7);
+}
+
+.singularity-section-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: alpha(@text_color, 0.55);
+    padding: 12px 10px 4px 10px;
+}
+.singularity-section-sticky {
+    font-size: 12px;
+    font-weight: 700;
+    color: alpha(@text_color, 0.55);
+    background-color: mix(@window_bg, @text_color, 0.05);
+    padding: 8px 12px;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px alpha(@shadow_color, 0.22);
+}
+.singularity-section-search entry,
+.singularity-section-search text {
+    border-radius: 16px;
+}
+.singularity-section-search > entry {
+    border-radius: 16px;
+}
+.singularity-section-row {
+    padding: 9px 10px;
+    border-radius: 10px;
+}
+.singularity-section-row:hover {
+    background-color: alpha(@text_color, 0.06);
+}
+.singularity-section-row.selected {
+    background-color: alpha(@accent_color, 0.14);
+}
+
+button.disk-card.selected {
+    box-shadow: inset 0 0 0 2px @accent_color;
+    background-color: alpha(@accent_color, 0.10);
 }

@@ -68,11 +68,9 @@ namespace Singularity.Core {
             return "#%02x%02x%02x".printf (lr.clamp(0,255), lg.clamp(0,255), lb.clamp(0,255));
         }
 
-        // Returns true when the desktop is in light mode.
+        // Returns true when the app tone is light.
         private static bool is_light_mode () {
-            var s = safe_settings ("dev.sinty.desktop");
-            if (s == null) return false;
-            return !s.get_boolean ("dark-mode");
+            return !Singularity.Style.ThemeMode.get_default ().app_dark ();
         }
 
         /**
