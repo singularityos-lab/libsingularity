@@ -77,6 +77,7 @@ libsingularity_sources = files(
   'src/ui/visual/step_island.vala',
   'src/ui/visual/sectioned_list.vala',
   'src/ui/visual/search_bubble.vala',
+  'src/ui/visual/floating_panel.vala',
   'src/ui/visual/data_list_view.vala',
   'src/ui/visual/data_grid_view.vala',
   'src/ui/visual/column_browser.vala',
