@@ -78,6 +78,8 @@ libsingularity_sources = files(
   'src/ui/visual/sectioned_list.vala',
   'src/ui/visual/search_bubble.vala',
   'src/ui/visual/floating_panel.vala',
+  'src/ui/visual/avatar.vala',
+  'src/ui/visual/theme_preview.vala',
   'src/ui/visual/data_list_view.vala',
   'src/ui/visual/data_grid_view.vala',
   'src/ui/visual/column_browser.vala',
@@ -284,3 +286,5 @@ foreach dir : ['gtk-3.0', 'gtk-4.0']
 endforeach
 
 install_data('data/gtk-theme/index.theme', install_dir: sing_theme_dir)
+
+install_subdir('data/avatars', install_dir: get_option('datadir') / 'singularity')

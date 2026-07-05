@@ -7,8 +7,6 @@ namespace Singularity.Core.Users {
         public abstract async ObjectPath create_user (string name, string fullname, int account_type) throws IOError;
         public abstract async void delete_user (int64 id, bool remove_files) throws IOError;
         public abstract async ObjectPath[] list_cached_users () throws IOError;
-        [DBus (name = "ListUsers")]
-        public abstract async ObjectPath[] list_users () throws IOError;
         public abstract async ObjectPath find_user_by_name (string name) throws IOError;
         public abstract async ObjectPath find_user_by_id (int64 id) throws IOError;
         [DBus (name = "UserAdded")]
@@ -24,6 +22,7 @@ namespace Singularity.Core.Users {
         public abstract bool automatic_login { get; }
         public abstract string home_directory { owned get; }
         public abstract string shell { owned get; }
+        public abstract string icon_file { owned get; }
         public abstract bool locked { get; }
         public abstract uint64 uid { get; }
         public abstract async void set_user_name (string name) throws IOError;
@@ -32,6 +31,7 @@ namespace Singularity.Core.Users {
         public abstract async void set_password (string password, string hint) throws IOError;
         public abstract async void set_locked (bool locked) throws IOError;
         public abstract async void set_automatic_login (bool enabled) throws IOError;
+        public abstract async void set_icon_file (string filename) throws IOError;
     }
     [DBus (name = "org.freedesktop.DBus.Properties")]
     public interface AccountProperties : Object {
@@ -84,7 +84,7 @@ namespace Singularity.Core.Users {
             var list = new Gee.ArrayList<AccountUser>();
             if (manager == null) return list;
             try {
-                var paths = yield manager.list_users();
+                var paths = yield manager.list_cached_users();
                 foreach (var path in paths) {
                     var user = yield fetch_user(path);
                     if (user != null) list.add(user);

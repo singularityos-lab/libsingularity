@@ -860,6 +860,25 @@ window.singularity-blur .dock-window:backdrop .dock-box,
     animation: dock-slide-bounce 560ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
 }
 
+@keyframes panel-slide-down {
+    from { transform: translateY(-44px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+}
+
+.panel.panel-intro {
+    animation: panel-slide-down 560ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
+}
+
+@keyframes wallpaper-zoom-in {
+    from { transform: scale(1.06); }
+    to   { transform: scale(1.0); }
+}
+
+.background-window .wallpaper-intro {
+    animation: wallpaper-zoom-in 950ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
+    transform-origin: center center;
+}
+
 @keyframes dock-pulse {
     0% {
         transform: scale(1);

@@ -72,5 +72,16 @@ namespace Singularity.Shell {
          * @return          One of: "allow", "allow_session", "allow_always", "deny".
          */
         public abstract string show_permission(string category, string resource, string reason) throws IOError;
+
+        /**
+         * Shows a simple confirm dialog for ush-broker (trust-dir, dev-shell,
+         * allow-app gestures). The broker owns the decision; the shell only
+         * renders the dialog.
+         *
+         * @param title Short dialog title.
+         * @param body  Human-readable body / question.
+         * @return      true if the user confirmed, false otherwise.
+         */
+        public abstract bool show_confirm(string title, string body) throws IOError;
     }
 }

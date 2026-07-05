@@ -69,6 +69,17 @@ namespace Singularity {
 
             desktop_settings = Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
             if (desktop_settings != null) {
+                var oobe_theme_file = Path.build_filename(
+                    Environment.get_home_dir(), ".config", "sinty", "theme-mode");
+                if (FileUtils.test(oobe_theme_file, FileTest.EXISTS)) {
+                    try {
+                        string tok;
+                        FileUtils.get_contents(oobe_theme_file, out tok);
+                        tok = tok.strip();
+                        if (tok == "light" || tok == "dual" || tok == "dark")
+                            desktop_settings.set_string("theme-mode", tok);
+                    } catch (GLib.Error e) {}
+                }
                 desktop_settings.changed["accent-color"].connect(() => {
                     update_accent_color();
                 });
