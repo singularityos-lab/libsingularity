@@ -68,5 +68,33 @@ namespace Singularity {
                 return false;
             }
         }
+
+        private static int _is_sinty_os = -1;
+
+        /**
+         * Returns true when running on Sinty OS, as opposed to the Singularity
+         * desktop on another distribution. Read once from /etc/os-release ID.
+         */
+        public static bool is_sinty_os () {
+            if (_is_sinty_os < 0) {
+                _is_sinty_os = 0;
+                string content;
+                try {
+                    if (FileUtils.get_contents ("/etc/os-release", out content)) {
+                        foreach (string line in content.split ("\n")) {
+                            if (!line.has_prefix ("ID="))
+                                continue;
+                            string id = line.substring (3).replace ("\"", "").strip ();
+                            if (id == "sinty" || id.has_prefix ("sinty"))
+                                _is_sinty_os = 1;
+                            break;
+                        }
+                    }
+                } catch (Error e) {
+                    _is_sinty_os = 0;
+                }
+            }
+            return _is_sinty_os == 1;
+        }
     }
 }
