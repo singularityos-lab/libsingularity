@@ -79,6 +79,9 @@ namespace Singularity {
                         if (tok == "light" || tok == "dual" || tok == "dark")
                             desktop_settings.set_string("theme-mode", tok);
                     } catch (GLib.Error e) {}
+                    // Consume the OOBE seed once -- re-applying it on every launch would
+                    // overwrite the user's later theme choice.
+                    FileUtils.unlink(oobe_theme_file);
                 }
                 desktop_settings.changed["accent-color"].connect(() => {
                     update_accent_color();
