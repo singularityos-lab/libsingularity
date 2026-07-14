@@ -20,6 +20,9 @@ namespace Singularity.Style {
 
         private static ThemeMode? _instance;
         private GLib.Settings? settings;
+        private GLib.Settings? if_settings = null;
+        private bool _override_set = false;
+        private ColorMode _override = ColorMode.DUAL;
         private uint timer_id = 0;
 
         /** Emitted whenever the effective mode may have changed. */
@@ -39,6 +42,13 @@ namespace Singularity.Style {
                 settings.changed["theme-adaptive"].connect(on_settings_changed);
                 settings.changed["theme-adaptive-from"].connect(on_settings_changed);
                 settings.changed["theme-adaptive-to"].connect(on_settings_changed);
+            } else {
+                if_settings = Core.safe_settings("org.gnome.desktop.interface");
+                if (if_settings != null)
+                    if_settings.changed["color-scheme"].connect(on_settings_changed);
+                var gs = Gtk.Settings.get_default();
+                if (gs != null)
+                    gs.notify["gtk-application-prefer-dark-theme"].connect(on_settings_changed);
             }
             reschedule();
         }
@@ -50,7 +60,7 @@ namespace Singularity.Style {
 
         /** The configured base mode, ignoring the adaptive schedule. */
         public ColorMode base_mode() {
-            if (settings == null) return ColorMode.DUAL;
+            if (settings == null) return standalone_mode();
             switch (settings.get_string("theme-mode")) {
                 case "light": return ColorMode.LIGHT;
                 case "dark":  return ColorMode.DARK;
@@ -75,6 +85,35 @@ namespace Singularity.Style {
 
         /** Whether application content should be dark (light unless full Dark). */
         public bool app_dark() { return effective() == ColorMode.DARK; }
+
+        /**
+         * Force a standalone appearance, used by an app's own preferences when
+         * running outside the Singularity desktop. Under the desktop this is
+         * ignored (the desktop theme-mode wins).
+         */
+        public void set_standalone_override(ColorMode m) {
+            _override_set = true;
+            _override = m;
+            changed();
+        }
+
+        /** Drop the standalone override and follow the system preference again. */
+        public void clear_standalone_override() {
+            _override_set = false;
+            changed();
+        }
+
+        private ColorMode standalone_mode() {
+            if (_override_set) return _override;
+            return system_prefers_dark() ? ColorMode.DARK : ColorMode.LIGHT;
+        }
+
+        private bool system_prefers_dark() {
+            if (if_settings != null && if_settings.get_string("color-scheme") == "prefer-dark")
+                return true;
+            var gs = Gtk.Settings.get_default();
+            return gs != null && gs.gtk_application_prefer_dark_theme;
+        }
 
         private int parse_minutes(string hhmm, int fallback) {
             var parts = hhmm.split(":");
