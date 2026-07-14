@@ -11,7 +11,7 @@ namespace Singularity {
     public class InputSourceUtil {
 
         public static InputSource[] list() {
-            var sources = new List<InputSource?>();
+            var sources = new GenericArray<InputSource?>();
             string? path = find_layout_list();
             if (path == null) {
                 warning("input source: no evdev.lst found under /usr/share or /usr/local/share X11 xkb rules; layout list will be empty");
@@ -35,14 +35,13 @@ namespace Singularity {
                 } catch (Error e) {
                     warning("input source: could not read keyboard layout list from %s: %s", path, e.message);
                 }
-                if (sources.length() == 0)
+                if (sources.length == 0)
                     warning("input source: read %s but parsed 0 layouts", path);
             }
             sources.sort((a, b) => a.name.collate(b.name));
-            InputSource[] arr = new InputSource[sources.length()];
-            int i = 0;
-            foreach (var s in sources) {
-                arr[i++] = s;
+            InputSource[] arr = new InputSource[sources.length];
+            for (int i = 0; i < sources.length; i++) {
+                arr[i] = sources.get(i);
             }
             return arr;
         }
@@ -65,16 +64,16 @@ namespace Singularity {
             return -1;
         }
 
-        private static void add_layout(string line, List<InputSource?> sources) {
+        private static void add_layout(string line, GenericArray<InputSource?> sources) {
             string trimmed = line.strip();
             int sep = first_blank(trimmed);
             if (sep <= 0) return;
             string id = trimmed.substring(0, sep);
             string desc = trimmed.substring(sep).strip();
-            sources.append(InputSource() { id = id, name = desc, description = id });
+            sources.add(InputSource() { id = id, name = desc, description = id });
         }
 
-        private static void add_variant(string line, List<InputSource?> sources) {
+        private static void add_variant(string line, GenericArray<InputSource?> sources) {
             string trimmed = line.strip();
             int sep = first_blank(trimmed);
             if (sep <= 0) return;
@@ -88,7 +87,7 @@ namespace Singularity {
                 desc = rest.substring(colon + 1).strip();
             }
             string sid = layout + "+" + variant;
-            sources.append(InputSource() { id = sid, name = desc, description = sid });
+            sources.add(InputSource() { id = sid, name = desc, description = sid });
         }
     }
 }
