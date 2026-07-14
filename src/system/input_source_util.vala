@@ -13,7 +13,9 @@ namespace Singularity {
         public static InputSource[] list() {
             var sources = new List<InputSource?>();
             string? path = find_layout_list();
-            if (path != null) {
+            if (path == null) {
+                warning("input source: no evdev.lst found under /usr/share or /usr/local/share X11 xkb rules; layout list will be empty");
+            } else {
                 string contents;
                 try {
                     FileUtils.get_contents(path, out contents);
@@ -31,8 +33,10 @@ namespace Singularity {
                             add_variant(line, sources);
                     }
                 } catch (Error e) {
-                    warning("Could not read keyboard layout list: %s", e.message);
+                    warning("input source: could not read keyboard layout list from %s: %s", path, e.message);
                 }
+                if (sources.length() == 0)
+                    warning("input source: read %s but parsed 0 layouts", path);
             }
             sources.sort((a, b) => a.name.collate(b.name));
             InputSource[] arr = new InputSource[sources.length()];
