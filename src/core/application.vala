@@ -125,6 +125,10 @@ namespace Singularity {
             } else if (!fallback_dark) {
                 fallback_dark = (Environment.get_variable("GTK_THEME") ?? "").contains(":dark");
             }
+            if (!has_desktop_settings && !fallback_dark) {
+                var gs = Gtk.Settings.get_default();
+                if (gs != null) fallback_dark = gs.gtk_application_prefer_dark_theme;
+            }
             // Apply our own dark-mode preference last so it always wins over
             // any system-level setting applied above.
             if (has_desktop_settings) {
@@ -210,6 +214,31 @@ namespace Singularity {
             if (has_desktop_settings) {
                 update_accent_color();
             }
+        }
+
+        /**
+         * Standalone appearance override for apps that expose their own preference
+         * (for example from an in-app settings dialog) when running outside the
+         * Singularity desktop. "system" follows the system dark preference,
+         * "light"/"dark" force it. Ignored under the desktop, where the desktop
+         * theme-mode owns the appearance.
+         */
+        public void set_app_appearance(string mode) {
+            if (has_desktop_settings) return;
+            bool dark;
+            switch (mode) {
+                case "light": dark = false; break;
+                case "dark":  dark = true;  break;
+                default:
+                    dark = (iface_settings != null
+                            && iface_settings.get_string("color-scheme") == "prefer-dark");
+                    var gs = Gtk.Settings.get_default();
+                    if (!dark && gs != null) dark = gs.gtk_application_prefer_dark_theme;
+                    if (!dark) dark = (Environment.get_variable("GTK_THEME") ?? "").contains(":dark");
+                    break;
+            }
+            Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark;
+            Singularity.Style.StyleManager.get_default().apply_color_scheme(dark);
         }
 
         /**
