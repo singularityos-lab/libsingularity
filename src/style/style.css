@@ -3949,6 +3949,17 @@ window.auth-dialog .power-card {
 .singularity-hover-on-content .singularity-hover-controls:hover {
     opacity: 1;
 }
+.singularity-hover-on-content .singularity-hover-btn,
+.singularity-hover-on-content button.singularity-hover-btn,
+.singularity-hover-on-content button.flat.singularity-hover-btn {
+    background-color: alpha(black, 0.55);
+    border-color: alpha(white, 0.22);
+    box-shadow: 0 1px 4px alpha(black, 0.45);
+}
+.singularity-hover-on-content .singularity-hover-btn image,
+.singularity-hover-on-content button.singularity-hover-btn image {
+    color: white;
+}
 /* Bubble base: neutral translucent dark glass that reads on any
    background. Padding leaves breathing room on left/right so the pill
    rounding never clips inner content; icon-only buttons (GTK adds
