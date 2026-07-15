@@ -248,6 +248,10 @@ namespace Singularity.Core {
             return 0.2126f * r + 0.7152f * g + 0.0722f * b;
         }
 
+        public static bool is_dark_background (string hex) {
+            return _lum_hex (hex) < 0.5f;
+        }
+
         private static string _theme_to_source_xml (Singularity.Widgets.ColorTheme theme) {
             string bg  = theme.background;
             string fg  = theme.foreground;
