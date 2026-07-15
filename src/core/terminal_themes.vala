@@ -78,9 +78,10 @@ namespace Singularity.Core {
          * Automatically produces a dark or light variant to match the current
          * system colour scheme.
          */
-        public static Singularity.Widgets.ColorTheme make_auto_theme () {
+        public static Singularity.Widgets.ColorTheme make_auto_theme (bool? force_dark = null) {
             string accent = get_accent_hex ();
-            if (is_light_mode ()) {
+            bool light = (force_dark == null) ? is_light_mode () : (force_dark == false);
+            if (light) {
                 // Light variant: very light accent-tinted background, dark text.
                 string bg      = tint_bg_light (accent);
                 string acc_drk = darken (accent);
