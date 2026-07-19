@@ -125,10 +125,49 @@ namespace Singularity.Widgets {
         }
 
         private void apply_button_layout() {
+            if (has_css_class("ssd-mode")) {
+                minimize_btn.visible = false;
+                maximize_btn.visible = false;
+                close_btn.visible = false;
+                return;
+            }
+
             string layout = resolve_button_layout();
-            minimize_btn.visible = "minimize" in layout;
-            maximize_btn.visible = "maximize" in layout;
-            close_btn.visible = "close" in layout;
+            string[] parts = layout.split(":");
+            string left_str  = parts.length > 0 ? parts[0] : "";
+            string right_str = parts.length > 1 ? parts[1] : "";
+
+            bool close_left  = left_str.contains("close");
+            bool min_left    = left_str.contains("minimize");
+            bool max_left    = left_str.contains("maximize");
+            bool close_right = right_str.contains("close");
+            bool min_right   = right_str.contains("minimize");
+            bool max_right   = right_str.contains("maximize");
+
+            bool cluster_on_left = close_left || (!close_right && (min_left || max_left));
+
+            detach_control(minimize_btn);
+            detach_control(maximize_btn);
+            detach_control(close_btn);
+
+            if (cluster_on_left) {
+                start_box.prepend(minimize_btn);
+                start_box.prepend(maximize_btn);
+                start_box.prepend(close_btn);
+            } else {
+                end_box.append(minimize_btn);
+                end_box.append(maximize_btn);
+                end_box.append(close_btn);
+            }
+
+            minimize_btn.visible = min_left  || min_right;
+            maximize_btn.visible = max_left  || max_right;
+            close_btn.visible    = close_left || close_right;
+        }
+
+        private static void detach_control(Widget w) {
+            var parent = w.get_parent();
+            if (parent is Box) ((Box) parent).remove(w);
         }
 
         // Prefer the host org.gnome.desktop.wm.preferences button-layout (which
