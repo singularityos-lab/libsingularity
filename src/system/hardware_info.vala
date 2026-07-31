@@ -89,18 +89,52 @@ namespace Singularity {
             return "Unknown";
         }
 
-        public static string graphics() {
+        internal static string graphics_from_drm(string drm_path) {
+            bool intel = false;
+            bool nvidia = false;
+            bool amd = false;
+            string? unknown = null;
+
             try {
-                string vendor_id;
-                if (FileUtils.get_contents("/sys/class/drm/card0/device/vendor", out vendor_id)) {
+                var dir = Dir.open(drm_path);
+                string? name;
+                while ((name = dir.read_name()) != null) {
+                    if (!is_drm_card(name)) continue;
+
+                    string vendor_id;
+                    string vendor_path = Path.build_filename(
+                        drm_path, name, "device", "vendor"
+                    );
+                    if (!FileUtils.test(vendor_path, FileTest.EXISTS)) continue;
+                    if (!FileUtils.get_contents(vendor_path, out vendor_id)) continue;
                     vendor_id = vendor_id.strip();
-                    if (vendor_id == "0x8086") return "Intel Graphics";
-                    if (vendor_id == "0x10de") return "NVIDIA Graphics";
-                    if (vendor_id == "0x1002") return "AMD Graphics";
-                    return "Unknown GPU (" + vendor_id + ")";
+                    if (vendor_id == "0x8086") intel = true;
+                    else if (vendor_id == "0x10de") nvidia = true;
+                    else if (vendor_id == "0x1002") amd = true;
+                    else if (unknown == null) unknown = vendor_id;
                 }
             } catch (Error e) {}
+
+            if (intel && nvidia) return "Intel + NVIDIA Graphics";
+            if (intel && amd) return "Intel + AMD Graphics";
+            if (amd && nvidia) return "AMD + NVIDIA Graphics";
+            if (nvidia) return "NVIDIA Graphics";
+            if (amd) return "AMD Graphics";
+            if (intel) return "Intel Graphics";
+            if (unknown != null) return "Unknown GPU (" + unknown + ")";
             return "Unknown Graphics";
+        }
+
+        private static bool is_drm_card(string name) {
+            if (!name.has_prefix("card") || name.length == 4) return false;
+            for (int i = 4; i < name.length; i++) {
+                if (!name[i].isdigit()) return false;
+            }
+            return true;
+        }
+
+        public static string graphics() {
+            return graphics_from_drm("/sys/class/drm");
         }
     }
 }

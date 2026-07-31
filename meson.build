@@ -246,6 +246,16 @@ if get_option('system')
     'singularity-system-1.0.deps',
     install_dir: get_option('datadir') / 'vala' / 'vapi',
   )
+
+  hardware_info_test = executable(
+    'hardware-info-test',
+    files(
+      'tests/hardware_info_test.vala',
+      'src/system/hardware_info.vala',
+    ),
+    dependencies: [gio_dep, gee_dep],
+  )
+  test('hardware-info', hardware_info_test)
 endif
 
 # Build the Singularity GTK3/GTK4 theme for third-party apps. Orchis supplies
