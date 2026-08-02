@@ -2,6 +2,12 @@ using GLib;
 
 namespace Singularity {
 
+    [DBus (name = "io.github.singularityos_lab.ush.Broker1")]
+    interface UshSessionBroker : Object {
+        public abstract void reboot() throws GLib.Error;
+        public abstract void power_off() throws GLib.Error;
+    }
+
     public class SessionManager : Object {
         private static SessionManager? _instance = null;
 
@@ -114,6 +120,10 @@ namespace Singularity {
 
         public void shutdown() {
             session_ending();
+            if (is_sinty_os()) {
+                request_sinty_power(false);
+                return;
+            }
             try {
                 var bus = Bus.get_sync(BusType.SYSTEM);
                 bus.call_sync(
@@ -133,6 +143,10 @@ namespace Singularity {
 
         public void reboot() {
             session_ending();
+            if (is_sinty_os()) {
+                request_sinty_power(true);
+                return;
+            }
             try {
                 var bus = Bus.get_sync(BusType.SYSTEM);
                 bus.call_sync(
@@ -148,6 +162,42 @@ namespace Singularity {
             } catch (Error e) {
                 warning("Failed to reboot: %s", e.message);
             }
+        }
+
+        private void request_sinty_power(bool rebooting) {
+            try {
+                var broker = Bus.get_proxy_sync<UshSessionBroker>(
+                    BusType.SESSION,
+                    "io.github.singularityos_lab.ush.Broker",
+                    "/io/github/singularityos_lab/ush/Broker"
+                );
+                if (rebooting) {
+                    broker.reboot();
+                } else {
+                    broker.power_off();
+                }
+            } catch (Error e) {
+                warning("Failed to %s: %s", rebooting ? "reboot" : "shutdown", e.message);
+            }
+        }
+
+        private bool is_sinty_os() {
+            string content;
+            try {
+                if (!FileUtils.get_contents("/etc/os-release", out content)) {
+                    return false;
+                }
+                foreach (string line in content.split("\n")) {
+                    if (!line.has_prefix("ID=")) {
+                        continue;
+                    }
+                    string id = line.substring(3).replace("\"", "").strip();
+                    return id == "sinty" || id.has_prefix("sinty");
+                }
+            } catch (Error e) {
+                return false;
+            }
+            return false;
         }
 
         public void suspend() {
