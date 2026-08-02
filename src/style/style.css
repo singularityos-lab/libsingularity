@@ -5029,3 +5029,20 @@ button.disk-card.selected {
     font-size: 13px;
     color: @text_color;
 }
+
+.singularity button:focus:focus-visible,
+.singularity entry:focus:focus-visible,
+.singularity spinbutton:focus:focus-visible,
+.singularity switch:focus:focus-visible,
+.singularity checkbutton:focus:focus-visible,
+.singularity scale:focus:focus-visible,
+.singularity combobox:focus:focus-visible,
+.singularity dropdown:focus:focus-visible,
+.singularity modelbutton:focus:focus-visible,
+.singularity listbox > row:focus:focus-visible,
+.singularity gridview > child:focus:focus-visible,
+.singularity columnview row:focus:focus-visible,
+.singularity flowbox > flowboxchild:focus:focus-visible {
+    outline: 2px solid @accent_color;
+    outline-offset: 2px;
+}
