@@ -141,27 +141,30 @@ namespace Singularity {
 
         // Setting client.wireless_enabled / wwan_enabled directly is a
         // synchronous D-Bus call that blocks the GTK main thread for seconds.
-        // Drive the radios via nmcli asynchronously instead; NetworkManager
-        // emits notify::wireless-enabled which update_state() picks up.
-        private void nmcli_async(string[] args) {
-            string[] argv = new string[args.length + 1];
-            argv[0] = "nmcli";
-            for (int i = 0; i < args.length; i++) argv[i + 1] = args[i];
-            try {
-                var proc = new GLib.Subprocess.newv(argv,
-                    GLib.SubprocessFlags.STDOUT_SILENCE | GLib.SubprocessFlags.STDERR_SILENCE);
-                proc.wait_async.begin(null, (obj, res) => {
-                    try { proc.wait_async.end(res); } catch (Error e) {}
+        // Set the documented WirelessEnabled/WwanEnabled property on
+        // org.freedesktop.NetworkManager asynchronously instead; NetworkManager
+        // emits notify::wireless-enabled which update_state() picks up. This is
+        // the public D-Bus surface, so it works against any implementation that
+        // owns the name (NetworkManager or sinty-nm), with no nmcli binary.
+        private void set_radio_enabled_async(string property, bool value) {
+            if (client == null) return;
+            client.dbus_set_property.begin(
+                "/org/freedesktop/NetworkManager",
+                "org.freedesktop.NetworkManager",
+                property, new GLib.Variant.boolean(value), -1, null,
+                (obj, res) => {
+                    try {
+                        client.dbus_set_property.end(res);
+                    } catch (Error e) {
+                        warning("set %s failed: %s", property, e.message);
+                    }
                 });
-            } catch (Error e) {
-                warning("nmcli %s failed: %s", string.joinv(" ", args), e.message);
-            }
         }
 
         public void toggle_wifi() {
             if (client == null) return;
             bool target = !client.wireless_enabled;
-            nmcli_async({ "radio", "wifi", target ? "on" : "off" });
+            set_radio_enabled_async("WirelessEnabled", target);
             if (wifi_enabled != target) {
                 wifi_enabled = target;
                 state_changed();
@@ -171,7 +174,8 @@ namespace Singularity {
         public void toggle_airplane_mode() {
             if (client == null) return;
             bool turn_on = !is_airplane_mode;
-            nmcli_async({ "radio", "all", turn_on ? "off" : "on" });
+            set_radio_enabled_async("WirelessEnabled", !turn_on);
+            set_radio_enabled_async("WwanEnabled", !turn_on);
         }
 
         public void request_scan() {
