@@ -171,6 +171,8 @@ namespace Singularity {
             if (FileUtils.test(cand, FileTest.EXISTS)) return cand;
             // Common install layouts.
             string[] roots = {
+                "/usr/lib/singularity/widgets",
+                "/usr/lib64/singularity/widgets",
                 "/opt/local/lib/singularity/widgets",
                 "/opt/local/lib64/singularity/widgets",
                 Path.build_filename(Environment.get_user_data_dir(),
