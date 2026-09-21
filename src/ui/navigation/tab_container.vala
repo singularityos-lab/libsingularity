@@ -61,7 +61,7 @@ namespace Singularity.Widgets {
                 update_tab_scroll_visibility();
                 page_removed(p, n);
             });
-            notebook.switch_page.connect((p, n) => switch_page(p, n));
+            notebook.switch_page.connect_after((p, n) => switch_page(p, n));
             update_tab_scroll_visibility();
         }
 
