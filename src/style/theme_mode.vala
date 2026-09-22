@@ -8,13 +8,14 @@ namespace Singularity.Style {
 
     /**
      * Resolves the effective appearance from the dev.sinty.desktop theme-mode,
-     * theme-adaptive and adaptive schedule keys.
+     * theme-adaptive and adaptive schedule keys, plus the night light schedule
+     * when night-light-dark-theme is set.
      *
      * Shared by the shell, first-party apps and the portal Settings backend so
      * the policy lives in one place. The shell follows shell_dark (dark unless
      * full Light), applications follow app_dark (light unless full Dark). When
-     * adaptive is enabled the effective mode becomes Dark during the configured
-     * night window.
+     * adaptive is enabled, or night-light-dark-theme follows an adaptive night
+     * light, the effective mode becomes Dark during that night window.
      */
     public class ThemeMode : Object {
 
@@ -42,6 +43,11 @@ namespace Singularity.Style {
                 settings.changed["theme-adaptive"].connect(on_settings_changed);
                 settings.changed["theme-adaptive-from"].connect(on_settings_changed);
                 settings.changed["theme-adaptive-to"].connect(on_settings_changed);
+                settings.changed["night-light-enabled"].connect(on_settings_changed);
+                settings.changed["night-light-adaptive"].connect(on_settings_changed);
+                settings.changed["night-light-adaptive-from"].connect(on_settings_changed);
+                settings.changed["night-light-adaptive-to"].connect(on_settings_changed);
+                settings.changed["night-light-dark-theme"].connect(on_settings_changed);
             } else {
                 if_settings = Core.safe_settings("org.gnome.desktop.interface");
                 if (if_settings != null)
@@ -71,10 +77,13 @@ namespace Singularity.Style {
         /** The effective mode after applying the adaptive night override. */
         public ColorMode effective() {
             var b = base_mode();
-            if (settings != null
-                    && settings.get_boolean("theme-adaptive")
-                    && b != ColorMode.DARK
-                    && is_night()) {
+            if (settings == null || b == ColorMode.DARK) return b;
+            if (settings.get_boolean("theme-adaptive")
+                    && in_window("theme-adaptive-from", "theme-adaptive-to")) {
+                return ColorMode.DARK;
+            }
+            if (follows_night_light()
+                    && in_window("night-light-adaptive-from", "night-light-adaptive-to")) {
                 return ColorMode.DARK;
             }
             return b;
@@ -124,10 +133,16 @@ namespace Singularity.Style {
             return h * 60 + m;
         }
 
-        private bool is_night() {
-            if (settings == null) return false;
-            int from = parse_minutes(settings.get_string("theme-adaptive-from"), 19 * 60);
-            int to   = parse_minutes(settings.get_string("theme-adaptive-to"), 7 * 60);
+        private bool follows_night_light() {
+            return settings.settings_schema.has_key("night-light-dark-theme")
+                && settings.get_boolean("night-light-dark-theme")
+                && settings.get_boolean("night-light-enabled")
+                && settings.get_boolean("night-light-adaptive");
+        }
+
+        private bool in_window(string from_key, string to_key) {
+            int from = parse_minutes(settings.get_string(from_key), 19 * 60);
+            int to   = parse_minutes(settings.get_string(to_key), 7 * 60);
             if (from == to) return false;
             var now = new DateTime.now_local();
             int cur = now.get_hour() * 60 + now.get_minute();
@@ -135,21 +150,31 @@ namespace Singularity.Style {
             return cur >= from || cur < to;
         }
 
+        private int minutes_to_edge(string from_key, string to_key, int cur) {
+            int from = parse_minutes(settings.get_string(from_key), 19 * 60);
+            int to   = parse_minutes(settings.get_string(to_key), 7 * 60);
+            int d_from = (from - cur + 1440) % 1440;
+            int d_to   = (to   - cur + 1440) % 1440;
+            return int.min(d_from == 0 ? 1440 : d_from, d_to == 0 ? 1440 : d_to);
+        }
+
         private void reschedule() {
             if (timer_id != 0) {
                 Source.remove(timer_id);
                 timer_id = 0;
             }
-            if (settings == null || !settings.get_boolean("theme-adaptive")) return;
-            if (base_mode() == ColorMode.DARK) return;
+            if (settings == null || base_mode() == ColorMode.DARK) return;
+            bool theme_adaptive = settings.get_boolean("theme-adaptive");
+            bool night_light = follows_night_light();
+            if (!theme_adaptive && !night_light) return;
 
-            int from = parse_minutes(settings.get_string("theme-adaptive-from"), 19 * 60);
-            int to   = parse_minutes(settings.get_string("theme-adaptive-to"), 7 * 60);
             var now = new DateTime.now_local();
             int cur = now.get_hour() * 60 + now.get_minute();
-            int d_from = (from - cur + 1440) % 1440;
-            int d_to   = (to   - cur + 1440) % 1440;
-            int wait = int.min(d_from == 0 ? 1440 : d_from, d_to == 0 ? 1440 : d_to);
+            int wait = 1440;
+            if (theme_adaptive)
+                wait = int.min(wait, minutes_to_edge("theme-adaptive-from", "theme-adaptive-to", cur));
+            if (night_light)
+                wait = int.min(wait, minutes_to_edge("night-light-adaptive-from", "night-light-adaptive-to", cur));
             uint secs = (uint) (wait * 60 - now.get_second() + 2);
             timer_id = Timeout.add_seconds(secs, () => {
                 timer_id = 0;
