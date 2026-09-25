@@ -556,6 +556,11 @@ namespace Singularity {
         private bool _nvidia_in_flight = false;
         private double _base_gpu_utilization = -1.0;
         private double _nvidia_gpu_utilization = -1.0;
+        private int64 _amd_vram_used = -1;
+        private int64 _amd_vram_total = -1;
+        private int64 _nvidia_vram_used = -1;
+        private int64 _nvidia_vram_total = -1;
+        private int64 _drm_resident_bytes = -1;
         private int64 _last_gpu_sample_us = 0;
         private Gee.HashMap<string, uint64?> _drm_counters =
             new Gee.HashMap<string, uint64?>();
@@ -574,6 +579,10 @@ namespace Singularity {
         public int gpu_power_milliwatts { get; private set; default = -1; }
         /** GPU utilization from 0.0 to 1.0, or -1 when unavailable. */
         public double gpu_utilization { get; private set; default = -1.0; }
+        /** Video memory in use across all GPUs, in bytes, or -1 when no driver reports it. */
+        public int64 vram_used_bytes { get; private set; default = -1; }
+        /** Total video memory across all GPUs, in bytes, or -1 when no driver reports it. */
+        public int64 vram_total_bytes { get; private set; default = -1; }
 
         /**
          * Substring identifying the CPU/GPU sensor on hardware the allow-list
@@ -1086,10 +1095,70 @@ namespace Singularity {
             return best;
         }
 
+        private void collect_amd_vram() {
+            int64 used = -1;
+            int64 total = -1;
+            Dir dir;
+            try {
+                dir = Dir.open(drm_dir(), 0);
+            } catch (FileError e) {
+                _amd_vram_used = used;
+                _amd_vram_total = total;
+                return;
+            }
+            string? node;
+            while ((node = dir.read_name()) != null) {
+                if (!node.has_prefix("card") || node.contains("-")) {
+                    continue;
+                }
+                string device = drm_dir() + "/" + node + "/device/";
+                string? raw_used = read_first_line(device + "mem_info_vram_used");
+                string? raw_total = read_first_line(device + "mem_info_vram_total");
+                if (raw_used == null || raw_total == null) {
+                    continue;
+                }
+                used = (used < 0 ? 0 : used) + int64.parse(raw_used);
+                total = (total < 0 ? 0 : total) + int64.parse(raw_total);
+            }
+            _amd_vram_used = used;
+            _amd_vram_total = total;
+        }
+
+        private void update_vram() {
+            int64 used = -1;
+            int64 total = -1;
+            if (_amd_vram_total > 0) {
+                used = _amd_vram_used;
+                total = _amd_vram_total;
+            }
+            if (_nvidia_vram_total > 0) {
+                used = (used < 0 ? 0 : used) + _nvidia_vram_used;
+                total = (total < 0 ? 0 : total) + _nvidia_vram_total;
+            }
+            if (total < 0 && _drm_resident_bytes >= 0) {
+                used = _drm_resident_bytes;
+            }
+            vram_used_bytes = used;
+            vram_total_bytes = total;
+        }
+
+        internal static int64 parse_fdinfo_bytes(string value) {
+            string[] parts = value.strip().split(" ");
+            int64 amount = int64.parse(parts[0]);
+            string unit = parts.length > 1 ? parts[parts.length - 1] : "";
+            switch (unit) {
+                case "KiB": return amount * 1024;
+                case "MiB": return amount * 1024 * 1024;
+                case "GiB": return amount * 1024 * 1024 * 1024;
+                default: return amount;
+            }
+        }
+
         private void collect_drm_clients(
             Gee.HashMap<string, uint64?> counters,
             Gee.HashMap<string, uint64?> capacities) {
             var clients = new Gee.HashSet<string>();
+            _drm_resident_bytes = -1;
             Dir proc;
             try {
                 proc = Dir.open(proc_dir(), 0);
@@ -1125,6 +1194,7 @@ namespace Singularity {
                     string client = "";
                     var engines = new Gee.HashMap<string, uint64?>();
                     var engine_capacities = new Gee.HashMap<string, uint64?>();
+                    int64 resident = -1;
                     foreach (string line in contents.split("\n")) {
                         int separator = line.index_of(":");
                         if (separator < 0) {
@@ -1138,6 +1208,8 @@ namespace Singularity {
                             device = value;
                         } else if (key == "drm-client-id") {
                             client = value;
+                        } else if (key.has_prefix("drm-resident-")) {
+                            resident = (resident < 0 ? 0 : resident) + parse_fdinfo_bytes(value);
                         } else if (key.has_prefix("drm-engine-capacity-")) {
                             string engine = key.substring("drm-engine-capacity-".length);
                             engine_capacities[engine] = uint64.parse(value);
@@ -1147,7 +1219,7 @@ namespace Singularity {
                             engines[engine] = uint64.parse(parts[0]);
                         }
                     }
-                    if (driver == "" || client == "" || engines.size == 0) {
+                    if (driver == "" || client == "") {
                         continue;
                     }
                     string client_key = "%s|%s|%s".printf(driver, device, client);
@@ -1155,6 +1227,9 @@ namespace Singularity {
                         continue;
                     }
                     clients.add(client_key);
+                    if (resident >= 0) {
+                        _drm_resident_bytes = (_drm_resident_bytes < 0 ? 0 : _drm_resident_bytes) + resident;
+                    }
                     foreach (var entry in engines.entries) {
                         counters[client_key + "|" + entry.key] = entry.value;
                         string engine_key = device + "|" + entry.key;
@@ -1171,9 +1246,11 @@ namespace Singularity {
 
         internal void sample_gpu_utilization(int64 now_us) {
             double best = collect_amd_gpu_utilization();
+            collect_amd_vram();
             var counters = new Gee.HashMap<string, uint64?>();
             var capacities = new Gee.HashMap<string, uint64?>();
             collect_drm_clients(counters, capacities);
+            update_vram();
 
             if (counters.size > 0) {
                 var deltas = new Gee.HashMap<string, uint64?>();
@@ -1252,13 +1329,26 @@ namespace Singularity {
                 gpu_power_milliwatts = -1;
                 _nvidia_gpu_utilization = -1.0;
                 gpu_utilization = _base_gpu_utilization;
+                _nvidia_vram_used = -1;
+                _nvidia_vram_total = -1;
+                update_vram();
                 return;
             }
+            int64 vram_used = -1;
+            int64 vram_total = -1;
             foreach (string line in csv.split("\n")) {
                 if (line.strip() == "") {
                     continue;
                 }
                 string[] fields = line.split(",");
+                if (fields.length >= 7) {
+                    int64 used_mib = int64.parse(fields[5].strip());
+                    int64 total_mib = int64.parse(fields[6].strip());
+                    if (total_mib > 0) {
+                        vram_used = (vram_used < 0 ? 0 : vram_used) + used_mib * 1024 * 1024;
+                        vram_total = (vram_total < 0 ? 0 : vram_total) + total_mib * 1024 * 1024;
+                    }
+                }
                 if (fields.length < 2) {
                     continue;
                 }
@@ -1297,6 +1387,9 @@ namespace Singularity {
             _nvidia_readings = found;
             gpu_power_milliwatts = power_milliwatts;
             _nvidia_gpu_utilization = utilization;
+            _nvidia_vram_used = vram_used;
+            _nvidia_vram_total = vram_total;
+            update_vram();
             gpu_utilization = _base_gpu_utilization > _nvidia_gpu_utilization
                 ? _base_gpu_utilization : _nvidia_gpu_utilization;
         }
@@ -1312,7 +1405,7 @@ namespace Singularity {
             }
             string[] argv = {
                 "nvidia-smi",
-                "--query-gpu=name,temperature.gpu,clocks.sm,power.draw,utilization.gpu",
+                "--query-gpu=name,temperature.gpu,clocks.sm,power.draw,utilization.gpu,memory.used,memory.total",
                 "--format=csv,noheader,nounits"
             };
             try {

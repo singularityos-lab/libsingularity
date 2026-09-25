@@ -4541,6 +4541,33 @@ button.flat.singularity-hover-btn.suggested-action:active {
     font-size: 12px;
 }
 
+.bubble-switcher {
+    min-height: 0;
+    padding: 2px;
+}
+.bubble-switcher button.bubble-switcher-item {
+    border-radius: 20px;
+}
+.bubble-switcher button.bubble-switcher-item label {
+    color: alpha(white, 0.5);
+    font-size: 12px;
+    padding: 0;
+    margin: 0;
+}
+.bubble-switcher button.bubble-switcher-item.current {
+    background-color: @card_hover_bg;
+}
+.bubble-switcher button.bubble-switcher-item:hover label,
+.bubble-switcher button.bubble-switcher-item.current label {
+    color: alpha(white, 0.95);
+}
+.ssd-mode .bubble-switcher button.bubble-switcher-item label {
+    color: alpha(@text_color, 0.5);
+}
+.ssd-mode .bubble-switcher button.bubble-switcher-item.current label {
+    color: @text_color;
+}
+
 /* Split container */
 .welcome-page-split {
     background: transparent;
@@ -5385,4 +5412,104 @@ button.disk-card.selected {
 .singularity flowbox > flowboxchild:focus:focus-visible {
     outline: 2px solid @accent_color;
     outline-offset: 2px;
+}
+
+.osk-window {
+    background-color: transparent;
+}
+
+.osk {
+    padding: 10px 12px 14px;
+    border-radius: 18px 18px 0 0;
+    background-color: @panel_solid_bg;
+    background-image: linear-gradient(alpha(@accent_color, 0.10), alpha(@accent_color, 0.04));
+    border: 1px solid alpha(@accent_color, 0.22);
+    box-shadow: 0 -6px 24px alpha(@shadow_color, 0.28);
+}
+
+.osk button.osk-key {
+    border-radius: 10px;
+    background-image: none;
+    border: none;
+    background-image: none;
+    border: none;
+    background-color: alpha(mix(@text_color, @accent_color, 0.3), 0.10);
+    color: @text_color;
+    font-size: 1.1em;
+    box-shadow: none;
+}
+
+.osk button.osk-key:hover {
+    background-color: alpha(mix(@text_color, @accent_color, 0.3), 0.16);
+}
+
+.osk button.osk-key:active {
+    background-color: alpha(@accent_color, 0.35);
+}
+
+.osk button.osk-key-special {
+    background-color: alpha(@accent_color, 0.16);
+    font-size: 0.9em;
+}
+
+.osk button.osk-key.active {
+    background-color: alpha(@accent_color, 0.35);
+}
+
+.osk button.osk-key.locked {
+    background-color: @accent_color;
+    color: @accent_fg_color;
+}
+
+.osk-suggestions {
+    min-height: 40px;
+}
+
+.osk button.osk-suggestion {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    border-radius: 10px;
+    padding: 4px 16px;
+    color: @text_color;
+    font-size: 1.05em;
+}
+
+.osk button.osk-suggestion:hover {
+    background-color: alpha(@accent_color, 0.18);
+}
+
+.osk button.osk-suggestion:active {
+    background-color: alpha(@accent_color, 0.35);
+}
+
+popover.osk-accents > contents {
+    padding: 6px;
+    border-radius: 14px;
+    background-color: @panel_solid_bg;
+    background-image: linear-gradient(alpha(@accent_color, 0.12), alpha(@accent_color, 0.06));
+    border: 1px solid alpha(@accent_color, 0.25);
+}
+
+popover.osk-accents button.osk-key {
+    border-radius: 10px;
+    background-image: none;
+    border: none;
+    background-color: alpha(mix(@text_color, @accent_color, 0.3), 0.10);
+    color: @text_color;
+    font-size: 1.2em;
+}
+
+popover.osk-accents button.osk-key:hover {
+    background-color: alpha(@accent_color, 0.35);
+}
+
+
+.settings-highlight,
+row.settings-highlight,
+.singularity .preferences-row.settings-highlight,
+.singularity .preferences-group.settings-highlight {
+    background-color: alpha(@accent_color, 0.22);
+    border-radius: 12px;
+    transition: background-color 400ms ease-out;
 }

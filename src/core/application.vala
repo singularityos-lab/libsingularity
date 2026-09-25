@@ -63,6 +63,7 @@ namespace Singularity {
 
             Singularity.Style.StyleManager.get_default().load_theme();
             Singularity.Accessibility.AccessibilityManager.get_default();
+            Singularity.Text.SpellIntegration.install(this);
 
             string fallback_accent = detect_system_accent();
             bool fallback_dark = false;

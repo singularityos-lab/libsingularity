@@ -676,6 +676,45 @@ private void test_amd_gpu_busy_percent() {
     assert(Math.fabs(m.gpu_utilization - 0.37) < 0.001);
 }
 
+private void test_amd_vram() {
+    reset_fixture();
+    string device = Path.build_filename(fixture_root, "sys", "class", "drm", "card0", "device");
+    write_file(Path.build_filename(device, "mem_info_vram_used"), "1073741824\n");
+    write_file(Path.build_filename(device, "mem_info_vram_total"), "8589934592\n");
+
+    var m = new Singularity.SensorMonitor();
+    m.sysfs_root = fixture_root;
+    m.sample_gpu_utilization(1000000);
+    assert(m.vram_used_bytes == 1073741824);
+    assert(m.vram_total_bytes == 8589934592);
+}
+
+private void test_nvidia_vram_csv() {
+    var m = new Singularity.SensorMonitor();
+    m.parse_nvidia("NVIDIA RTX, 52, 2100, 125.4, 64, 2048, 12288\n");
+    assert(m.vram_used_bytes == 2048 * (int64) 1048576);
+    assert(m.vram_total_bytes == 12288 * (int64) 1048576);
+    m.parse_nvidia(null);
+    assert(m.vram_total_bytes == -1);
+}
+
+private void test_integrated_gpu_resident_memory() {
+    reset_fixture();
+    string first = Path.build_filename(fixture_root, "proc", "200", "fdinfo", "4");
+    string twin = Path.build_filename(fixture_root, "proc", "200", "fdinfo", "5");
+    string other = Path.build_filename(fixture_root, "proc", "300", "fdinfo", "4");
+    string head = "drm-driver:\ti915\ndrm-pdev:\t0000:00:02.0\n";
+    write_file(first, head + "drm-client-id:\t9\ndrm-resident-system0:\t2048 KiB\ndrm-resident-stolen-system0:\t0\n");
+    write_file(twin, head + "drm-client-id:\t9\ndrm-resident-system0:\t2048 KiB\n");
+    write_file(other, head + "drm-client-id:\t10\ndrm-resident-system0:\t1 MiB\n");
+
+    var m = new Singularity.SensorMonitor();
+    m.sysfs_root = fixture_root;
+    m.sample_gpu_utilization(1000000);
+    assert(m.vram_used_bytes == 3 * 1024 * 1024);
+    assert(m.vram_total_bytes == -1);
+}
+
 private void test_drm_clients_are_deduplicated() {
     reset_fixture();
     drm_client(100, 4, "7", 100000000);
@@ -810,6 +849,9 @@ public int main(string[] args) {
     Test.add_func("/sensor/amd-gpu-busy-percent", test_amd_gpu_busy_percent);
     Test.add_func("/sensor/drm-clients-deduplicated", test_drm_clients_are_deduplicated);
     Test.add_func("/sensor/nvidia-utilization-csv", test_nvidia_utilization_csv);
+    Test.add_func("/sensor/amd-vram", test_amd_vram);
+    Test.add_func("/sensor/nvidia-vram-csv", test_nvidia_vram_csv);
+    Test.add_func("/sensor/integrated-gpu-resident-memory", test_integrated_gpu_resident_memory);
     int rc = Test.run();
     if (fixture_root != null && FileUtils.test(fixture_root, FileTest.EXISTS)) {
         remove_path(File.new_for_path(fixture_root));

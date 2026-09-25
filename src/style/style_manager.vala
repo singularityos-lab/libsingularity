@@ -611,8 +611,100 @@ namespace Singularity.Style {
         public void apply_color_scheme(bool dark) {
             current_dark_mode = dark;
             apply_accent_color(current_accent, current_accent_wallpaper);
+            if (recolor_seed != null) recolor_from_color(recolor_seed);
             update_material_style();
             _load_user_theme_variant(dark);
+        }
+
+        private CssProvider? recolor_provider;
+        private string? recolor_seed = null;
+
+        /** Emitted after the application's recoloring changed or was reset. */
+        public signal void recolored();
+
+        /**
+         * Recolors named theme colors for this application only.
+         *
+         * Keys are theme color names such as `window_bg`, `toolbar_bg`, `card_bg`,
+         * `surface_bg`, `sidebar_bg_color` or `accent_color`; values are any
+         * color {@link Gdk.RGBA.parse} accepts.
+         * Colors left out keep their theme value, invalid entries are ignored,
+         * and each call replaces the previous recoloring. The system accent and
+         * other applications are not affected.
+         *
+         * @param colors Map of theme color name to CSS color.
+         */
+        public void recolor(HashTable<string, string> colors) {
+            recolor_seed = null;
+            load_recolor(colors);
+        }
+
+        /**
+         * Recolors this application from a single seed color.
+         *
+         * Derives a palette in the style of the system accent: the seed becomes
+         * the accent and tints the window, view, card, sidebar and header bar
+         * surfaces for the current light or dark scheme, following later
+         * scheme changes. Useful to match an album cover or a document color.
+         *
+         * @param color Seed color in any {@link Gdk.RGBA.parse} format.
+         */
+        public void recolor_from_color(string color) {
+            var rgba = Gdk.RGBA();
+            if (!rgba.parse(color)) return;
+            string seed = "#%02x%02x%02x".printf((uint) (rgba.red * 255), (uint) (rgba.green * 255),
+                                                 (uint) (rgba.blue * 255));
+            bool dark = current_dark_mode;
+            string window_base = dark ? "#242424" : "#f6f5f4";
+            string toolbar_base = dark ? "#303030" : "#e0e0e0";
+            string surface_base = dark ? "#1e1e1e" : "#ffffff";
+            var colors = new HashTable<string, string>(str_hash, str_equal);
+            colors["accent_color"] = seed;
+            colors["accent_bg_color"] = seed;
+            string window_bg = _mix_hex(window_base, seed, 0.08);
+            string toolbar_bg = _mix_hex(toolbar_base, seed, 0.10);
+            string card_bg = _mix_hex(window_base, seed, dark ? 0.16 : 0.10);
+            colors["window_bg"] = window_bg;
+            colors["window_bg_color"] = window_bg;
+            colors["toolbar_bg"] = toolbar_bg;
+            colors["headerbar_bg_color"] = toolbar_bg;
+            colors["surface_bg"] = _mix_hex(surface_base, seed, 0.05);
+            colors["view_bg_color"] = colors["surface_bg"];
+            colors["card_bg"] = card_bg;
+            colors["card_bg_color"] = card_bg;
+            colors["sidebar_bg_color"] = _mix_hex(window_base, seed, 0.12);
+            colors["secondary_sidebar_bg_color"] = _mix_hex(window_base, seed, 0.10);
+            recolor_seed = seed;
+            load_recolor(colors);
+        }
+
+        /** Removes the application's recoloring and returns to the theme colors. */
+        public void reset_recolor() {
+            recolor_seed = null;
+            var display = Gdk.Display.get_default();
+            if (recolor_provider != null && display != null) {
+                StyleContext.remove_provider_for_display(display, recolor_provider);
+            }
+            recolor_provider = null;
+            recolored();
+        }
+
+        private void load_recolor(HashTable<string, string> colors) {
+            var display = Gdk.Display.get_default();
+            if (display == null) return;
+            var css = new StringBuilder();
+            colors.foreach((name, value) => {
+                var rgba = Gdk.RGBA();
+                if (!Regex.match_simple("^[a-z_]+$", name) || !rgba.parse(value)) return;
+                css.append_printf("@define-color %s %s;\n", name, rgba.to_string());
+            });
+            if (recolor_provider == null) {
+                recolor_provider = new CssProvider();
+                StyleContext.add_provider_for_display(display, recolor_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER + 2);
+            }
+            recolor_provider.load_from_string(css.str);
+            recolored();
         }
 
         private CssProvider? high_contrast_provider;

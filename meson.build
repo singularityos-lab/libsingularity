@@ -23,12 +23,13 @@ peas_dep       = dependency('libpeas-2',          version: '>= 2.0')
 gmodule_dep    = dependency('gmodule-2.0')
 soup_dep       = dependency('libsoup-3.0')
 gtksource_dep  = dependency('gtksourceview-5')
+enchant_dep    = dependency('enchant-2')
 introspection_dep = dependency('gobject-introspection-1.0', required: get_option('introspection'))
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required: false)
 
-libsingularity_deps = [gtk4_dep, wayland_dep, gee_dep, json_dep, peas_dep, gmodule_dep, soup_dep, gtksource_dep, m_dep]
+libsingularity_deps = [gtk4_dep, wayland_dep, gee_dep, json_dep, peas_dep, gmodule_dep, soup_dep, gtksource_dep, enchant_dep, m_dep]
 libsingularity_requires = ['gtk4', 'gee-0.8', 'json-glib-1.0', 'libpeas-2', 'gtksourceview-5']
 
 if get_option('layer-shell')
@@ -75,6 +76,7 @@ libsingularity_sources = files(
   'src/ui/preferences/preferences_page.vala',
   'src/ui/pages/status_page.vala',
   'src/ui/controls/search_entry.vala',
+  'src/ui/controls/bubble_switcher.vala',
   'src/ui/controls/segmented_control.vala',
   'src/ui/controls/time_picker.vala',
   'src/ui/controls/color_picker_button.vala',
@@ -128,6 +130,8 @@ libsingularity_sources = files(
   'src/animation/animation.vala',
   'src/animation/timed_animation.vala',
   'src/style/style_manager.vala',
+  'src/text/spell_checker.vala',
+  'src/text/spell_integration.vala',
   'src/style/theme_mode.vala',
   'src/style/background_effect.vala',
   'src/accessibility/accessibility_manager.vala',
@@ -233,6 +237,7 @@ if get_option('system')
     'src/system/gamemode_manager.vala',
     'src/system/audio_manager.vala',
     'src/system/brightness_manager.vala',
+    'src/system/ddc.vala',
     'src/system/kbd_brightness_manager.vala',
     'src/system/power_manager.vala',
     'src/system/nm_wrapper.vala',
@@ -303,6 +308,29 @@ if get_option('system')
     dependencies: [gio_dep, gee_dep],
   )
   test('sensor', sensor_test)
+
+  ddc_test = executable(
+    'ddc-test',
+    files(
+      'tests/ddc_test.vala',
+      'src/system/ddc.vala',
+    ),
+    dependencies: [gio_dep],
+    vala_args: ['--pkg', 'posix'],
+  )
+  test('ddc', ddc_test)
+
+  brightness_test = executable(
+    'brightness-test',
+    files(
+      'tests/brightness_test.vala',
+      'src/system/brightness_manager.vala',
+      'src/system/ddc.vala',
+    ),
+    dependencies: [gio_dep, gee_dep, gudev_dep],
+    vala_args: ['--pkg', 'posix'],
+  )
+  test('brightness', brightness_test)
 
   utilization_test = executable(
     'utilization-test',
