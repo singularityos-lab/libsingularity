@@ -2112,7 +2112,7 @@ window.app-menu-window {
 }
 
 .sidebar-window .settings-page-content {
-    padding: 0;
+    padding: 0 0 2px;
     margin: 0;
 }
 
