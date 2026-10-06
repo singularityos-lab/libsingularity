@@ -35,6 +35,51 @@ namespace Singularity {
 
         public signal void changed();
 
+        /**
+         * Emitted after `save_instance_config` stored a new configuration.
+         * The overview rebuilds the instance with it.
+         */
+        public signal void instance_config_changed(string instance_id, Variant? config);
+
+        /**
+         * Emitted by `close_overview`. The shell hides the overview that
+         * shows the widgets.
+         */
+        public signal void close_overview_requested();
+
+        /**
+         * Hides the overview, for a widget that opened an app or a view and
+         * wants the user to see it. Does nothing outside the shell.
+         */
+        public void close_overview() {
+            close_overview_requested();
+        }
+
+        /** Store used by the config methods; set by the host, null elsewhere. */
+        public OverviewWidgetConfigStore? config_store { get; set; default = null; }
+
+        /**
+         * Returns the saved configuration of a widget instance, or null when
+         * there is none or no host store is set.
+         */
+        public Variant? get_instance_config(string instance_id) {
+            return config_store != null ? config_store.load_config(instance_id) : null;
+        }
+
+        /**
+         * Saves the configuration of a widget instance, typically from
+         * OverviewWidgetProvider.configure_instance. The host persists it
+         * and passes it back to create_instance from then on.
+         *
+         * @return false when no host store is set.
+         */
+        public bool save_instance_config(string instance_id, Variant? config) {
+            if (config_store == null) return false;
+            config_store.save_config(instance_id, config);
+            instance_config_changed(instance_id, config);
+            return true;
+        }
+
         private GLib.GenericArray<OverviewWidgetProvider> _providers =
             new GLib.GenericArray<OverviewWidgetProvider>();
         // Modules kept alive for the lifetime of the registry. The factory
@@ -173,11 +218,13 @@ namespace Singularity {
             string[] roots = {
                 "/usr/lib/singularity/widgets",
                 "/usr/lib64/singularity/widgets",
+                "/usr/local/lib/singularity/widgets",
                 "/opt/local/lib/singularity/widgets",
                 "/opt/local/lib64/singularity/widgets",
                 Path.build_filename(Environment.get_user_data_dir(),
                     "singularity", "widgets")
             };
+            foreach (var r in multiarch_widget_dirs({ "/usr/lib", "/usr/local/lib", "/opt/local/lib" })) roots += r;
             foreach (var r in roots) {
                 cand = Path.build_filename(r, module);
                 if (FileUtils.test(cand, FileTest.EXISTS)) return cand;
@@ -186,8 +233,46 @@ namespace Singularity {
         }
     }
 
+    /**
+     * The `<libdir>/<multiarch triplet>/singularity/widgets` directories that
+     * exist under `libdirs`, such as `/usr/lib/x86_64-linux-gnu/singularity/widgets`.
+     */
+    public string[] multiarch_widget_dirs(string[] libdirs) {
+        string[] found = {};
+        foreach (var libdir in libdirs) {
+            Dir d;
+            try {
+                d = Dir.open(libdir, 0);
+            } catch (FileError e) {
+                continue;
+            }
+            string? name;
+            var names = new GenericArray<string>();
+            while ((name = d.read_name()) != null) {
+                if (name.contains("-linux-")) names.add(name);
+            }
+            names.sort(strcmp);
+            foreach (var triplet in names.data) {
+                string path = Path.build_filename(libdir, triplet, "singularity", "widgets");
+                if (FileUtils.test(path, FileTest.IS_DIR)) found += path;
+            }
+        }
+        return found;
+    }
+
     [CCode (has_target = false)]
     public delegate Object WidgetFactoryFunc();
+
+    /**
+     * Where the host keeps the configuration of each overview widget
+     * instance. The shell sets one on OverviewWidgetRegistry.config_store.
+     */
+    public interface OverviewWidgetConfigStore : Object {
+        /** Returns the saved configuration of `instance_id`, or null. */
+        public abstract Variant? load_config(string instance_id);
+        /** Saves the configuration of `instance_id`; null clears it. */
+        public abstract void save_config(string instance_id, Variant? config);
+    }
 
     /**
      * Global registry of search providers. Same shape as

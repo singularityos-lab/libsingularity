@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="wlr_foreign_toplevel_management_unstable_v1">
+  <copyright>
+    Copyright © 2018 Ilia Bozhinov
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <interface name="zwlr_foreign_toplevel_manager_v1" version="3">
+    <description summary="list and control opened apps">
+      The purpose of this protocol is to enable the creation of taskbars
+      and docks by providing them with a list of opened applications and
+      letting them request certain actions on them, like maximizing, etc.
+
+      After a client binds the zwlr_foreign_toplevel_manager_v1, each opened
+      toplevel window will be sent via the toplevel event
+    </description>
+
+    <event name="toplevel">
+      <description summary="a toplevel has been created">
+        This event is emitted whenever a new toplevel window is created. It
+        is emitted for all toplevels, regardless of the app that has created
+        them.
+
+        All initial details of the toplevel(title, app_id, states, etc.) will
+        be sent immediately after this event with the corresponding events in
+        zwlr_foreign_toplevel_handle_v1.
+      </description>
+      <arg name="toplevel" type="new_id" interface="zwlr_foreign_toplevel_handle_v1"/>
+    </event>
+
+    <request name="stop">
+      <description summary="stop sending events">
+        Indicates the client no longer wishes to receive events for new toplevels.
+        However the compositor may emit further toplevel_created events, until
+        the finished event is emitted.
+
+        The client must not send any more requests after this one.
+      </description>
+    </request>
+
+    <event name="finished">
+      <description summary="the compositor has finished with the toplevel manager">
+        This event indicates that the compositor is done sending events to the
+        zwlr_foreign_toplevel_manager_v1. The server will destroy the object
+        immediately after sending this request, so it will become invalid and
+        the client should free any resources associated with it.
+      </description>
+    </event>
+  </interface>
+
+  <interface name="zwlr_foreign_toplevel_handle_v1" version="3">
+    <description summary="an opened toplevel">
+      A zwlr_foreign_toplevel_handle_v1 object represents an opened toplevel
+      window. Each app may have multiple opened toplevels.
+
+      Each toplevel has a list of outputs it is visible on, conveyed to the
+      client with the output_enter and output_leave events.
+    </description>
+
+    <event name="title">
+      <description summary="title change">
+        This event is emitted whenever the title of the toplevel changes.
+      </description>
+      <arg name="title" type="string"/>
+    </event>
+
+    <event name="app_id">
+      <description summary="app-id change">
+        This event is emitted whenever the app-id of the toplevel changes.
+      </description>
+      <arg name="app_id" type="string"/>
+    </event>
+
+    <event name="output_enter">
+      <description summary="toplevel entered an output">
+        This event is emitted whenever the toplevel becomes visible on
+        the given output. A toplevel may be visible on multiple outputs.
+      </description>
+      <arg name="output" type="object" interface="wl_output"/>
+    </event>
+
+    <event name="output_leave">
+      <description summary="toplevel left an output">
+        This event is emitted whenever the toplevel stops being visible on
+        the given output. It is guaranteed that an output_enter event for
+        this output was emitted before this event.
+      </description>
+      <arg name="output" type="object" interface="wl_output"/>
+    </event>
+
+    <request name="maximize">
+      <description summary="request that the toplevel be maximized">
+        Requests that the toplevel be maximized. If the maximized state actually
+        changes, this will be indicated by the state event.
+      </description>
+    </request>
+
+    <request name="unset_maximize">
+      <description summary="request that the toplevel be unmaximized">
+        Requests that the toplevel be unmaximized. If the maximized state actually
+        changes, this will be indicated by the state event.
+      </description>
+    </request>
+
+    <request name="minimize">
+      <description summary="request that the toplevel be minimized">
+        Requests that the toplevel be minimized. If the minimized state actually
+        changes, this will be indicated by the state event.
+      </description>
+    </request>
+
+    <request name="unset_minimize">
+      <description summary="request that the toplevel be unminimized">
+        Requests that the toplevel be unminimized. If the minimized state actually
+        changes, this will be indicated by the state event.
+      </description>
+    </request>
+
+    <request name="activate">
+      <description summary="request that the toplevel be activated">
+        Request that this toplevel be activated on the given seat.
+        There is no guarantee the toplevel will be actually activated.
+      </description>
+      <arg name="seat" type="object" interface="wl_seat"/>
+    </request>
+
+    <request name="close">
+      <description summary="request that the toplevel be closed">
+        Send a request to the toplevel to close itself. The compositor may
+        currently not be able to close the toplevel at the time the request
+        is received. In that case, the request will be ignored.
+      </description>
+    </request>
+
+    <request name="set_rectangle">
+      <description summary="the rectangle which represents the toplevel">
+        The rectangle of the surface that is representing the toplevel. This
+        rectangle is in the "surface local coordinates" of the layer surface
+        interface. It allows the compositor to define a placement for the
+        toplevel (e.g. for the minimize animation).
+      </description>
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
+
+    <event name="state">
+      <description summary="the toplevel state changed">
+        This event is emitted immediately after the zlw_foreign_toplevel_handle_v1
+        is created and each time the toplevel state changes, either because of a
+        compositor action or because of a request in this protocol.
+      </description>
+      <arg name="state" type="array"/>
+    </event>
+
+    <event name="done">
+      <description summary="all information about the toplevel has been sent">
+        This event is sent after all changes in the toplevel state have been
+        sent.
+
+        This allows changes to the toplevel properties to be seen as
+        atomic, even if they happen via multiple events.
+      </description>
+    </event>
+
+    <event name="closed">
+      <description summary="this toplevel has been destroyed">
+        This event means the toplevel has been destroyed. It is guaranteed there
+        won't be any more events for this zwlr_foreign_toplevel_handle_v1. The
+        toplevel itself becomes inert so any requests will be ignored. After the
+        client receives this event, it should destroy this object.
+      </description>
+    </event>
+
+    <enum name="state">
+      <description summary="types of states on the toplevel">
+        The different states that a toplevel can have. These have the same meaning
+        as the states with the same names defined in xdg-toplevel
+      </description>
+      <entry name="maximized" value="0"/>
+      <entry name="minimized" value="1"/>
+      <entry name="activated" value="2"/>
+      <entry name="fullscreen" value="3"/>
+    </enum>
+
+    <request name="destroy" type="destructor" since="1">
+      <description summary="destroy the zwlr_foreign_toplevel_handle_v1 object">
+        Destroys the zwlr_foreign_toplevel_handle_v1 object.
+
+        This request should be called either when the client does not want to
+        use the toplevel object any more or after the closed event to avoid
+        leaking the object.
+      </description>
+    </request>
+
+    <event name="parent" since="2">
+      <description summary="parent change">
+        This event is emitted whenever the parent of the toplevel changes.
+
+        No event is emitted when the parent of this toplevel is null.
+      </description>
+      <arg name="parent" type="object" interface="zwlr_foreign_toplevel_handle_v1" allow-null="true"/>
+    </event>
+
+    <request name="set_fullscreen" since="2">
+      <description summary="request that the toplevel be fullscreened">
+        Requests that the toplevel be fullscreened on the given output. If the
+        fullscreen state actually changes, this will be indicated by the state
+        event.
+      </description>
+      <arg name="output" type="object" interface="wl_output" allow-null="true"/>
+    </request>
+
+    <request name="unset_fullscreen" since="2">
+      <description summary="request that the toplevel be unfullscreened">
+        Requests that the toplevel be unfullscreened. If the fullscreen state
+        actually changes, this will be indicated by the state event.
+      </description>
+    </request>
+  </interface>
+</protocol>

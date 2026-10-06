@@ -12,8 +12,13 @@ namespace Singularity.Widgets {
      * Supports three response types: primary, secondary, and cancel.
      * The primary button can be styled as suggested or destructive.
      *
+     * The Cancel button is always present, so the titlebar close bubble is
+     * hidden. Escape clicks Cancel, and closing the window any other way
+     * without a response, for example from the compositor, emits
+     * `Response.CANCEL` as well.
+     *
      * Usage:
-     *   var dlg = new ConfirmDialog(app, "Save Changes?", "dialog-warning-symbolic",
+     *   var dlg = new ConfirmDialog(app, "Save Changes?", null,
      *       "You have unsaved changes.", "Discard", ConfirmDialog.ActionStyle.DESTRUCTIVE);
      *   dlg.set_secondary("Save", ConfirmDialog.ActionStyle.SUGGESTED);
      *   dlg.response.connect((r) => {
@@ -42,13 +47,16 @@ namespace Singularity.Widgets {
         private Box _custom_area;
         private Button _primary_btn;
         private Button _secondary_btn;
+        private Button _cancel_btn;
+        private bool _responded = false;
 
         /**
          * Creates a new confirmation dialog.
          *
          * @param app            The owning application
          * @param title          Dialog title
-         * @param icon_name      Icon name for the header, or null for no icon
+         * @param icon_name      Full-color hicolor icon for the header, drawn at
+         *                       48 px, or null for no icon
          * @param description    Body text shown below the title
          * @param primary_label  Label for the primary action button (rightmost)
          * @param primary_style  Style for the primary button
@@ -63,16 +71,17 @@ namespace Singularity.Widgets {
             set_title(title);
             set_default_size(380, 0);
 
-            var box = new Box(Orientation.VERTICAL, 16);
-            box.margin_top    = 32;
-            box.margin_bottom = 24;
-            box.margin_start  = 32;
-            box.margin_end    = 32;
+            var box = new Box(Orientation.VERTICAL, 12);
+            box.margin_top    = 24;
+            box.margin_bottom = 20;
+            box.margin_start  = 24;
+            box.margin_end    = 24;
 
             if (icon_name != null) {
-                var icon = new Image.from_icon_name(icon_name);
+                string shown = large_icon_name(icon_name);
+                var icon = new Image.from_icon_name(shown);
                 icon.pixel_size = 48;
-                icon.add_css_class("dim-label");
+                if (shown.has_suffix("-symbolic")) icon.add_css_class("dim-label");
                 box.append(icon);
             }
 
@@ -92,14 +101,12 @@ namespace Singularity.Widgets {
             btn_row.halign = Align.CENTER;
             btn_row.margin_top = 8;
 
-            var cancel_btn = new Button.with_label(_("Cancel"));
-            cancel_btn.add_css_class("pill");
-            cancel_btn.width_request = 120;
-            cancel_btn.clicked.connect(() => {
-                response(Response.CANCEL);
-                close_dialog();
-            });
-            btn_row.append(cancel_btn);
+            _cancel_btn = new Button.with_label(_("Cancel"));
+            _cancel_btn.add_css_class("pill");
+            _cancel_btn.width_request = 120;
+            _cancel_btn.clicked.connect(() => respond(Response.CANCEL));
+            btn_row.append(_cancel_btn);
+            set_cancel_button(_cancel_btn);
 
             _secondary_btn = new Button.with_label("");
             _secondary_btn.add_css_class("pill");
@@ -114,14 +121,56 @@ namespace Singularity.Widgets {
                 _primary_btn.add_css_class("suggested-action");
             else if (primary_style == ActionStyle.DESTRUCTIVE)
                 _primary_btn.add_css_class("destructive-action");
-            _primary_btn.clicked.connect(() => {
-                response(Response.PRIMARY);
-                close_dialog();
-            });
+            _primary_btn.clicked.connect(() => respond(Response.PRIMARY));
             btn_row.append(_primary_btn);
 
             box.append(btn_row);
             content_box.append(box);
+
+            response.connect(() => _responded = true);
+            close_request.connect(() => {
+                if (!_responded) response(Response.CANCEL);
+                return false;
+            });
+        }
+
+        /**
+         * Creates a message dialog with a single button, for an error or a
+         * notice that the user only acknowledges. There is no Cancel button;
+         * the button, Escape and closing the window all dismiss it. The
+         * button and Escape emit `Response.PRIMARY`; closing the window from
+         * the compositor emits `Response.CANCEL`.
+         *
+         * @param app          The owning application
+         * @param title        Dialog title
+         * @param icon_name    Full-color hicolor icon for the header, or null
+         * @param description  Body text shown below the title
+         * @param button_label Label of the button, "OK" when null
+         */
+        public ConfirmDialog.message(Gtk.Application app,
+                                     string title,
+                                     string? icon_name,
+                                     string? description,
+                                     string? button_label = null) {
+            this(app, title, icon_name, description, button_label ?? _("OK"), ActionStyle.SUGGESTED);
+            has_cancel = false;
+        }
+
+        /**
+         * Whether the dialog shows its Cancel button. Without it the primary
+         * button is the only one and Escape presses it.
+         */
+        public bool has_cancel {
+            get { return _cancel_btn.visible; }
+            set {
+                _cancel_btn.visible = value;
+                set_cancel_button(value ? _cancel_btn : _primary_btn);
+            }
+        }
+
+        private void respond(Response r) {
+            response(r);
+            close_dialog();
         }
 
         /**
@@ -130,6 +179,10 @@ namespace Singularity.Widgets {
          * @param label  Button label
          * @param style  Button style
          */
+        public void focus_primary() {
+            _primary_btn.grab_focus();
+        }
+
         public void set_secondary(string label, ActionStyle style = ActionStyle.DEFAULT) {
             _secondary_btn.label = label;
             _secondary_btn.visible = true;
@@ -137,10 +190,7 @@ namespace Singularity.Widgets {
                 _secondary_btn.add_css_class("suggested-action");
             else if (style == ActionStyle.DESTRUCTIVE)
                 _secondary_btn.add_css_class("destructive-action");
-            _secondary_btn.clicked.connect(() => {
-                response(Response.SECONDARY);
-                close_dialog();
-            });
+            _secondary_btn.clicked.connect(() => respond(Response.SECONDARY));
         }
 
         /**
@@ -150,6 +200,15 @@ namespace Singularity.Widgets {
          */
         public Box custom_area {
             get { return _custom_area; }
+        }
+
+        /**
+         * Whether the primary button can be pressed, for dialogs whose custom
+         * area holds input that must be valid first.
+         */
+        public bool primary_sensitive {
+            get { return _primary_btn.sensitive; }
+            set { _primary_btn.sensitive = value; }
         }
     }
 }

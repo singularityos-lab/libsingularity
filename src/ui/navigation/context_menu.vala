@@ -52,6 +52,12 @@ namespace Singularity.Widgets {
             content_box.append(item);
         }
 
+        public void add_check_item(string label, bool active, owned ClickedCallback callback) {
+            add_item(label, "object-select-symbolic", (owned) callback, "check-row");
+            var row = content_box.get_last_child();
+            if (row != null && active) row.add_css_class("checked");
+        }
+
         /**
          * Appends a labelled item using a GIcon (e.g. an application icon)
          * instead of a themed icon name. Mirrors the Files "Open With" rows.
@@ -62,7 +68,7 @@ namespace Singularity.Widgets {
             btn.add_css_class("flat");
             btn.add_css_class("menu-row");
             btn.halign = Align.FILL;
-            var hbox = new Box(Orientation.HORIZONTAL, 10);
+            var hbox = new Box(Orientation.HORIZONTAL, 8);
             hbox.halign = Align.START;
             var ico = (gicon != null)
                 ? new Image.from_gicon(gicon)
@@ -99,7 +105,7 @@ namespace Singularity.Widgets {
             var sub = new ContextMenu(parent_widget);
             var item = new MenuRow(label, icon_name);
             item.halign = Align.FILL;
-            item.add_css_class("has-submenu");
+            item.has_submenu = true;
             item.clicked.connect(() => {
                 Gdk.Rectangle rect;
                 bool has_rect = get_pointing_to(out rect);
@@ -123,20 +129,20 @@ namespace Singularity.Widgets {
                 menu.set_pointing_to(rect);
 
                 if (with_undo) {
-                    menu.add_item("Undo", "edit-undo-symbolic",
+                    menu.add_item(_("Undo"), "edit-undo-symbolic",
                         () => host.activate_action("text.undo", null));
-                    menu.add_item("Redo", "edit-redo-symbolic",
+                    menu.add_item(_("Redo"), "edit-redo-symbolic",
                         () => host.activate_action("text.redo", null));
                     menu.add_separator();
                 }
-                menu.add_item("Cut", "edit-cut-symbolic",
+                menu.add_item(_("Cut"), "edit-cut-symbolic",
                     () => host.activate_action("clipboard.cut", null));
-                menu.add_item("Copy", "edit-copy-symbolic",
+                menu.add_item(_("Copy"), "edit-copy-symbolic",
                     () => host.activate_action("clipboard.copy", null));
-                menu.add_item("Paste", "edit-paste-symbolic",
+                menu.add_item(_("Paste"), "edit-paste-symbolic",
                     () => host.activate_action("clipboard.paste", null));
                 menu.add_separator();
-                menu.add_item("Select All", "edit-select-all-symbolic",
+                menu.add_item(_("Select All"), "edit-select-all-symbolic",
                     () => host.activate_action("selection.select-all", null));
 
                 menu.popup();

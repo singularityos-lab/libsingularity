@@ -19,9 +19,11 @@ namespace Singularity.Shell {
         private ProgressBar bar;
         private Label label_widget;
         private uint hide_timeout = 0;
+        private Singularity.Animation.MotionBin motion_bin;
+        private bool leaving = false;
 
         /** Milliseconds the OSD remains visible before auto-hiding. */
-        private const uint OSD_HIDE_DELAY_MS = 1800;
+        private const uint OSD_HIDE_DELAY_MS = 1500;
 
         /** Returns the shared OsdOverlay instance, creating it on first call. */
         public static OsdOverlay get_default() {
@@ -69,7 +71,15 @@ namespace Singularity.Shell {
             vbox.append(bar);
 
             pill.append(vbox);
-            set_child(pill);
+            motion_bin = new Singularity.Animation.MotionBin(pill);
+            motion_bin.valign = Align.START;
+            motion_bin.margin_bottom = (int) Singularity.Motion.SLIDE_DISTANCE;
+            set_child(motion_bin);
+
+            map.connect(() => {
+                var surface = get_surface();
+                if (surface != null) surface.set_input_region(new Cairo.Region());
+            });
 
             try_setup_layer_shell();
         }
@@ -104,23 +114,53 @@ namespace Singularity.Shell {
          */
         public void show_osd(string icon_name, double value, string? text = null) {
             icon_widget.icon_name = icon_name;
+            bool appearing = !visible || leaving;
+            bool was_visible = visible && !leaving;
             bar.visible = value >= 0;
             if (value >= 0) {
-                bar.fraction = (value / 100.0).clamp(0.0, 1.0);
+                double fraction = (value / 100.0).clamp(0.0, 1.0);
+                if (was_visible) {
+                    Singularity.Motion.spring_to(bar, "fraction", fraction, Singularity.Motion.Spring.SNAPPY);
+                } else {
+                    Singularity.Motion.cancel(bar, "fraction");
+                    bar.fraction = fraction;
+                }
             }
             label_widget.label = text ?? "";
             label_widget.visible = text != null && text.length > 0;
 
+            leaving = false;
             present();
+            if (appearing) enter();
 
             if (hide_timeout != 0) {
                 Source.remove(hide_timeout);
                 hide_timeout = 0;
             }
             hide_timeout = Timeout.add(OSD_HIDE_DELAY_MS, () => {
-                hide();
                 hide_timeout = 0;
+                leave();
                 return Source.REMOVE;
+            });
+        }
+
+        private void enter() {
+            motion_bin.opacity = 0.0;
+            motion_bin.translate_y = Singularity.Motion.reduced() ? 0.0 : Singularity.Motion.SLIDE_DISTANCE;
+            Singularity.Motion.tween(motion_bin, "opacity", 1.0,
+                Singularity.Motion.Duration.MEDIUM, Singularity.Motion.Curve.ENTER);
+            Singularity.Motion.tween(motion_bin, "translate-y", 0.0,
+                Singularity.Motion.Duration.MEDIUM, Singularity.Motion.Curve.ENTER);
+        }
+
+        private void leave() {
+            leaving = true;
+            Singularity.Motion.tween(motion_bin, "opacity", 0.0,
+                Singularity.Motion.Duration.SMALL, Singularity.Motion.Curve.EXIT).done.connect(() => {
+                if (!leaving) return;
+                leaving = false;
+                hide();
+                motion_bin.reset_transform();
             });
         }
 

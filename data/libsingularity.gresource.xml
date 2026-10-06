@@ -2,6 +2,8 @@
 <gresources>
   <gresource prefix="/dev/sinty/libsingularity">
     <file>style.css</file>
+    <file>button-defaults.css</file>
+    <file>singularity-button.css</file>
     <file>style.dark.css</file>
     <file>style.light.css</file>
     <file>high-contrast.css</file>

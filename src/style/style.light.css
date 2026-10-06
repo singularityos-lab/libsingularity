@@ -15,8 +15,18 @@
 @define-color border_color alpha(@text_color, 0.08);
 
 /* Floating hover buttons (overlay controls) */
-@define-color hover_btn_bg alpha(black, 0.4);
-@define-color hover_btn_border alpha(black, 0.18);
+@define-color hover_btn_bg alpha(mix(@accent_color, white, 0.84), 0.94);
+@define-color hover_btn_hover alpha(mix(@accent_color, white, 0.74), 0.97);
+@define-color hover_btn_active alpha(mix(@accent_color, white, 0.64), 1);
+@define-color hover_btn_border alpha(@accent_color, 0.22);
+@define-color hover_btn_fg mix(@accent_color, black, 0.74);
+
+/* In-app buttons */
+@define-color button_hover_bg alpha(@accent_color, 0.12);
+@define-color button_active_bg alpha(@accent_color, 0.22);
+@define-color button_hover_border alpha(@accent_color, 0.4);
+@define-color destructive_bg #c01c28;
+@define-color destructive_fg #ffffff;
 
 /* Shadows (softer in light mode) */
 @define-color shadow_color rgba(0, 0, 0, 0.45);
@@ -26,6 +36,8 @@
 @define-color surface_dim #e8e8e8;
 @define-color surface_mid #f0f0f0;
 @define-color surface_raised #f5f5f5;
+@define-color popover_bg_color @surface_raised;
+@define-color popover_fg_color @text_color;
 @define-color surface_alt #ebebeb;
 @define-color surface_bright #f8f8f8;
 @define-color surface_overlay rgba(245, 245, 245, 0.85);
@@ -43,6 +55,7 @@
 @define-color warning_color #e5a50a;
 @define-color link_color #1c71d8;
 @define-color link_active_color #1060d0;
+@define-color focus_ring_color mix(@accent_color, black, 0.25);
 
 /* GTK token aliases */
 @define-color window_bg_color @window_bg;
@@ -56,3 +69,7 @@
 @define-color fg_color @text_color;
 @define-color borders alpha(@text_color, 0.1);
 @define-color window_tint alpha(@text_color, 0.03);
+
+/* Text over pictures (thumbnails, previews) */
+@define-color media_caption_bg rgba(0, 0, 0, 0.62);
+@define-color media_caption_fg #ffffff;

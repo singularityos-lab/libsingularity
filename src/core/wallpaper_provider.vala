@@ -45,6 +45,11 @@ namespace Singularity {
         // archive, the built-in Singularity provider) set thumbnail_path
         // to a real filesystem path instead of a remote preview URL.
         public string thumbnail_path = "";
+        /**
+         * A local image the browser applies directly with
+         * `LocalWallpaper.apply`, without `import_item` or a wallpaper pack.
+         */
+        public string local_path = "";
         public bool pinned = false;
         public string market = "";
         public string archive_date = "";
@@ -513,6 +518,63 @@ namespace Singularity {
         public WallpaperProvider? lookup(string id) {
             foreach (var provider in providers) if (provider.id == id) return provider;
             return null;
+        }
+    }
+
+    /**
+     * Applies local images, such as photos, as the desktop wallpaper
+     * directly: the image stays where it is and no wallpaper pack is made.
+     */
+    public class LocalWallpaper : Object {
+        private const string KEY = "background-picture-uri";
+
+        /**
+         * Sets the regular file at `path` as the wallpaper.
+         *
+         * @return false when the file is missing or the desktop settings are unavailable.
+         */
+        public static bool apply(string path) {
+            var settings = Core.safe_settings(Runtime.desktop_settings_schema);
+            if (settings == null || !settings.settings_schema.has_key(KEY)) return false;
+            if (!FileUtils.test(path, FileTest.IS_REGULAR)) return false;
+            settings.delay();
+            settings.set_string(KEY, File.new_for_path(path).get_uri());
+            clear_attribution(settings);
+            settings.apply();
+            return true;
+        }
+
+        /** Whether the wallpaper is the image at `path`. */
+        public static bool is_active(string path) {
+            var settings = Core.safe_settings(Runtime.desktop_settings_schema);
+            if (settings == null || !settings.settings_schema.has_key(KEY)) return false;
+            return settings.get_string(KEY) == File.new_for_path(path).get_uri();
+        }
+
+        /**
+         * Goes back to the default wallpaper when the current one is a local
+         * file that no longer exists, for example a removed favourite.
+         *
+         * @return true when the wallpaper was reset.
+         */
+        public static bool fall_back_if_missing() {
+            var settings = Core.safe_settings(Runtime.desktop_settings_schema);
+            if (settings == null || !settings.settings_schema.has_key(KEY)) return false;
+            string uri = settings.get_string(KEY);
+            if (uri == "") return false;
+            string? path = File.new_for_uri(uri).get_path();
+            if (path == null || FileUtils.test(path, FileTest.EXISTS)) return false;
+            settings.delay();
+            settings.reset(KEY);
+            clear_attribution(settings);
+            settings.apply();
+            return true;
+        }
+
+        private static void clear_attribution(GLib.Settings settings) {
+            foreach (unowned string key in new string[] { "background-attribution-title", "background-attribution-author" }) {
+                if (settings.settings_schema.has_key(key)) settings.set_string(key, "");
+            }
         }
     }
 }

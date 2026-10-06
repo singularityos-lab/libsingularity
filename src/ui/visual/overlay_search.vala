@@ -69,7 +69,7 @@ namespace Singularity.Widgets {
         private GenericArray<OverlaySearchItem> _all;
         private GenericArray<OverlaySearchItem> _shown;
 
-        private string _placeholder      = "Search...";
+        private string _placeholder      = _("Search…");
         private int    _top_offset       = 80;
         private bool   _show_list        = true;
         private bool   _internal_filter  = true;

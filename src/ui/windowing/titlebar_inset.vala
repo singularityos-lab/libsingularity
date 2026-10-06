@@ -32,7 +32,8 @@ namespace Singularity.Widgets {
     public int titlebar_inset_for (Widget widget) {
         var root = widget.get_root () as Singularity.Widgets.Window;
         if (root == null) return 0;
-        if (root.force_ssd) return 0;
+        if (root.force_ssd || root.legacy_titlebar) return 0;
+        if (widget.get_data<bool> ("singularity-sidebar-bubbles")) return 0;
         // Flat mode means our bubble strip is on top.
         return root.flat ? TITLEBAR_INSET_HEIGHT : 0;
     }

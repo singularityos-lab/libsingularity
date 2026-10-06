@@ -111,7 +111,7 @@ namespace Singularity.Shell {
                 popover.disconnect(handler_id);
                 popover.unparent();
             });
-            popover.popup();
+            popup_when_ready(popover, submenu);
         }
 
         private void close_active() {
@@ -122,7 +122,8 @@ namespace Singularity.Shell {
                 if (idx == open_index) {
                     // Find and popdown the popover parented to this button
                     var pop = child.get_last_child() as Popover;
-                    if (pop != null) pop.popdown();
+                    if (pop != null && pop.visible) pop.popdown();
+                    else if (pop != null) pop.unparent();
                     child.remove_css_class("active");
                     break;
                 }
@@ -132,6 +133,18 @@ namespace Singularity.Shell {
             open_index = -1;
         }
 
+        private class MenuWatch {
+            public MenuModel[] models = {};
+            public ulong[] ids = {};
+            public bool pending;
+
+            public void clear() {
+                for (int i = 0; i < models.length; i++) models[i].disconnect(ids[i]);
+                models = {};
+                ids = {};
+            }
+        }
+
         private Popover build_menu_popover(MenuModel model) {
             var popover = new Popover();
             popover.has_arrow = false;
@@ -139,17 +152,68 @@ namespace Singularity.Shell {
 
             var box = new Box(Orientation.VERTICAL, 0);
             popover.set_child(box);
-            append_menu_items(box, model, popover);
+            var watch = new MenuWatch();
+            popover.set_data<MenuWatch>("menu-watch", watch);
+            fill_popover(popover, box, model, watch);
+            popover.closed.connect(() => watch.clear());
             return popover;
         }
 
-        private void append_menu_items(Box box, MenuModel model, Popover root_popover) {
+        private void fill_popover(Popover popover, Box box, MenuModel model, MenuWatch watch) {
+            watch.clear();
+            var child = box.get_first_child();
+            while (child != null) {
+                var next = child.get_next_sibling();
+                box.remove(child);
+                child = next;
+            }
+            append_menu_items(box, model, popover, (m) => {
+                watch.models += m;
+                watch.ids += m.items_changed.connect(() => {
+                    Idle.add(() => {
+                        fill_popover(popover, box, model, watch);
+                        return GLib.Source.REMOVE;
+                    });
+                });
+            });
+            if (watch.pending && box.get_first_child() != null && popover.get_parent() != null) {
+                watch.pending = false;
+                popover.popup();
+            }
+        }
+
+        private void popup_when_ready(Popover popover, MenuModel model) {
+            var box = popover.get_child() as Box;
+            var watch = popover.get_data<MenuWatch>("menu-watch");
+            if (box == null || watch == null || box.get_first_child() != null) {
+                popover.popup();
+                return;
+            }
+            watch.pending = true;
+            GLib.Timeout.add(400, () => {
+                if (watch.pending && popover.get_parent() != null) {
+                    watch.pending = false;
+                    popover.popup();
+                }
+                return GLib.Source.REMOVE;
+            });
+        }
+
+        private delegate void WatchModel(MenuModel model);
+
+        private void append_menu_items(Box box, MenuModel model, Popover root_popover, WatchModel watch) {
+            watch(model);
             int n = model.get_n_items();
             for (int i = 0; i < n; i++) {
                 MenuModel? section = model.get_item_link(i, Menu.LINK_SECTION);
                 if (section != null) {
-                    if (i > 0) box.append(new Separator(Orientation.HORIZONTAL));
-                    append_menu_items(box, section, root_popover);
+                    Separator? sep = null;
+                    if (box.get_last_child() != null) {
+                        sep = new Separator(Orientation.HORIZONTAL);
+                        box.append(sep);
+                    }
+                    append_menu_items(box, section, root_popover, watch);
+                    if (sep != null && box.get_last_child() == sep) box.remove(sep);
                     continue;
                 }
 
@@ -168,7 +232,21 @@ namespace Singularity.Shell {
                 } else if (action != null) {
                     string captured_action = action.dup();
                     Variant? target = model.get_item_attribute_value(i, Menu.ATTRIBUTE_TARGET, null);
-                    var row = make_item_row(label, icon_name);
+                    string? accel = null;
+                    model.get_item_attribute(i, "accel", "s", out accel);
+                    bool stateful = false;
+                    bool checked = false;
+                    Variant? state = get_action_state(action);
+                    if (state != null) {
+                        if (target != null && state.get_type().equal(target.get_type())) {
+                            stateful = true;
+                            checked = state.equal(target);
+                        } else if (target == null && state.is_of_type(VariantType.BOOLEAN)) {
+                            stateful = true;
+                            checked = state.get_boolean();
+                        }
+                    }
+                    var row = make_item_row(label, icon_name, accel, stateful, checked);
                     row.sensitive = is_action_enabled(action);
                     row.clicked.connect(() => {
                         root_popover.popdown();
@@ -179,13 +257,22 @@ namespace Singularity.Shell {
             }
         }
 
-        private Button make_item_row(string label, string? icon_name) {
+        private Button make_item_row(string label, string? icon_name, string? accel = null,
+                                     bool stateful = false, bool checked = false) {
             var btn = new Button();
             btn.add_css_class("flat");
             btn.add_css_class("menu-row");
             btn.halign = Align.FILL;
             var box = new Box(Orientation.HORIZONTAL, 8);
             box.halign = Align.START;
+            if (stateful) {
+                var mark = checked ? new Image.from_icon_name("object-select-symbolic") : new Image();
+                mark.pixel_size = 16;
+                mark.set_size_request(16, 16);
+                mark.valign = Align.CENTER;
+                box.append(mark);
+                if (checked) btn.add_css_class("checked");
+            }
             if (icon_name != null && icon_name.length > 0) {
                 var icon = new Image.from_icon_name(icon_name);
                 icon.pixel_size = 16;
@@ -196,6 +283,19 @@ namespace Singularity.Shell {
             lbl.halign = Align.START;
             lbl.valign = Align.CENTER;
             box.append(lbl);
+            uint key = 0;
+            Gdk.ModifierType mods = 0;
+            if (accel != null && accel != "" && Gtk.accelerator_parse(accel, out key, out mods) && key != 0) {
+                box.halign = Align.FILL;
+                lbl.hexpand = true;
+                lbl.xalign = 0;
+                var keys = new Label(Gtk.accelerator_get_label(key, mods));
+                keys.add_css_class("dim-label");
+                keys.add_css_class("menu-accel");
+                keys.valign = Align.CENTER;
+                keys.margin_start = 24;
+                box.append(keys);
+            }
             btn.set_child(box);
             return btn;
         }
@@ -206,10 +306,11 @@ namespace Singularity.Shell {
 
             var inner = btn.get_child() as Box;
             if (inner != null) {
+                inner.halign = Align.FILL;
                 var spacer = new Box(Orientation.HORIZONTAL, 0);
                 spacer.hexpand = true;
                 inner.append(spacer);
-                var arrow = new Image.from_icon_name("go-next-symbolic");
+                var arrow = new Image.from_icon_name("pan-end-symbolic");
                 arrow.pixel_size = 12;
                 arrow.valign = Align.CENTER;
                 inner.append(arrow);
@@ -233,7 +334,7 @@ namespace Singularity.Shell {
                         sub.unparent();
                         sub = null;
                     });
-                    sub.popup();
+                    popup_when_ready(sub, submenu);
                     return GLib.Source.REMOVE;
                 });
             });
@@ -261,13 +362,23 @@ namespace Singularity.Shell {
             }
         }
 
+        private Variant? get_action_state(string action_name) {
+            int dot = action_name.index_of_char('.');
+            if (dot < 0) return null;
+            string prefix = action_name[0:dot];
+            string name = action_name[dot + 1:action_name.length];
+            var ag = action_groups.get(prefix);
+            if (ag != null && ag.has_action(name)) return ag.get_action_state(name);
+            return null;
+        }
+
         private bool is_action_enabled(string action_name) {
             int dot = action_name.index_of_char('.');
             if (dot < 0) return true;
             string prefix = action_name[0:dot];
             string name = action_name[dot + 1:action_name.length];
             var ag = action_groups.get(prefix);
-            if (ag != null) return ag.get_action_enabled(name);
+            if (ag != null && ag.has_action(name)) return ag.get_action_enabled(name);
             return true;
         }
     }

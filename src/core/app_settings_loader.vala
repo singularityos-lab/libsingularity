@@ -30,6 +30,9 @@ namespace Singularity.Core {
 
         /** Human-readable label shown in the UI. */
         public string label { get; set; }
+
+        /** Optional secondary line shown under the option label. */
+        public string? subtitle { get; set; }
     }
 
     /**
@@ -44,6 +47,9 @@ namespace Singularity.Core {
 
         /** Human-readable label shown beside the control. */
         public string label { get; set; }
+
+        /** Optional secondary line shown under the label. */
+        public string? subtitle { get; set; }
 
         /** GSettings value type (`"boolean"`, `"int"`, `"string"`, ..). */
         public string setting_type { get; set; }
@@ -68,6 +74,10 @@ namespace Singularity.Core {
         /** Available options for combo widgets. */
         public ArrayList<AppSettingOption> options { get; private set; }
 
+        public string? schema_id { get; set; }
+
+        public string? path { get; set; }
+
         public AppSettingItem() {
             options = new ArrayList<AppSettingOption>();
         }
@@ -86,8 +96,10 @@ namespace Singularity.Core {
      * {
      *   "schema-id": "org.example.MyApp",
      *   "settings": [
-     *     { "key": "enable-feature", "label": "Enable feature", "type": "boolean", "widget": "toggle" },
-     *     { "key": "font-size", "label": "Font size", "type": "int", "widget": "slider", "min": 8, "max": 32 }
+     *     { "key": "enable-feature", "label": "Enable feature", "subtitle": "Optional hint", "type": "boolean", "widget": "toggle" },
+     *     { "key": "font-size", "label": "Font size", "type": "int", "widget": "slider", "min": 8, "max": 32 },
+     *     { "key": "mode", "label": "Mode", "type": "string", "widget": "combo",
+     *       "options": [ { "id": "a", "label": "A", "subtitle": "Optional hint" } ] }
      *   ]
      * }
      * }}}
@@ -120,17 +132,57 @@ namespace Singularity.Core {
                 search_paths.add(GLib.Path.build_filename(sysdir, "singularity", "app-settings"));
             }
 
+            AppSettingsDescriptor? descriptor = null;
             foreach (var path in search_paths) {
                 var file_path = GLib.Path.build_filename(path, filename);
                 var file = File.new_for_path(file_path);
                 if (file.query_exists()) {
                     debug("AppSettingsLoader: found at %s", file_path);
-                    return parse_json(file);
+                    descriptor = parse_json(file);
+                    break;
                 }
             }
 
-            warning("AppSettingsLoader: settings not found for %s", clean_id);
-            return null;
+            if (Singularity.Widgets.ToolbarSettings.is_registered(clean_id)) {
+                if (descriptor == null) descriptor = new AppSettingsDescriptor();
+                descriptor.items.add(toolbar_style_item(clean_id));
+            }
+
+            if (descriptor == null) warning("AppSettingsLoader: settings not found for %s", clean_id);
+            return descriptor;
+        }
+
+        public static GLib.Settings? settings_for(AppSettingsDescriptor descriptor, AppSettingItem item) {
+            string? schema_id = item.schema_id ?? descriptor.schema_id;
+            if (schema_id == null) return null;
+            var src = GLib.SettingsSchemaSource.get_default();
+            if (src == null) return null;
+            var schema = src.lookup(schema_id, true);
+            if (schema == null || !schema.has_key(item.key)) return null;
+            return new GLib.Settings.full(schema, null, item.schema_id != null ? item.path : null);
+        }
+
+        private static AppSettingItem toolbar_style_item(string app_id) {
+            var item = new AppSettingItem();
+            item.schema_id = Singularity.Widgets.ToolbarSettings.SCHEMA_ID;
+            item.path = Singularity.Widgets.ToolbarSettings.path_for(app_id);
+            item.key = "toolbar-style";
+            item.label = _("Toolbar Style");
+            item.setting_type = "string";
+            item.widget = "combo";
+            string[,] choices = {
+                { "compact", _("Compact"), _("Icons, with short text where needed") },
+                { "expanded", _("Expanded"), _("Icons and text") },
+                { "text", _("Text Only"), _("Text without icons") }
+            };
+            for (int i = 0; i < choices.length[0]; i++) {
+                var option = new AppSettingOption();
+                option.id = choices[i, 0];
+                option.label = choices[i, 1];
+                option.subtitle = choices[i, 2];
+                item.options.add(option);
+            }
+            return item;
         }
 
         private static AppSettingsDescriptor? parse_json(File file) {
@@ -157,11 +209,14 @@ namespace Singularity.Core {
                             var item = new AppSettingItem();
                             if (obj.has_member("key")) item.key = obj.get_string_member("key");
                             if (obj.has_member("label")) item.label = obj.get_string_member("label");
+                            if (obj.has_member("subtitle")) item.subtitle = obj.get_string_member("subtitle");
                             if (obj.has_member("type")) item.setting_type = obj.get_string_member("type");
                             if (obj.has_member("widget")) item.widget = obj.get_string_member("widget");
                             if (obj.has_member("theme-set")) item.theme_set = obj.get_string_member("theme-set");
                             if (obj.has_member("min")) item.min = obj.get_double_member("min");
                             if (obj.has_member("max")) item.max = obj.get_double_member("max");
+                            if (obj.has_member("schema-id")) item.schema_id = obj.get_string_member("schema-id");
+                            if (obj.has_member("path")) item.path = obj.get_string_member("path");
                             if (obj.has_member("options")) {
                                 var options_array = obj.get_array_member("options");
                                 if (options_array != null) {
@@ -171,6 +226,7 @@ namespace Singularity.Core {
                                         var option = new AppSettingOption();
                                         if (opt_obj.has_member("id")) option.id = opt_obj.get_string_member("id");
                                         if (opt_obj.has_member("label")) option.label = opt_obj.get_string_member("label");
+                                        if (opt_obj.has_member("subtitle")) option.subtitle = opt_obj.get_string_member("subtitle");
                                         item.options.add(option);
                                     });
                                 }

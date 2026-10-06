@@ -11,7 +11,7 @@ namespace Singularity.Shell {
      * or overlay panels).
      *
      * Three convenience constructors are provided:
-     * - `ShellDialog()` - default, no anchors
+     * - `ShellDialog()` - default, no anchors, content drawn on a card
      * - `ShellDialog.anchored()` - explicit anchor combination
      * - `ShellDialog.bottom()` - anchored to the bottom edge with margin
      *
@@ -36,6 +36,12 @@ namespace Singularity.Shell {
         public int margin_left_value { get; construct; default = 0; }
         /** Right-edge margin in pixels (applied when `anchor_right` is true). */
         public int margin_right_value { get; construct; default = 0; }
+        /**
+         * Whether `content_box` is drawn as a card with a background, border
+         * and shadow. The plain constructor sets it; full-screen dialogs
+         * always draw their content on a card.
+         */
+        public bool card { get; construct; default = false; }
 
         /**
          * Creates a basic shell dialog with no anchors.
@@ -43,7 +49,7 @@ namespace Singularity.Shell {
          * @param app The owning application, or null.
          */
         public ShellDialog(GLib.Application? app = null) {
-            Object(application: app as Gtk.Application);
+            Object(application: app as Gtk.Application, card: true);
         }
 
         /**
@@ -116,6 +122,13 @@ namespace Singularity.Shell {
             } else {
                 content_box = new Box(Orientation.VERTICAL, 0);
                 content_box.add_css_class("dialog-content");
+                if (card) {
+                    content_box.add_css_class("dialog-card");
+                    content_box.margin_top = 20;
+                    content_box.margin_bottom = 20;
+                    content_box.margin_start = 20;
+                    content_box.margin_end = 20;
+                }
                 set_child(content_box);
             }
 

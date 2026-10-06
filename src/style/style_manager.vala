@@ -59,8 +59,17 @@ namespace Singularity.Style {
          * application's startup), for both apps and shells.
          */
         private static string _desired_icon_theme = BRAND_ICON_THEME;
+        private static bool _icon_theme_pinned = false;
+
+        private const string[] ACCENT_NAMES = {
+            "blue", "teal", "green", "yellow", "orange", "red", "pink", "purple", "slate"
+        };
+        private const string[] ACCENT_HEXES = {
+            "#3584e4", "#2190a4", "#3a944a", "#e5a50a", "#e66100", "#e01b24", "#d56199", "#9141ac", "#787878"
+        };
 
         public static void pin_brand_themes() {
+            typeof(StyleManager).class_ref();
             var gs = Gtk.Settings.get_default();
             if (gs == null) return;
             gs.gtk_theme_name = BRAND_GTK_THEME;
@@ -83,15 +92,72 @@ namespace Singularity.Style {
                 ds.changed["icon-theme"].connect(() => {
                     string n = ds.get_string("icon-theme");
                     _desired_icon_theme = (n != "") ? n : BRAND_ICON_THEME;
-                    gs.gtk_icon_theme_name = _desired_icon_theme;
+                    refresh_icon_theme();
                 });
             }
-            gs.gtk_icon_theme_name = _desired_icon_theme;
-            gs.notify["gtk-icon-theme-name"].connect(() => {
-                if (gs.gtk_icon_theme_name != _desired_icon_theme) {
-                    gs.gtk_icon_theme_name = _desired_icon_theme;
+            _icon_theme_pinned = true;
+            refresh_icon_theme();
+            gs.notify["gtk-icon-theme-name"].connect(() => refresh_icon_theme());
+        }
+
+        /**
+         * Maps the brand icon pack to its installed accent variant (for example
+         * Singularity-teal); any other pack is returned unchanged.
+         */
+        public static string resolve_icon_theme(string theme) {
+            if (theme != BRAND_ICON_THEME) return theme;
+            var sm = get_default();
+            if (!(sm.current_accent in ACCENT_NAMES)) {
+                string? custom = AccentIcons.ensure(theme, sm.accent_hex);
+                if (custom != null && icon_theme_installed(custom)) return custom;
+            }
+            string accent = sm.current_accent in ACCENT_NAMES
+                ? sm.current_accent : nearest_accent_name(sm.accent_hex);
+            string variant = "%s-%s".printf(BRAND_ICON_THEME, accent);
+            return icon_theme_installed(variant) ? variant : theme;
+        }
+
+        private static void refresh_icon_theme() {
+            if (!_icon_theme_pinned) return;
+            var gs = Gtk.Settings.get_default();
+            if (gs == null) return;
+            string name = resolve_icon_theme(_desired_icon_theme);
+            if (gs.gtk_icon_theme_name != name) gs.gtk_icon_theme_name = name;
+        }
+
+        private static bool icon_theme_installed(string name) {
+            var display = Gdk.Display.get_default();
+            if (display == null) return false;
+            string[]? dirs = Gtk.IconTheme.get_for_display(display).get_search_path();
+            if (dirs == null) return false;
+            foreach (unowned string dir in dirs) {
+                if (FileUtils.test(Path.build_filename(dir, name, "index.theme"), FileTest.EXISTS))
+                    return true;
+            }
+            return false;
+        }
+
+        private static string nearest_accent_name(string hex) {
+            uint8 r, g, b;
+            _parse_hex(hex, out r, out g, out b);
+            float h, s, v;
+            Gtk.rgb_to_hsv(r / 255.0f, g / 255.0f, b / 255.0f, out h, out s, out v);
+            if (s < 0.2 || v < 0.15) return "slate";
+            string best = "blue";
+            float best_d = 2.0f;
+            for (int i = 0; i < ACCENT_NAMES.length - 1; i++) {
+                uint8 cr, cg, cb;
+                _parse_hex(ACCENT_HEXES[i], out cr, out cg, out cb);
+                float ch, cs, cv;
+                Gtk.rgb_to_hsv(cr / 255.0f, cg / 255.0f, cb / 255.0f, out ch, out cs, out cv);
+                float d = (h - ch).abs();
+                if (d > 0.5f) d = 1.0f - d;
+                if (d < best_d) {
+                    best_d = d;
+                    best = ACCENT_NAMES[i];
                 }
-            });
+            }
+            return best;
         }
 
         /**
@@ -101,9 +167,181 @@ namespace Singularity.Style {
          * apply_color_scheme() afterwards to switch to light.
          */
         public void load_theme() {
+            install_bubble_buttons();
+            Singularity.Motion.get_default().install_css();
+            Singularity.Animation.WidgetMotion.install();
             if (accent_provider != null) return;
             apply_accent_color("blue");
             setup_material_style();
+            setup_density_style();
+        }
+
+        private const string BUBBLE_BUTTON_CLASS = "singularity-bubble-button";
+
+        private const string[] NEUTRAL_BUTTON_CLASSES = {
+            "text-button", "image-button", "image-text-button", "flat", "pill", "circular",
+            "suggested-action", "destructive-action", "toggle", "popup", "arrow-button",
+            "keyboard-activating", BUBBLE_BUTTON_CLASS
+        };
+
+        private const string[] ROLE_CONTAINER_CLASSES = {
+            "singularity-hover-btn", "singularity-toolbar", "segmented-control", "chip",
+            "chip-bar", "tab-bar", "context-menu", "osk", "image-viewer-bar",
+            "singularity-step-island", "media-player-card", "cal-nav-picker"
+        };
+
+        private static bool bubble_buttons_installed = false;
+
+        private static void install_bubble_buttons() {
+            if (bubble_buttons_installed) return;
+            bubble_buttons_installed = true;
+            typeof(Gtk.Button).class_ref();
+            uint map_signal = Signal.lookup("map", typeof(Gtk.Widget));
+            Signal.add_emission_hook(map_signal, 0, (hint, values) => {
+                var button = values[0].get_object() as Gtk.Button;
+                if (button != null) track_button(button);
+                return true;
+            });
+        }
+
+        private static void track_button(Gtk.Button button) {
+            if (!button.get_data<bool>("singularity-bubble-tracked")) {
+                button.set_data<bool>("singularity-bubble-tracked", true);
+                button.notify["css-classes"].connect((obj, pspec) => classify_button((Gtk.Button) obj));
+            }
+            classify_button(button);
+        }
+
+        private static void classify_button(Gtk.Button button) {
+            bool bubble = is_plain_button(button);
+            if (bubble == button.has_css_class(BUBBLE_BUTTON_CLASS)) return;
+            if (bubble) button.add_css_class(BUBBLE_BUTTON_CLASS);
+            else button.remove_css_class(BUBBLE_BUTTON_CLASS);
+        }
+
+        private static bool has_only_neutral_classes(Gtk.Widget widget) {
+            foreach (unowned string name in widget.get_css_classes()) {
+                if (!(name in NEUTRAL_BUTTON_CLASSES)) return false;
+            }
+            return true;
+        }
+
+        private static bool is_plain_button(Gtk.Button button) {
+            if (!has_only_neutral_classes(button)) return false;
+            for (var parent = button.get_parent(); parent != null; parent = parent.get_parent()) {
+                if (parent is Gtk.MenuButton || parent is Gtk.DropDown) {
+                    if (!has_only_neutral_classes(parent)) return false;
+                    continue;
+                }
+                if (parent is Gtk.Button || parent is Gtk.SpinButton || parent is Gtk.WindowControls
+                        || parent is Gtk.HeaderBar || parent is Gtk.StackSwitcher || parent is Gtk.ScaleButton
+                        || parent is Gtk.Calendar || parent is Gtk.ColorDialogButton
+                        || parent is Gtk.FontDialogButton) {
+                    return false;
+                }
+                foreach (unowned string name in ROLE_CONTAINER_CLASSES) {
+                    if (parent.has_css_class(name)) return false;
+                }
+                if (parent.has_css_class("navigation-sidebar") && button.has_css_class("flat")) return false;
+            }
+            return true;
+        }
+
+        private GLib.Settings? density_settings = null;
+        private CssProvider? density_provider = null;
+
+        private const string DENSITY_MEDIUM = """
+            .singularity .preferences-row { min-height: 44px; }
+            .singularity .preferences-row .row-content { padding: 8px 14px; }
+            .singularity .preferences-row .title { font-size: 14px; }
+            .singularity .preferences-row .subtitle { font-size: 12px; }
+            .singularity .preferences-row .row-icon { -gtk-icon-size: 20px; margin-right: 12px; }
+            .singularity .preferences-group { margin-bottom: 16px; }
+            .singularity .preferences-group .heading { font-size: 15px; }
+            .singularity .preferences-group .group-description { font-size: 12px; }
+            .singularity .preferences-group .group-header { padding: 10px 14px 4px; }
+            .preferences-page-margins { margin: 24px 40px; }
+            .singularity .preferences-row switch { min-width: 44px; min-height: 24px; }
+            .singularity .preferences-row switch slider { min-width: 20px; min-height: 20px; }
+            .singularity .preferences-row button { min-height: 28px; }
+            .singularity .preferences-row button.image-button,
+            .singularity .preferences-row button.circular-button { min-width: 28px; min-height: 28px; }
+            .welcome-card-content { padding: 14px 16px; }
+                    .singularity-sidebar-row { padding: 6px 12px; min-height: 28px; }
+            .singularity-sidebar-row > box > image { -gtk-icon-size: 20px; }
+            .sidebar-section-label label { font-size: 12px; }
+            .singularity popover.context-menu .menu-row { min-height: 28px; padding: 2px 10px; }
+            .singularity popover.context-menu .menu-row label { font-size: 14px; }
+            .bubble-switcher button.bubble-switcher-item { min-height: 28px; padding: 3px 14px; }
+            .segmented-inner, .segmented-button { min-height: 26px; }
+            .singularity entry.search { padding: 5px 12px; min-height: 26px; }
+            .singularity-toast { padding: 6px 6px 6px 16px; }
+            .singularity-toast label { font-size: 14px; }
+            .singularity .singularity-toast button { min-height: 26px; }
+            .status-page .status-page-icon { -gtk-icon-size: 80px; }
+            .status-page:not(.compact) .status-page-title { font-size: 24px; }
+            .dialog-card button.pill { min-height: 26px; padding: 5px 18px; }
+""";
+
+        private const string DENSITY_LARGE = """
+            .singularity .preferences-row { min-height: 52px; }
+            .singularity .preferences-row .row-content { padding: 10px 16px; }
+            .singularity .preferences-row .title { font-size: 15px; }
+            .singularity .preferences-row .subtitle { font-size: 13px; }
+            .singularity .preferences-row .row-icon { -gtk-icon-size: 24px; margin-right: 12px; }
+            .singularity .preferences-group { margin-bottom: 20px; }
+            .singularity .preferences-group .heading { font-size: 17px; }
+            .singularity .preferences-group .group-description { font-size: 13px; }
+            .singularity .preferences-group .group-header { padding: 12px 16px 6px; }
+            .preferences-page-margins { margin: 28px 48px; }
+            .singularity .preferences-row switch { min-width: 48px; min-height: 26px; }
+            .singularity .preferences-row switch slider { min-width: 22px; min-height: 22px; }
+            .singularity .preferences-row button { min-height: 32px; }
+            .singularity .preferences-row button.image-button,
+            .singularity .preferences-row button.circular-button { min-width: 32px; min-height: 32px; }
+            .welcome-card-content { padding: 16px 18px; }
+                    .singularity-sidebar-row { padding: 8px 14px; min-height: 32px; }
+            .singularity-sidebar-row > box > image { -gtk-icon-size: 24px; }
+            .sidebar-section-label label { font-size: 13px; }
+            .singularity popover.context-menu .menu-row { min-height: 34px; padding: 3px 12px; }
+            .singularity popover.context-menu .menu-row label { font-size: 15px; }
+            .bubble-switcher button.bubble-switcher-item { min-height: 34px; padding: 4px 16px; }
+            .segmented-inner, .segmented-button { min-height: 32px; }
+            .singularity entry.search { padding: 6px 14px; min-height: 30px; }
+            .singularity-toast { padding: 8px 8px 8px 18px; }
+            .singularity-toast label { font-size: 15px; }
+            .singularity .singularity-toast button { min-height: 32px; }
+            .status-page .status-page-icon { -gtk-icon-size: 96px; }
+            .status-page:not(.compact) .status-page-title { font-size: 28px; }
+            .dialog-card button.pill { min-height: 32px; padding: 6px 20px; }
+""";
+
+        private void setup_density_style() {
+            density_settings = Singularity.Core.safe_settings(
+                Singularity.Runtime.desktop_settings_schema);
+            if (density_settings != null
+                    && density_settings.settings_schema.has_key("interface-density")) {
+                density_settings.changed["interface-density"].connect(update_density_style);
+            }
+            update_density_style();
+        }
+
+        private void update_density_style() {
+            string density = "compact";
+            if (density_settings != null
+                    && density_settings.settings_schema.has_key("interface-density")) {
+                density = density_settings.get_string("interface-density");
+            }
+            string css = density == "large" ? DENSITY_LARGE : density == "medium" ? DENSITY_MEDIUM : "";
+            if (density_provider == null) {
+                density_provider = new CssProvider();
+                var display = Gdk.Display.get_default();
+                if (display != null) {
+                    StyleContext.add_provider_for_display(display, density_provider,
+                        Gtk.STYLE_PROVIDER_PRIORITY_USER + 2);
+                }
+            }
+            density_provider.load_from_string(css);
         }
 
         private void setup_material_style() {
@@ -165,29 +403,25 @@ namespace Singularity.Style {
          *                      used when `color_name` is `"wallpaper"`.
          */
         public void apply_accent_color(string color_name, string? wallpaper_path = null) {
+            string accent = color_name;
+            string? wall = wallpaper_path;
             string hex_color = "#3584e4";
-            current_accent = color_name;
-            current_accent_wallpaper = wallpaper_path;
-            if (color_name.has_prefix("#") && color_name.length >= 7) {
-                hex_color = color_name;
-            } else if (color_name == "wallpaper" && wallpaper_path != null) {
-                hex_color = extract_primary_color(wallpaper_path);
+            current_accent = accent;
+            current_accent_wallpaper = wall;
+            if (accent.has_prefix("#") && accent.length >= 7) {
+                hex_color = accent;
+            } else if (accent == "wallpaper" && wall != null) {
+                hex_color = extract_primary_color(wall);
             } else {
-                switch (color_name) {
-                    case "blue":   hex_color = "#3584e4"; break;
-                    case "teal":   hex_color = "#2190a4"; break;
-                    case "green":  hex_color = "#3a944a"; break;
-                    case "yellow": hex_color = "#e5a50a"; break;
-                    case "orange": hex_color = "#e66100"; break;
-                    case "red":    hex_color = "#e01b24"; break;
-                    case "pink":   hex_color = "#d56199"; break;
-                    case "purple": hex_color = "#9141ac"; break;
-                    case "slate":  hex_color = "#787878"; break;
+                for (int i = 0; i < ACCENT_NAMES.length; i++) {
+                    if (ACCENT_NAMES[i] == accent) hex_color = ACCENT_HEXES[i];
                 }
             }
             // Expose the resolved accent hex so callers (e.g. the shell's labwc
             // theming) can derive their own accent-tinted colours.
             accent_hex = hex_color;
+            accent_fg_hex = contrast_fg_for(hex_color);
+            refresh_icon_theme();
             // Pre-compute surface tint colors in Vala so GTK CSS never needs to
             // resolve mix() at paint time. Use mode-appropriate base colors.
             bool dark = current_dark_mode;
@@ -229,8 +463,8 @@ namespace Singularity.Style {
                 @define-color accent_color %s;
                 @define-color accent_bg @accent_color;
                 @define-color accent_bg_color @accent_color;
-                @define-color accent_fg white;
-                @define-color accent_fg_color white;
+                @define-color accent_fg %s;
+                @define-color accent_fg_color %s;
                 @define-color window_tint %s;
                 @define-color overview_bg @window_tint;
                 @define-color toolbar_bg %s;
@@ -308,6 +542,7 @@ namespace Singularity.Style {
                 }
             """).printf(
                 hex_color,
+                accent_fg_hex, accent_fg_hex,
                 tint8, toolbar_hex,
                 dock_bg, dock_bg_blur, dock_bg_glass,
                 alpha40, alpha20,
@@ -357,10 +592,21 @@ namespace Singularity.Style {
                 ? "/dev/sinty/libsingularity/style.dark.css"
                 : "/dev/sinty/libsingularity/style.light.css";
             string combined;
+            string base_css = "";
+            bool lowered_buttons = GLib.Application.get_default() is Singularity.Application;
             try {
                 var color_bytes = GLib.resources_lookup_data(color_path, 0);
                 var struct_bytes = GLib.resources_lookup_data("/dev/sinty/libsingularity/style.css", 0);
-                combined = (string)color_bytes.get_data() + "\n" + (string)struct_bytes.get_data() + "\n" + css;
+                string defaults = (string) GLib.resources_lookup_data(
+                    "/dev/sinty/libsingularity/button-defaults.css", 0).get_data();
+                string singularity = (string) GLib.resources_lookup_data(
+                    "/dev/sinty/libsingularity/singularity-button.css", 0).get_data();
+                string structure = ((string) struct_bytes.get_data())
+                    .replace("/* @button-defaults */", lowered_buttons ? "" : defaults)
+                    .replace("/* @singularity-button */", lowered_buttons ? "" : singularity);
+                combined = (string)color_bytes.get_data() + "\n" + structure + "\n" + css;
+                if (lowered_buttons)
+                    base_css = (string)color_bytes.get_data() + "\n" + css + "\n" + defaults + "\n" + singularity;
             } catch (Error e) {
                 warning("StyleManager: failed to load base CSS, using accent only: %s", e.message);
                 combined = css;
@@ -369,6 +615,18 @@ namespace Singularity.Style {
             var display = Gdk.Display.get_default();
             if (display != null && accent_provider != null) {
                 StyleContext.remove_provider_for_display(display, accent_provider);
+            }
+            if (display != null && base_provider != null) {
+                StyleContext.remove_provider_for_display(display, base_provider);
+            }
+            base_provider = null;
+            if (base_css != "") {
+                base_provider = new CssProvider();
+                base_provider.load_from_string(base_css);
+                if (display != null) {
+                    StyleContext.add_provider_for_display(display, base_provider,
+                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION - 1);
+                }
             }
             
             accent_provider = new CssProvider();
@@ -468,15 +726,15 @@ namespace Singularity.Style {
                 // GTK3 needs extra legacy color aliases.
                 string extra = (ver == "gtk-3.0")
                     ? ("@define-color theme_selected_bg_color @accent_color;\n"
-                       + "@define-color theme_selected_fg_color white;\n"
+                       + "@define-color theme_selected_fg_color @accent_fg_color;\n"
                        + "@define-color link_color @accent_color;\n")
                     : "";
                 string block = ("/* Singularity accent - auto-generated, do not edit */\n"
                     + "@define-color accent_color %s;\n"
                     + "@define-color accent_bg_color @accent_color;\n"
-                    + "@define-color accent_fg_color white;\n"
+                    + "@define-color accent_fg_color %s;\n"
                     + extra
-                    + "/* end Singularity accent */\n").printf(hex_color);
+                    + "/* end Singularity accent */\n").printf(hex_color, contrast_fg_for(hex_color));
                 string dir = GLib.Path.build_filename(
                     GLib.Environment.get_home_dir(), ".config", ver);
                 try {
@@ -549,7 +807,7 @@ namespace Singularity.Style {
                 // Skip pixels that are too dark (val < 0.15) or too washed-out
                 // (val > 0.95 or sat < 0.15) because they make poor accent colors.
                 double best_score = -1;
-                uint8 best_r = 53, best_g = 132, best_b = 228; // GNOME blue fallback
+                uint8 best_r = 53, best_g = 132, best_b = 228; // default blue fallback
 
                 for (int y = 0; y < h; y++) {
                     for (int x = 0; x < w; x++) {
@@ -588,6 +846,7 @@ namespace Singularity.Style {
         }
 
         private CssProvider? accent_provider;
+        private CssProvider? base_provider;
         private CssProvider? material_provider;
         private GLib.Settings? material_settings;
         private CssProvider? user_theme_provider;
@@ -597,8 +856,69 @@ namespace Singularity.Style {
         private string current_accent = "blue";
         private string? current_accent_wallpaper = null;
 
+        /** Whether the dark colour scheme is applied. */
+        public bool dark {
+            get { return current_dark_mode; }
+        }
+
         /** The resolved accent colour as a "#rrggbb" hex string. */
         public string accent_hex { get; private set; default = "#3584e4"; }
+
+        /**
+         * Text colour used on surfaces filled with the accent, as a "#rrggbb"
+         * hex string. Computed from the accent on every change, see
+         * contrast_fg_for; exposed to CSS as `@accent_fg_color`.
+         */
+        public string accent_fg_hex { get; private set; default = "#ffffff"; }
+
+        /** Near-black used for text on light accents. */
+        public const string ACCENT_DARK_FG = "#1c1c1c";
+
+        /**
+         * WCAG 2 relative luminance of an sRGB colour, 0 for black and 1
+         * for white.
+         */
+        public static double relative_luminance(Gdk.RGBA color) {
+            double[] channels = { color.red, color.green, color.blue };
+            double sum = 0;
+            double[] weights = { 0.2126, 0.7152, 0.0722 };
+            for (int i = 0; i < 3; i++) {
+                double c = channels[i];
+                double linear = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+                sum += weights[i] * linear;
+            }
+            return sum;
+        }
+
+        /** WCAG 2 contrast ratio between two colours, from 1 to 21. */
+        public static double contrast_ratio(Gdk.RGBA a, Gdk.RGBA b) {
+            double la = relative_luminance(a);
+            double lb = relative_luminance(b);
+            return (double.max(la, lb) + 0.05) / (double.min(la, lb) + 0.05);
+        }
+
+        /**
+         * Picks the text colour for a surface filled with `background`:
+         * white when it reaches 3:1, the WCAG ratio for bold button labels
+         * and UI components, otherwise whichever of white and
+         * ACCENT_DARK_FG contrasts more.
+         *
+         * @param background Any colour Gdk.RGBA.parse accepts.
+         * @return "#ffffff" or ACCENT_DARK_FG.
+         */
+        public static string contrast_fg_for(string background) {
+            var bg = Gdk.RGBA();
+            if (!bg.parse(background)) return "#ffffff";
+            var white = Gdk.RGBA();
+            white.parse("#ffffff");
+            var dark = Gdk.RGBA();
+            dark.parse(ACCENT_DARK_FG);
+            double on_white = contrast_ratio(bg, white);
+            if (on_white >= 3.0) return "#ffffff";
+            return contrast_ratio(bg, dark) > on_white ? ACCENT_DARK_FG : "#ffffff";
+        }
+
+        public bool crossfade_scheme_changes { get; set; default = true; }
 
         /**
          * Switches between dark and light color scheme.
@@ -609,6 +929,14 @@ namespace Singularity.Style {
          * @param dark `true` for dark, `false` for light.
          */
         public void apply_color_scheme(bool dark) {
+            if (dark != current_dark_mode && crossfade_scheme_changes && accent_provider != null) {
+                Singularity.Animation.SnapshotCrossfade.run(() => apply_color_scheme_now(dark));
+                return;
+            }
+            apply_color_scheme_now(dark);
+        }
+
+        private void apply_color_scheme_now(bool dark) {
             current_dark_mode = dark;
             apply_accent_color(current_accent, current_accent_wallpaper);
             if (recolor_seed != null) recolor_from_color(recolor_seed);
@@ -693,6 +1021,11 @@ namespace Singularity.Style {
             var display = Gdk.Display.get_default();
             if (display == null) return;
             var css = new StringBuilder();
+            string? accent = colors["accent_bg_color"] ?? colors["accent_color"];
+            if (accent != null && !colors.contains("accent_fg_color")) {
+                string fg = contrast_fg_for(accent);
+                css.append_printf("@define-color accent_fg_color %s;\n@define-color accent_fg %s;\n", fg, fg);
+            }
             colors.foreach((name, value) => {
                 var rgba = Gdk.RGBA();
                 if (!Regex.match_simple("^[a-z_]+$", name) || !rgba.parse(value)) return;
@@ -726,7 +1059,7 @@ namespace Singularity.Style {
                         StyleContext.add_provider_for_display(
                             Gdk.Display.get_default(),
                             high_contrast_provider,
-                            Gtk.STYLE_PROVIDER_PRIORITY_USER
+                            Gtk.STYLE_PROVIDER_PRIORITY_USER + 3
                         );
                     } catch (Error e) {
                         warning("StyleManager: failed to load high-contrast theme: %s", e.message);
@@ -747,18 +1080,92 @@ namespace Singularity.Style {
         /**
          * Switches between default and large-text font sizes.
          *
-         * Uses the Inter typeface at 10 pt (default) or 14 pt (large text),
-         * which are the standard Singularity design-system sizes.
-         *
          * @param enabled `true` to enable large text.
          */
         public void set_large_text(bool enabled) {
-            var settings = Gtk.Settings.get_default();
-            if (enabled) {
-                settings.gtk_font_name = "Inter 14";
-            } else {
-                settings.gtk_font_name = "Inter 10";
+            set_text_scale(enabled ? 1.4 : 1.0);
+        }
+
+        private double text_scale = 1.0;
+
+        /**
+         * Scales every text size of the Singularity style by `factor`.
+         *
+         * The interface font and the pixel font sizes of the built-in style
+         * sheet grow together, so labels sized in CSS follow the system text
+         * scaling like the rest of the desktop.
+         *
+         * @param factor Text scaling factor, 1.0 for the default size.
+         */
+        public void set_text_scale(double factor) {
+            factor = factor.clamp(0.5, 3.0);
+            text_scale = factor;
+            var gtk_settings = Gtk.Settings.get_default();
+            if (gtk_settings != null) {
+                gtk_settings.gtk_font_name = "Inter %d".printf((int) Math.round(10 * factor));
             }
+            var display = Gdk.Display.get_default();
+            if (display == null) return;
+            if (Math.fabs(factor - 1.0) < 0.01) {
+                if (large_text_provider != null) {
+                    StyleContext.remove_provider_for_display(display, large_text_provider);
+                    large_text_provider = null;
+                }
+                return;
+            }
+            string css = "";
+            try {
+                var bytes = GLib.resources_lookup_data("/dev/sinty/libsingularity/style.css", 0);
+                css = (string) bytes.get_data();
+            } catch (Error e) {
+                warning("StyleManager: failed to read style.css for text scaling: %s", e.message);
+                return;
+            }
+            if (large_text_provider == null) {
+                large_text_provider = new CssProvider();
+                StyleContext.add_provider_for_display(display, large_text_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER + 3);
+            }
+            large_text_provider.load_from_string(scaled_font_css(css, factor));
+        }
+
+        private static string scaled_font_css(string css, double factor) {
+            var out_css = new StringBuilder();
+            var size_re = /font-size:\s*([0-9.]+)px/;
+            int depth = 0;
+            int block_start = 0;
+            bool skipping = false;
+            for (int i = 0; i < css.length; i++) {
+                char c = css[i];
+                if (c == '{') {
+                    if (depth == 0) {
+                        string selector = css.substring(block_start, i - block_start).strip();
+                        int comment = selector.last_index_of("*/");
+                        if (comment >= 0) selector = selector.substring(comment + 2).strip();
+                        skipping = selector.has_prefix("@");
+                        block_start = i + 1;
+                        if (!skipping) {
+                            int end = css.index_of_char('}', i);
+                            if (end < 0) break;
+                            string body = css.substring(i + 1, end - i - 1);
+                            MatchInfo match;
+                            if (size_re.match(body, 0, out match)) {
+                                double px = double.parse(match.fetch(1));
+                                out_css.append("%s { font-size: %dpx; }\n".printf(
+                                    selector, (int) Math.round(px * factor)));
+                            }
+                        }
+                    }
+                    depth++;
+                } else if (c == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        block_start = i + 1;
+                        skipping = false;
+                    }
+                }
+            }
+            return out_css.str;
         }
 
         /**

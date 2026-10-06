@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="dev.sinty.toolbar">
+    <key name="toolbar-style" type="s">
+      <choices>
+        <choice value="compact"/>
+        <choice value="expanded"/>
+        <choice value="text"/>
+      </choices>
+      <default>'compact'</default>
+      <summary>Toolbar style</summary>
+      <description>How the controls of the app toolbar read: compact shows icons with short text only where needed, expanded shows icon and text, text shows text only.</description>
+    </key>
+    <key name="last-context" type="s">
+      <default>''</default>
+      <summary>Last context</summary>
+      <description>Id of the toolbar context shown when the app was last used.</description>
+    </key>
+  </schema>
+  <schema id="dev.sinty.toolbars" path="/dev/sinty/toolbars/">
+    <key name="apps" type="as">
+      <default>[]</default>
+      <summary>Apps with a context toolbar</summary>
+      <description>Application ids that declare a context toolbar, so Settings can offer their Toolbar Style.</description>
+    </key>
+  </schema>
+</schemalist>

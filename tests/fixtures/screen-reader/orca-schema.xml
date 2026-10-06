@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <enum id="org.gnome.Orca.KeyboardLayout">
+    <value nick="desktop" value="1" />
+    <value nick="laptop" value="2" />
+  </enum>
+  <enum id="org.gnome.Orca.PunctuationStyle">
+    <value nick="all" value="0" />
+    <value nick="most" value="1" />
+    <value nick="some" value="2" />
+    <value nick="none" value="3" />
+  </enum>
+  <enum id="org.gnome.Orca.VerbosityLevel">
+    <value nick="brief" value="0" />
+    <value nick="verbose" value="1" />
+  </enum>
+  <schema id="org.gnome.Orca.Keybindings">
+    <key name="keyboard-layout" enum="org.gnome.Orca.KeyboardLayout">
+      <default>'desktop'</default>
+      <summary>Keyboard layout (desktop, laptop)</summary>
+    </key>
+    <key name="desktop-modifier-keys" type="as">
+      <default>['Insert', 'KP_Insert']</default>
+      <summary>Keys used as the Orca modifier for the desktop layout</summary>
+    </key>
+    <key name="laptop-modifier-keys" type="as">
+      <default>['Caps_Lock', 'Shift_Lock']</default>
+      <summary>Keys used as the Orca modifier for the laptop layout</summary>
+    </key>
+  </schema>
+  <schema id="org.gnome.Orca.Speech">
+    <key name="speech-server" type="s">
+      <default>''</default>
+      <summary>Speech server name</summary>
+    </key>
+    <key name="speech-server-factory" type="s">
+      <default>'speechdispatcherfactory'</default>
+      <summary>Speech server factory module</summary>
+    </key>
+    <key name="synthesizer" type="s">
+      <default>''</default>
+      <summary>Speech synthesizer</summary>
+    </key>
+    <key name="punctuation-level" enum="org.gnome.Orca.PunctuationStyle">
+      <default>'most'</default>
+      <summary>Punctuation verbosity level (none, some, most, all)</summary>
+    </key>
+    <key name="verbosity-level" enum="org.gnome.Orca.VerbosityLevel">
+      <default>'verbose'</default>
+      <summary>Speech verbosity level (brief, verbose)</summary>
+    </key>
+  </schema>
+  <schema id="org.gnome.Orca.TypingEcho">
+    <key name="key-echo" type="b">
+      <default>true</default>
+      <summary>Enable key echo</summary>
+    </key>
+    <key name="character-echo" type="b">
+      <default>false</default>
+      <summary>Echo inserted characters</summary>
+    </key>
+    <key name="word-echo" type="b">
+      <default>false</default>
+      <summary>Echo completed words</summary>
+    </key>
+  </schema>
+  <schema id="org.gnome.Orca.Voice">
+    <key name="family-name" type="s">
+      <default>''</default>
+      <summary>Voice family name</summary>
+    </key>
+    <key name="family-lang" type="s">
+      <default>''</default>
+      <summary>Voice family language</summary>
+    </key>
+    <key name="family-variant" type="s">
+      <default>''</default>
+      <summary>Voice family variant</summary>
+    </key>
+    <key name="established" type="b">
+      <default>false</default>
+      <summary>Whether this voice type has been user-customized</summary>
+    </key>
+    <key name="rate" type="i">
+      <default>50</default>
+      <summary>Speech rate (0-100)</summary>
+    </key>
+    <key name="pitch" type="d">
+      <default>5.0</default>
+      <summary>Speech pitch (0.0-10.0)</summary>
+    </key>
+    <key name="volume" type="d">
+      <default>10.0</default>
+      <summary>Speech volume (0.0-10.0)</summary>
+    </key>
+  </schema>
+</schemalist>

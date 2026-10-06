@@ -898,7 +898,22 @@ namespace Singularity {
                                                          channel, pwm_channel, pwm, pwm_enable);
                 }
             }
+            for (int i = 1; i < found.length; i++) {
+                FanReading fan = found[i];
+                int j = i - 1;
+                while (j >= 0 && fan_order(found[j], fan) > 0) {
+                    found[j + 1] = found[j];
+                    j--;
+                }
+                found[j + 1] = fan;
+            }
             return found;
+        }
+
+        private static int fan_order(FanReading a, FanReading b) {
+            int by_chip = strcmp(a.hwmon_path, b.hwmon_path);
+            if (by_chip != 0) return by_chip;
+            return a.channel - b.channel;
         }
 
         private PowerReading[] collect_power() {

@@ -16,25 +16,30 @@ namespace Singularity.Widgets {
         private Gtk.Window? _ssd_target_window = null;
 
         private Overlay? _overlay;
+        private Box      _row;
         private Box      _left_box;
+        private Box      _spacer;
         private Box      _right_box;
-        private Box      _custom_box;
+        private BubbleBox _custom_box;
+        private Button?  _sidebar_toggle = null;
+        private bool     _compact_controls = false;
         private Gtk.Window? _bubble_window = null;
         private bool _bubble_with_drag = true;
         private bool _bubble_with_close = true;
         private GLib.Settings? _wm_layout_settings = null;
 
         private Button?     _close_btn          = null;
+        private Button?     _max_btn            = null;
         private Gtk.Window? _close_target_window = null;
 
-        private struct CloseMenuEntry {
+        private class CloseMenuEntry {
             public bool   is_separator;
             public string label;
             public string? icon;
             public CloseMenuAction action;
         }
-        private GenericArray<CloseMenuEntry?> _close_menu_entries
-            = new GenericArray<CloseMenuEntry?> ();
+        private GenericArray<CloseMenuEntry> _close_menu_entries
+            = new GenericArray<CloseMenuEntry> ();
         private Singularity.Widgets.ContextMenu? _close_menu = null;
 
         public HoverControls () {
@@ -51,7 +56,10 @@ namespace Singularity.Widgets {
 
             _left_box   = new Box (Orientation.HORIZONTAL, 4);
             _right_box  = new Box (Orientation.HORIZONTAL, 4);
-            _custom_box = new Box (Orientation.HORIZONTAL, 4);
+            _custom_box = new BubbleBox ();
+            _custom_box.search_activated.connect (_expand_search);
+            _custom_box.search_close_requested.connect (collapse_search);
+            _custom_box.search_fits.connect (() => _close_search (false));
 
             _overlay = new Overlay ();
             _overlay.hexpand = true;
@@ -59,6 +67,7 @@ namespace Singularity.Widgets {
             _overlay.add_css_class ("singularity-hover-overlay");
 
             var row = new Box (Orientation.HORIZONTAL, 4);
+            _row = row;
             row.halign      = Align.FILL;
             row.valign      = Align.START;
             row.hexpand     = true;
@@ -70,6 +79,7 @@ namespace Singularity.Widgets {
 
             var spacer = new Box (Orientation.HORIZONTAL, 0);
             spacer.hexpand = true;
+            _spacer = spacer;
 
             row.append (_left_box);
             row.append (spacer);
@@ -87,7 +97,7 @@ namespace Singularity.Widgets {
             vexpand = true;
             _left_box   = new Box (Orientation.HORIZONTAL, 4);
             _right_box  = new Box (Orientation.HORIZONTAL, 4);
-            _custom_box = new Box (Orientation.HORIZONTAL, 4);
+            _custom_box = new BubbleBox ();
         }
 
         public bool is_ssd_bypass { get { return _ssd_bypass; } }
@@ -104,22 +114,11 @@ namespace Singularity.Widgets {
 
         public void add (Widget w) {
             if (_ssd_bypass && _ssd_target_window is Singularity.Widgets.Window) {
-                var sw = (Singularity.Widgets.Window) _ssd_target_window;
-                sw.toolbar.pack_start (w);
-                sw.toolbar.visible = true;
+                ((Singularity.Widgets.Window) _ssd_target_window).add_tool (w);
                 return;
             }
-            w.add_css_class ("singularity-hover-btn");
-            if (w is Button) {
-                var child = ((Button) w).get_child ();
-                if (child is Image) {
-                    w.add_css_class ("image-button");
-                    ((Image) child).pixel_size = -1;
-                }
-                w.set_size_request (20, 20);
-            }
-            w.valign = Align.CENTER;
-            _custom_box.append (w);
+            BubbleBox.prepare (w);
+            _custom_box.add_item (w);
         }
 
         public void add_control (Widget w) { add (w); }
@@ -146,7 +145,117 @@ namespace Singularity.Widgets {
         public void add_separator () {
             var sep = new Box (Orientation.HORIZONTAL, 0);
             sep.add_css_class ("singularity-hover-sep");
-            _custom_box.append (sep);
+            _custom_box.add_item (sep);
+        }
+
+        /**
+         * Sets how early a bubble moves into the more bubble when the row
+         * gets narrow. Bubbles with a lower priority move first; among
+         * equal priorities the last added moves first. The default is 0,
+         * and `Window.BUBBLE_PRIORITY_PINNED` keeps a bubble in the row.
+         */
+        public void set_bubble_priority (Widget bubble, int priority) {
+            _custom_box.set_priority (bubble, priority);
+        }
+
+        internal void mark_app_menu (Widget bubble) {
+            _custom_box.mark_app_menu (bubble);
+        }
+
+        internal void mark_trailing (Widget bubble) {
+            if (_ssd_bypass && _ssd_target_window is Singularity.Widgets.Window) {
+                ((Singularity.Widgets.Window) _ssd_target_window).add_tool (bubble, true);
+                return;
+            }
+            _custom_box.mark_trailing (bubble);
+        }
+
+        internal bool has_own_sidebar_toggle () {
+            return _custom_box.has_sidebar_toggle ();
+        }
+
+        internal void set_welcome (bool welcome) {
+            if (welcome && _custom_box.expanded) collapse_search ();
+            _custom_box.set_welcome (welcome);
+        }
+
+        internal void set_sidebar_toggle (Button toggle) {
+            _sidebar_toggle = toggle;
+            if (_ssd_bypass && _ssd_target_window is Singularity.Widgets.Window) {
+                ((Singularity.Widgets.Window) _ssd_target_window).add_tool (toggle, false, true);
+                return;
+            }
+            toggle.add_css_class ("flat");
+            toggle.add_css_class ("singularity-hover-btn");
+            toggle.add_css_class ("image-button");
+            var child = toggle.get_child ();
+            if (child is Image) ((Image) child).pixel_size = -1;
+            toggle.set_size_request (20, 20);
+            toggle.valign = Align.CENTER;
+            _left_box.prepend (toggle);
+        }
+
+        /** Reduces the window controls to the close bubble (phone width). */
+        internal void set_row_hidden (bool hidden) {
+            if (_row == null) return;
+            if (hidden) {
+                Singularity.Motion.tween (_row, "opacity", 0.0, Singularity.Motion.Duration.SMALL, Singularity.Motion.Curve.EXIT)
+                    .done.connect (() => { if (_row.opacity == 0.0) _row.visible = false; });
+                _row.can_target = false;
+            } else {
+                _row.visible = true;
+                _row.can_target = true;
+                Singularity.Motion.tween (_row, "opacity", 1.0, Singularity.Motion.Duration.MEDIUM, Singularity.Motion.Curve.ENTER);
+            }
+        }
+
+        internal void set_compact_controls (bool compact) {
+            if (_compact_controls == compact) return;
+            _compact_controls = compact;
+            _apply_controls_visibility ();
+        }
+
+        /** True while a collapsed search is expanded across the row. */
+        internal bool search_expanded { get { return _custom_box.expanded; } }
+
+        /** Closes the expanded search, clearing its text. */
+        internal void collapse_search () {
+            _close_search (true);
+        }
+
+        private void _expand_search (SearchBubble search) {
+            int overhead = _row.get_width () - _custom_box.get_width ();
+            _custom_box.set_expanded (search, int.max (0, overhead));
+            _apply_controls_visibility ();
+            search.grab_focus_entry ();
+            if (search.get_data<string> ("singularity-stop-search") == null) {
+                search.set_data<string> ("singularity-stop-search", "1");
+                search.entry.stop_search.connect (() => {
+                    if (_custom_box.expanded) collapse_search ();
+                });
+            }
+        }
+
+        private void _close_search (bool clear) {
+            var search = _custom_box.expanded_search;
+            if (search == null) return;
+            _custom_box.set_expanded (null, 0);
+            _apply_controls_visibility ();
+            if (clear) search.clear ();
+        }
+
+        private void _apply_controls_visibility () {
+            if (_ssd_bypass) return;
+            bool expanded = _custom_box.expanded;
+            _left_box.visible = !expanded;
+            _spacer.visible = !expanded;
+            _custom_box.hexpand = expanded;
+            foreach (var box in new Box[] { _left_box, _right_box }) {
+                for (var c = box.get_first_child (); c != null; c = c.get_next_sibling ()) {
+                    if (c == _custom_box || c == _sidebar_toggle) continue;
+                    c.visible = !expanded && (!_compact_controls || c == _close_btn || c == _max_btn);
+                }
+            }
         }
 
         public static HoverControls with_window_bubbles (Gtk.Window window,
@@ -195,7 +304,11 @@ namespace Singularity.Widgets {
             bool with_close = _bubble_with_close;
 
             Widget? c = _left_box.get_first_child ();
-            while (c != null) { Widget? n = c.get_next_sibling (); _left_box.remove (c); c = n; }
+            while (c != null) {
+                Widget? n = c.get_next_sibling ();
+                if (c != _sidebar_toggle) _left_box.remove (c);
+                c = n;
+            }
             c = _right_box.get_first_child ();
             while (c != null) {
                 Widget? n = c.get_next_sibling ();
@@ -207,6 +320,7 @@ namespace Singularity.Widgets {
             // side a comma-separated list of control names. We honour
             // close, minimize, maximize; ignore "icon", "menu",
             // "appmenu" and anything else.
+            _max_btn = null;
             string layout = _resolve_decoration_layout ();
             string[] parts = layout.split (":");
             string left_str  = parts.length > 0 ? parts[0] : "";
@@ -242,6 +356,7 @@ namespace Singularity.Widgets {
                 if (with_close && (close_left || close_right))
                     _install_close_bubble (window, target);
             }
+            _apply_controls_visibility ();
         }
 
         // Resolve the decoration layout, preferring the host's
@@ -305,6 +420,8 @@ namespace Singularity.Widgets {
                 if (window.maximized) window.unmaximize ();
                 else                  window.maximize ();
             });
+            SnapLayouts.attach_maximize_button (btn);
+            _max_btn = btn;
             target.append (btn);
         }
 
@@ -332,8 +449,8 @@ namespace Singularity.Widgets {
                 if (e.is_separator) {
                     _close_menu.add_separator ();
                 } else {
-                    var act = e.action;
-                    _close_menu.add_item (e.label, e.icon, () => act ());
+                    var entry = e;
+                    _close_menu.add_item (e.label, e.icon, () => entry.action ());
                 }
             }
             _close_menu.closed.connect (() => {
@@ -346,7 +463,7 @@ namespace Singularity.Widgets {
         public void add_close_menu_item (string label,
                                          string? icon_name,
                                          owned CloseMenuAction action) {
-            CloseMenuEntry e = CloseMenuEntry ();
+            var e = new CloseMenuEntry ();
             e.is_separator = false;
             e.label  = label;
             e.icon   = icon_name;
@@ -355,7 +472,7 @@ namespace Singularity.Widgets {
         }
 
         public void add_close_menu_separator () {
-            CloseMenuEntry e = CloseMenuEntry ();
+            var e = new CloseMenuEntry ();
             e.is_separator = true;
             e.label = "";
             e.icon  = null;

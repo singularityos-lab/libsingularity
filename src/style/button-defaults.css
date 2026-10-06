@@ -1,0 +1,17 @@
+/* Generic standalone button: pill rounding to match AppDialog
+   buttons (which carry an explicit `.pill` class). Specific button
+   roles (toolbar, sidebar, path, bubble, etc.) override this
+   border-radius via their own selectors. */
+button {
+    background-color: @card_bg;
+    background-image: none;
+    border: 1px solid @border_color;
+    border-radius: 999px;
+    color: @text_color;
+    padding: 6px 12px;
+    box-shadow: none;
+}
+button:hover { background-color: @card_hover_bg; }
+button:active,
+button:checked { background-color: alpha(@text_color, 0.18); }
+button:disabled { opacity: 0.5; }

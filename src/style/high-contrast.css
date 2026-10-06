@@ -1,52 +1,90 @@
-* {
-    border-width: 1px;
-    border-style: solid;
-    border-color: #ffffff;
+@define-color card_bg alpha(@text_color, 0.14);
+@define-color card_hover_bg alpha(@text_color, 0.24);
+@define-color border_color alpha(@text_color, 0.7);
+@define-color borders alpha(@text_color, 0.7);
+@define-color hover_white alpha(@text_color, 0.2);
+@define-color card_bg_color @card_bg;
+@define-color window_tint @window_bg;
+
+label.dim-label,
+scale > value {
+    opacity: 1;
 }
-window,
-.background {
-    background-color: #000000;
-    color: #ffffff;
+
+label:disabled,
+button:disabled,
+spinbutton:disabled,
+radio:disabled {
+    opacity: 0.7;
 }
-label,
+
 button,
-entry {
-    color: #ffffff;
-    background-color: #000000;
-}
-button:hover {
-    background-color: #333333;
-    border-color: #ffff00;
-    color: #ffff00;
-}
-button:active {
-    background-color: #ffffff;
-    color: #000000;
-}
-.singularity-toolbar {
-    background-color: #000000;
-    border: 2px solid #ffffff;
-}
-.sidebar {
-    background-color: #000000;
-    border-left: 2px solid #ffffff;
-}
+entry,
+spinbutton,
+dropdown > button,
+switch,
+check,
+radio,
 .card,
+.boxed-list,
+.preferences-list,
+popover > contents,
 .workspace-preview {
-    border: 2px solid #ffffff;
-    background-color: #000000;
+    border: 1px solid @border_color;
 }
-.accent-btn {
-    background-color: #0000ff;
-    color: #ffffff;
-    border: 2px solid #ffffff;
+
+button.flat,
+button.menu-row {
+    border-color: transparent;
 }
-.destructive-btn {
-    background-color: #ff0000;
-    color: #ffffff;
-    border: 2px solid #ffffff;
+
+button:hover,
+button:focus-visible,
+entry:focus-within,
+switch:focus-visible,
+check:focus-visible,
+radio:focus-visible {
+    border-color: @text_color;
 }
-*:focus {
-    outline: 2px solid #ffff00;
+
+switch:checked,
+check:checked,
+radio:checked {
+    border-color: @text_color;
+}
+
+separator {
+    background-color: @border_color;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+*:focus-visible {
+    outline: 2px solid @text_color;
     outline-offset: 2px;
+}
+
+link,
+button.link {
+    text-decoration: underline;
+}
+
+.singularity button.singularity-bubble-button,
+.singularity button.singularity-bubble-button.suggested-action,
+.singularity button.singularity-bubble-button.destructive-action,
+.singularity button.singularity-bubble-button:disabled {
+    border-color: @border_color;
+}
+
+.singularity button.singularity-bubble-button:hover,
+.singularity button.singularity-bubble-button:focus-visible,
+.singularity button.singularity-bubble-button.flat:hover,
+.singularity button.singularity-bubble-button.suggested-action:hover,
+.singularity button.singularity-bubble-button.destructive-action:hover {
+    border-color: @text_color;
+}
+
+.singularity button.singularity-bubble-button.flat,
+.singularity button.singularity-bubble-button.flat:disabled {
+    border-color: transparent;
 }

@@ -1,3 +1,7 @@
 gtk4
 gee-0.8
 gtksourceview-5
+gstreamer-1.0
+gstreamer-video-1.0
+gstreamer-app-1.0
+gio-unix-2.0

@@ -1,0 +1,6 @@
+[Plugin]
+Module=media-fake-source
+Name=Test Source
+Description=Ten sample items for checking music and video sources
+X-Singularity-App=dev.sinty.music
+X-Singularity-Host=dev.sinty.music;dev.sinty.videos

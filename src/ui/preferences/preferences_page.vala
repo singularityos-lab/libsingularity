@@ -26,10 +26,7 @@ namespace Singularity.Widgets {
             orientation = Orientation.VERTICAL;
             spacing = 0;
             add_css_class ("preferences-page");
-            margin_top    = 24;
-            margin_bottom = 24;
-            margin_start  = 48;
-            margin_end    = 48;
+            add_css_class("preferences-page-margins");
         }
 
         // Buildable: nested <child> groups (or any widget) are appended.

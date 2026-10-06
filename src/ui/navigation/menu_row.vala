@@ -12,6 +12,7 @@ namespace Singularity.Widgets {
 
         private Label _label;
         private Image _icon;
+        private Image _submenu_arrow;
 
         /** Text displayed on the row. Safe to set after construction. */
         public string label_text {
@@ -25,6 +26,16 @@ namespace Singularity.Widgets {
                 if (_icon == null) return;
                 _icon.icon_name = value;
                 _icon.visible = (value != null && value != "");
+            }
+        }
+
+        public bool has_submenu {
+            get { return _submenu_arrow != null && _submenu_arrow.visible; }
+            set {
+                if (_submenu_arrow == null) return;
+                _submenu_arrow.visible = value;
+                if (value) add_css_class("has-submenu");
+                else remove_css_class("has-submenu");
             }
         }
 
@@ -45,8 +56,8 @@ namespace Singularity.Widgets {
         construct {
             add_css_class("flat");
             add_css_class("menu-row");
-            var box = new Box(Orientation.HORIZONTAL, 12);
-            box.halign = Align.START;
+            var box = new Box(Orientation.HORIZONTAL, 8);
+            box.halign = Align.FILL;
             box.valign = Align.CENTER;
             _icon = new Image();
             _icon.pixel_size = 16;
@@ -56,7 +67,15 @@ namespace Singularity.Widgets {
             _label = new Label("");
             _label.halign = Align.START;
             _label.valign = Align.CENTER;
+            _label.hexpand = true;
+            _label.xalign = 0;
             box.append(_label);
+            _submenu_arrow = new Image.from_icon_name("pan-end-symbolic");
+            _submenu_arrow.pixel_size = 12;
+            _submenu_arrow.valign = Align.CENTER;
+            _submenu_arrow.add_css_class("submenu-arrow");
+            _submenu_arrow.visible = false;
+            box.append(_submenu_arrow);
             set_child(box);
         }
     }

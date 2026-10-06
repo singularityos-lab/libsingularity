@@ -21,6 +21,7 @@ namespace Singularity.Widgets {
 
         private Gdk.Paintable?[] _images;
         private int _current = 0;
+        private ImageViewer? _viewer = null;
 
         public int count { get; private set; }
 
@@ -57,6 +58,21 @@ namespace Singularity.Widgets {
             _picture.vexpand     = true;
             _picture.visible     = false;
             overlay.add_overlay (_picture);
+            _picture.set_cursor_from_name ("zoom-in");
+            var open_click = new Gtk.GestureClick ();
+            open_click.released.connect (() => open_viewer ());
+            _picture.add_controller (open_click);
+
+            var expand = new Gtk.Button.from_icon_name ("view-fullscreen-symbolic");
+            expand.add_css_class ("screenshot-carousel-nav");
+            expand.add_css_class ("circular");
+            expand.tooltip_text = _("View Full Screen");
+            expand.halign = Gtk.Align.END;
+            expand.valign = Gtk.Align.START;
+            expand.margin_top = 8;
+            expand.margin_end = 8;
+            expand.clicked.connect (() => open_viewer ());
+            overlay.add_overlay (expand);
 
             if (count > 1) {
                 _prev = make_nav_button ("go-previous-symbolic", Gtk.Align.START);
@@ -93,6 +109,20 @@ namespace Singularity.Widgets {
             _images[index] = paintable;
             if (index == _current)
                 show_current ();
+            if (_viewer != null)
+                _viewer.set_image (index, paintable);
+        }
+
+        /** Opens the current screenshot in a full screen viewer. */
+        public void open_viewer () {
+            if (count == 0) return;
+            _viewer = new ImageViewer (get_root () as Gtk.Window, _images, _current);
+            _viewer.close_request.connect (() => {
+                _viewer = null;
+                return false;
+            });
+            _viewer.fullscreen ();
+            _viewer.present ();
         }
 
         // -- Private helpers -----------------------------------------------

@@ -7,11 +7,10 @@ namespace Singularity.Widgets {
         public signal void back_clicked();
         public signal void next_clicked();
 
-        private Box dots_box;
+        private StepDots dots_box;
         private Label title_lbl;
         private Button back_btn;
         private Button next_btn;
-        private Box[] dots = {};
         private string[] _steps;
         private int _step = 0;
 
@@ -47,7 +46,7 @@ namespace Singularity.Widgets {
             valign = Align.END;
             margin_bottom = 22;
 
-            back_btn = new Button.with_label("Back");
+            back_btn = new Button.with_label(_("Back"));
             back_btn.add_css_class("flat");
             back_btn.valign = Align.CENTER;
             back_btn.clicked.connect(() => back_clicked());
@@ -58,7 +57,7 @@ namespace Singularity.Widgets {
             center.margin_start = 4;
             center.margin_end = 4;
 
-            dots_box = new Box(Orientation.HORIZONTAL, 7);
+            dots_box = new StepDots(steps.length);
             dots_box.valign = Align.CENTER;
             center.append(dots_box);
 
@@ -67,15 +66,7 @@ namespace Singularity.Widgets {
             center.append(title_lbl);
             append(center);
 
-            for (int i = 0; i < _steps.length; i++) {
-                var dot = new Box(Orientation.HORIZONTAL, 0);
-                dot.add_css_class("singularity-step-dot");
-                dot.valign = Align.CENTER;
-                dots += dot;
-                dots_box.append(dot);
-            }
-
-            next_btn = new Button.with_label("Next");
+            next_btn = new Button.with_label(_("Next"));
             next_btn.add_css_class("suggested-action");
             next_btn.valign = Align.CENTER;
             next_btn.clicked.connect(() => next_clicked());
@@ -85,14 +76,86 @@ namespace Singularity.Widgets {
         }
 
         private void update_state() {
-            for (int i = 0; i < dots.length; i++) {
-                dots[i].remove_css_class("active");
-                dots[i].remove_css_class("done");
-                if (i == _step) dots[i].add_css_class("active");
-                else if (i < _step) dots[i].add_css_class("done");
-            }
+            dots_box.go_to(_step);
             if (_step >= 0 && _step < _steps.length)
                 title_lbl.label = _steps[_step];
+        }
+    }
+
+    private class StepDots : Widget {
+        private const double DOT = 8.0;
+        private const double ACTIVE = 20.0;
+        private const double GAP = 7.0;
+        private const double IDLE_ALPHA = 0.3;
+        private const double DONE_ALPHA = 0.7;
+
+        private int count;
+        private int target = 0;
+        private double _position = 0.0;
+        private bool placed = false;
+
+        public double position {
+            get { return _position; }
+            set { _position = value; queue_draw(); }
+        }
+
+        public StepDots(int count) {
+            this.count = int.max(0, count);
+            add_css_class("singularity-step-dots");
+        }
+
+        public void go_to(int step) {
+            target = step;
+            if (!placed || !get_mapped()) {
+                placed = true;
+                Singularity.Motion.cancel(this, "position");
+                position = step;
+                return;
+            }
+            Singularity.Motion.tween(this, "position", step,
+                Singularity.Motion.Duration.MEDIUM, Singularity.Motion.Curve.STANDARD);
+        }
+
+        public override SizeRequestMode get_request_mode() {
+            return SizeRequestMode.CONSTANT_SIZE;
+        }
+
+        public override void measure(Orientation orientation, int for_size,
+                                     out int minimum, out int natural,
+                                     out int minimum_baseline, out int natural_baseline) {
+            minimum_baseline = -1;
+            natural_baseline = -1;
+            if (orientation == Orientation.HORIZONTAL) {
+                double width = count > 0 ? (count - 1) * (DOT + GAP) + ACTIVE : 0.0;
+                minimum = natural = (int) Math.ceil(width);
+            } else {
+                minimum = natural = (int) DOT;
+            }
+        }
+
+        public override void snapshot(Snapshot snapshot) {
+            var color = get_color();
+            double top = (get_height() - DOT) / 2.0;
+            double x = 0.0;
+            for (int i = 0; i < count; i++) {
+                double near = double.max(0.0, 1.0 - Math.fabs(i - _position));
+                double width = DOT + (ACTIVE - DOT) * near;
+                double rest = i < target ? DONE_ALPHA : IDLE_ALPHA;
+                if (i == target) rest = 1.0;
+                double alpha = rest + (1.0 - rest) * near;
+                var dot_color = color;
+                dot_color.alpha = (float) (color.alpha * alpha);
+                var rect = Graphene.Rect() {
+                    origin = { (float) x, (float) top },
+                    size = { (float) width, (float) DOT }
+                };
+                var rounded = Gsk.RoundedRect();
+                rounded.init_from_rect(rect, (float) (DOT / 2.0));
+                snapshot.push_rounded_clip(rounded);
+                snapshot.append_color(dot_color, rect);
+                snapshot.pop();
+                x += width + GAP;
+            }
         }
     }
 }

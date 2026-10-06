@@ -20,6 +20,46 @@ namespace Singularity.Calendar {
         public string color;
         /** Whether the event spans an entire day. */
         public bool all_day;
+        public string location;
+        public string recurrence;
+        public string[] exdates;
+        public string organizer;
+        public string organizer_name;
+        public Gee.ArrayList<CalendarAttendee>? attendees;
+        public int[] alarms;
+        public string calendar_id;
+        public DateTime? occurrence_start;
+
+        public bool is_recurring() {
+            return recurrence != null && recurrence != "";
+        }
+
+        public string series_key() {
+            return occurrence_start != null ? id + "@" + RecurrenceRule.occurrence_key(occurrence_start) : id;
+        }
+    }
+
+    public class CalendarAttendee : Object {
+        public string name { get; set; default = ""; }
+        public string email { get; set; default = ""; }
+        public string role { get; set; default = "REQ-PARTICIPANT"; }
+        public string status { get; set; default = "NEEDS-ACTION"; }
+
+        public CalendarAttendee(string email, string name = "", string status = "NEEDS-ACTION") {
+            this.email = email;
+            this.name = name;
+            this.status = status;
+        }
+
+        public string display_name() {
+            return name != "" ? name : email;
+        }
+
+        public CalendarAttendee copy() {
+            var other = new CalendarAttendee(email, name, status);
+            other.role = role;
+            return other;
+        }
     }
 
     /**
@@ -84,6 +124,10 @@ namespace Singularity.Calendar {
          * @param evt Updated event data; the `id` field must match an existing event.
          */
         public abstract void update_event (CalendarEvent evt);
+
+        public abstract CalendarEvent? find_event (string id);
+
+        public abstract async void export_file (string path) throws Error;
     }
 
     /**
@@ -128,6 +172,9 @@ namespace Singularity.Calendar {
         /** Emitted whenever any registered provider reports a change. */
         public signal void events_changed();
 
+        /** Emitted when a provider is registered or removed. */
+        public signal void providers_changed();
+
         /**
          * Registers a calendar provider.
          *
@@ -142,6 +189,7 @@ namespace Singularity.Calendar {
                 events_changed();
             });
             _provider_handlers[provider.id] = handler_id;
+            providers_changed();
         }
 
         /**
@@ -158,6 +206,7 @@ namespace Singularity.Calendar {
                 }
                 providers.remove(provider);
                 events_changed();
+                providers_changed();
             }
         }
 
@@ -171,6 +220,27 @@ namespace Singularity.Calendar {
                 if (p.id == id) return p;
             }
             return null;
+        }
+
+        public Gee.List<WritableCalendarProvider> get_writable_providers() {
+            var result = new Gee.ArrayList<WritableCalendarProvider>();
+            foreach (var p in providers) {
+                if (p is WritableCalendarProvider) result.add((WritableCalendarProvider) p);
+            }
+            return result;
+        }
+
+        public async Gee.List<CalendarEvent?> search(string query, DateTime start, DateTime end) {
+            var matches = new Gee.ArrayList<CalendarEvent?>();
+            string needle = query.strip().casefold();
+            if (needle == "") return matches;
+            var events = yield get_events(start, end);
+            foreach (var evt in events) {
+                string haystack = "%s %s %s".printf(evt.title ?? "", evt.description ?? "", evt.location ?? "").casefold();
+                if (haystack.contains(needle)) matches.add(evt);
+            }
+            matches.sort((a, b) => a.start_time.compare(b.start_time));
+            return matches;
         }
 
         /** Returns the list of all registered providers. */
@@ -191,7 +261,10 @@ namespace Singularity.Calendar {
                 if (!provider.is_visible) continue;
                 try {
                     var events = yield provider.get_events(start, end);
-                    all_events.add_all(events);
+                    foreach (var evt in events) {
+                        if (evt.calendar_id == null || evt.calendar_id == "") evt.calendar_id = provider.id;
+                        all_events.add(evt);
+                    }
                 } catch (Error e) {
                     warning("Failed to fetch events from %s: %s", provider.name, e.message);
                 }

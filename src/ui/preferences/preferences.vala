@@ -72,14 +72,16 @@ namespace Singularity.Widgets {
                 if (description_label == null) {
                     description_label = new Label(value);
                     description_label.add_css_class("dim-label");
-                    description_label.halign = Align.START;
+                    description_label.add_css_class("group-description");
+                    description_label.xalign = 0f;
                     description_label.wrap = true;
-                    description_label.max_width_chars = 50;
+                    description_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
                     title_box.append(description_label);
                     header_box.visible = true;
                 } else {
                     description_label.label = value;
                 }
+                description_label.visible = value != "";
             }
         }
 
@@ -95,14 +97,10 @@ namespace Singularity.Widgets {
         construct {
             // Own layout (GtkBuilder does not run the named constructor's Object()).
             orientation = Orientation.VERTICAL;
-            spacing = 6;
-            margin_bottom = 10;
+            spacing = 2;
             add_css_class("preferences-group");
             header_box = new Box(Orientation.HORIZONTAL, 12);
-            header_box.margin_top = 8;
-            header_box.margin_bottom = 6;
-            header_box.margin_start = 12;
-            header_box.margin_end = 12;
+            header_box.add_css_class("group-header");
             header_box.visible = false;
             append(header_box);
 
@@ -112,7 +110,7 @@ namespace Singularity.Widgets {
 
             header_suffix_box = new Box(Orientation.HORIZONTAL, 6);
             header_suffix_box.halign = Align.END;
-            header_suffix_box.hexpand = true;
+            header_suffix_box.valign = Align.CENTER;
             header_box.append(header_suffix_box);
 
             list_box = new ListBox();
@@ -330,7 +328,6 @@ namespace Singularity.Widgets {
                 if (subtitle_label == null && value != "") {
                     subtitle_label = new Label(value);
                     subtitle_label.add_css_class("subtitle");
-                    subtitle_label.halign = Align.START;
                     subtitle_label.wrap = true;
                     subtitle_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
                     subtitle_label.xalign = 0f;
@@ -344,8 +341,7 @@ namespace Singularity.Widgets {
             set {
                 if (icon_image == null) {
                     icon_image = new Image.from_icon_name(value);
-                    icon_image.pixel_size = 24;
-                    icon_image.margin_end = 12;
+                    icon_image.add_css_class("row-icon");
                     prefix_box.append(icon_image);
                 } else {
                     icon_image.icon_name = value;
@@ -365,10 +361,7 @@ namespace Singularity.Widgets {
         // constructor above). Subclasses still build their extras after this.
         construct {
             main_box = new Box(Orientation.HORIZONTAL, 0);
-            main_box.margin_top = 8;
-            main_box.margin_bottom = 8;
-            main_box.margin_start = 12;
-            main_box.margin_end = 12;
+            main_box.add_css_class("row-content");
             set_child(main_box);
             prefix_box = new Box(Orientation.HORIZONTAL, 0);
             main_box.append(prefix_box);
@@ -378,13 +371,13 @@ namespace Singularity.Widgets {
             main_box.append(labels_box);
             title_label = new Label("");
             title_label.add_css_class("title");
-            title_label.halign = Align.START;
             title_label.wrap = true;
             title_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
             title_label.xalign = 0f;
             labels_box.append(title_label);
             suffix_box = new Box(Orientation.HORIZONTAL, 6);
             suffix_box.valign = Align.CENTER;
+            suffix_box.margin_start = 12;
             main_box.append(suffix_box);
             this.activatable = true;
             var gesture = new GestureClick();
@@ -415,6 +408,10 @@ namespace Singularity.Widgets {
             suffix_box.append(widget);
         }
 
+        public void prepend_suffix(Widget widget) {
+            suffix_box.prepend(widget);
+        }
+
         /**
          * Prepends a widget to the leading end of the row (before the icon and labels).
          *
@@ -435,7 +432,7 @@ namespace Singularity.Widgets {
      * An ActionRow with a toggle switch suffix.
      *
      * Clicking anywhere on the row (not just the switch widget) toggles the
-     * value - consistent with standard GNOME preferences behaviour.
+     * value - consistent with standard preferences behaviour.
      * Bind `active` to a GSettings boolean key to persist the value.
      */
     public class SwitchRow : ActionRow {
@@ -449,6 +446,7 @@ namespace Singularity.Widgets {
          * These use-cases cannot be satisfied through the `active` property alone.
          */
         public Switch switch_btn;
+        [CCode (notify = false)]
         public bool active {
             get { return switch_btn.active; }
             set { switch_btn.active = value; }
@@ -467,6 +465,7 @@ namespace Singularity.Widgets {
             // Do NOT set can_target = false: that silently breaks GTK4 event
             // delivery so neither the Switch nor the row activation fires.
             add_suffix(switch_btn);
+            switch_btn.notify["active"].connect(() => notify_property("active"));
             // When the user clicks directly on the Switch, state_set fires
             // before the row's activated signal.  Block the activated handler
             // for that event loop cycle so it does not toggle a second time.
@@ -527,6 +526,19 @@ namespace Singularity.Widgets {
             spin_btn = new SpinButton.with_range(min_value, max_value, step);
             spin_btn.valign = Align.CENTER;
             add_suffix(spin_btn);
+            var scroll = new EventControllerScroll(EventControllerScrollFlags.VERTICAL);
+            scroll.propagation_phase = PropagationPhase.CAPTURE;
+            scroll.scroll.connect((dx, dy) => {
+                if ((spin_btn.get_state_flags() & StateFlags.FOCUS_WITHIN) != 0) return false;
+                var scrolled = (ScrolledWindow?) spin_btn.get_ancestor(typeof(ScrolledWindow));
+                if (scrolled != null) {
+                    var adj = scrolled.vadjustment;
+                    double delta = dy * Math.pow(adj.page_size, 2.0 / 3.0);
+                    adj.value = (adj.value + delta).clamp(adj.lower, adj.upper - adj.page_size);
+                }
+                return true;
+            });
+            spin_btn.add_controller(scroll);
             this.activated.connect(() => {
                 spin_btn.grab_focus();
             });
@@ -633,6 +645,19 @@ namespace Singularity.Widgets {
         public signal void entry_changed();
         public signal void entry_activated();
 
+        private Binding? _placeholder_binding = null;
+
+        public string? placeholder_text {
+            get { return entry.placeholder_text; }
+            set {
+                if (_placeholder_binding != null) {
+                    _placeholder_binding.unbind();
+                    _placeholder_binding = null;
+                }
+                entry.placeholder_text = value;
+            }
+        }
+
         public EntryRow(string title, string? icon_name = null) {
             base(title, null, icon_name);
         }
@@ -655,7 +680,7 @@ namespace Singularity.Widgets {
             entry.margin_top = 3;
             // Mirror the row title into the entry placeholder, working for both
             // the constructor and GtkBuilder (which sets title post-construct).
-            bind_property("title", entry, "placeholder-text", BindingFlags.SYNC_CREATE);
+            _placeholder_binding = bind_property("title", entry, "placeholder-text", BindingFlags.SYNC_CREATE);
             labels_box.append(entry);
 
             status_icon = new Image();
@@ -764,9 +789,9 @@ namespace Singularity.Widgets {
         }
 
         construct {
-            var container = new Box(Orientation.VERTICAL, 12);
-            container.margin_top = 12;
-            container.margin_bottom = 12;
+            var container = new Box(Orientation.VERTICAL, 8);
+            container.margin_top = 8;
+            container.margin_bottom = 8;
             container.margin_start = 12;
             container.margin_end = 12;
             search_entry = new Singularity.Widgets.SearchEntry();
@@ -818,6 +843,34 @@ namespace Singularity.Widgets {
             }
         }
 
+        public int selected_index {
+            get {
+                int i = 0;
+                if (options != null && options.size > 0) {
+                    foreach (var opt in options) {
+                        if (opt.id == _current_value) return i;
+                        i++;
+                    }
+                    return -1;
+                }
+                foreach (unowned string item in items) {
+                    if (item == _current_value) return i;
+                    i++;
+                }
+                return -1;
+            }
+            set {
+                string? id = null;
+                if (options != null && options.size > 0) {
+                    if (value >= 0 && value < options.size) id = options[value].id;
+                } else if (value >= 0 && value < (int) items.length()) {
+                    id = items.nth_data((uint) value);
+                }
+                if (id == null || id == _current_value) return;
+                current_value = id;
+            }
+        }
+
         /**
          * Creates a selection row from a plain string array.
          *
@@ -834,7 +887,7 @@ namespace Singularity.Widgets {
             this._current_value = current;
             value_label = new Label(current);
             value_label.add_css_class("dim-label");
-            add_suffix(value_label);
+            prepend_suffix(value_label);
             init_ui();
         }
 
@@ -864,7 +917,7 @@ namespace Singularity.Widgets {
             this._current_value = current;
             value_label = new Label(current);
             value_label.add_css_class("dim-label");
-            add_suffix(value_label);
+            prepend_suffix(value_label);
             init_ui();
         }
 
@@ -889,7 +942,7 @@ namespace Singularity.Widgets {
             }
             value_label = new Label(label_text);
             value_label.add_css_class("dim-label");
-            add_suffix(value_label);
+            prepend_suffix(value_label);
             init_ui();
         }
 
@@ -899,13 +952,14 @@ namespace Singularity.Widgets {
             int count = (options != null) ? options.size : (int)items.length();
             if (count > 5) ensure_search_entry();
             var scrolled = new ScrolledWindow();
-            scrolled.min_content_height = 200;
-            scrolled.max_content_height = 320;
             scrolled.hscrollbar_policy = PolicyType.NEVER;
             list_box = new ListBox();
             list_box.selection_mode = SelectionMode.NONE;
             scrolled.child = list_box;
-            container.append(scrolled);
+            var holder = new Box(Orientation.VERTICAL, 0);
+            holder.layout_manager = new SelectionListLayout(list_box, 320);
+            holder.append(scrolled);
+            container.append(holder);
             add_row(container);
             // Pre-populate so the ScrolledWindow has content before the Revealer
             // calculates its target height - prevents the "10px tall" collapse.
@@ -977,7 +1031,7 @@ namespace Singularity.Widgets {
             if (options != null && options.size > 0) {
                 foreach (var opt in options) {
                     if (query == "" || opt.label.down().contains(query)) {
-                        add_option_row(opt.label, opt.id, null, null);
+                        add_option_row(opt.label, opt.id, opt.subtitle, null);
                         count++;
                     }
                 }
@@ -1000,8 +1054,7 @@ namespace Singularity.Widgets {
             row.activatable = true;
             if (icon != null) {
                 var img = new Image.from_gicon(icon);
-                img.pixel_size = 24;
-                img.margin_end = 8;
+                img.add_css_class("row-icon");
                 row.add_prefix(img);
             }
             if (id == current_value) {
@@ -1020,6 +1073,45 @@ namespace Singularity.Widgets {
             list_box.append(row);
         }
     }
+    private class SelectionListLayout : LayoutManager {
+        private unowned ListBox list;
+        private int limit;
+
+        public SelectionListLayout(ListBox list, int limit) {
+            this.list = list;
+            this.limit = limit;
+        }
+
+        protected override SizeRequestMode get_request_mode(Widget widget) {
+            return SizeRequestMode.HEIGHT_FOR_WIDTH;
+        }
+
+        protected override void measure(Widget widget, Orientation orientation, int for_size,
+                                        out int minimum, out int natural,
+                                        out int minimum_baseline, out int natural_baseline) {
+            minimum = natural = 0;
+            minimum_baseline = natural_baseline = -1;
+            var child = widget.get_first_child();
+            if (child == null || !child.should_layout()) return;
+            int child_min, child_nat;
+            child.measure(orientation, orientation == Orientation.HORIZONTAL ? -1 : for_size,
+                          out child_min, out child_nat, null, null);
+            if (orientation == Orientation.HORIZONTAL) {
+                minimum = child_min;
+                natural = child_nat;
+                return;
+            }
+            int list_min, list_nat;
+            list.measure(Orientation.VERTICAL, for_size, out list_min, out list_nat, null, null);
+            minimum = natural = int.max(child_min, int.min(list_nat, limit));
+        }
+
+        protected override void allocate(Widget widget, int width, int height, int baseline) {
+            var child = widget.get_first_child();
+            if (child != null && child.should_layout()) child.allocate(width, height, baseline, null);
+        }
+    }
+
     /**
      * A small swatch widget that renders a preview of a ColorTheme.
      *

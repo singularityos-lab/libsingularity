@@ -34,6 +34,11 @@ namespace Singularity {
         public abstract async void pair () throws Error;
         public abstract async void cancel_pairing () throws Error;
     }
+    [DBus (name = "org.bluez.Battery1")]
+    public interface Battery1 : Object {
+        public abstract uint8 percentage { get; }
+    }
+
     [DBus (name = "org.bluez.AgentManager1")]
     public interface AgentManager1 : Object {
         public abstract async void register_agent (ObjectPath agent, string capability) throws Error;
@@ -63,6 +68,7 @@ namespace Singularity {
             public bool paired;
             public bool connected;
             public int rssi;
+            public int battery;
         }
         private ObjectManager? object_manager;
         private Adapter1? adapter;
@@ -101,6 +107,7 @@ namespace Singularity {
                             var props = interfaces.get("org.bluez.Device1");
                             add_device(path, props != null ? props.lookup("Name") : null);
                         }
+                        if (interfaces.contains("org.bluez.Battery1")) watch_battery.begin(path);
                     });
                 } else {
                     warning("BluetoothManager: ObjectManager proxy is null");
@@ -139,6 +146,7 @@ namespace Singularity {
                 var props = interfaces.get("org.bluez.Device1");
                 add_device(path, props != null ? props.lookup("Name") : null);
             }
+            if (interfaces.contains("org.bluez.Battery1")) watch_battery.begin(path);
         }
 
         private void on_interfaces_removed(ObjectPath path, string[] interfaces) {
@@ -150,6 +158,10 @@ namespace Singularity {
                 }
                 if (iface == "org.bluez.Device1") {
                     remove_device_from_list(path);
+                }
+                if (iface == "org.bluez.Battery1") {
+                    batteries.remove(path);
+                    set_battery(path, -1);
                 }
             }
         }
@@ -173,10 +185,11 @@ namespace Singularity {
                     info.paired = device.paired;
                     info.connected = device.connected;
                     info.rssi = device.rssi;
+                    info.battery = battery_of(path);
                     devices.append(info);
                     device_added(info);
-                    device.notify.connect((pspec) => {
-                        if (pspec.get_name() == "rssi") return;
+                    ((GLib.DBusProxy) device).g_properties_changed.connect((changed, invalidated) => {
+                        if (changed.n_children() == 1 && changed.lookup_value("RSSI", null) != null) return;
                         update_device_info(path, device);
                     });
                 }
@@ -186,23 +199,49 @@ namespace Singularity {
         }
 
         private void update_device_info(string path, Device1 device) {
-            for (int i = 0; i < devices.length(); i++) {
-                var d = devices.nth_data(i);
-                if (d.path == path) {
-                    DeviceInfo updated = DeviceInfo();
-                    updated.path = path;
-                    updated.name = device.name ?? device.alias ?? device.address;
-                    updated.address = d.address;
-                    updated.icon = d.icon;
-                    updated.connected = device.connected;
-                    updated.paired = device.paired;
-                    updated.rssi = device.rssi;
-                    devices.remove(d);
-                    devices.insert(updated, i);
-                    break;
-                }
+            for (unowned List<DeviceInfo?> l = devices; l != null; l = l.next) {
+                if (l.data == null || l.data.path != path) continue;
+                DeviceInfo updated = l.data;
+                updated.name = device.name ?? device.alias ?? device.address;
+                updated.connected = device.connected;
+                updated.paired = device.paired;
+                updated.rssi = device.rssi;
+                updated.battery = battery_of(path);
+                l.data = updated;
+                break;
             }
             device_changed(path);
+        }
+
+        private HashTable<string, Battery1> batteries = new HashTable<string, Battery1>(str_hash, str_equal);
+
+        private int battery_of(string path) {
+            var battery = batteries.lookup(path);
+            return battery != null ? (int) battery.percentage : -1;
+        }
+
+        private async void watch_battery(string path) {
+            try {
+                Battery1 battery = yield Bus.get_proxy(BusType.SYSTEM, "org.bluez", path);
+                batteries.insert(path, battery);
+                ((GLib.DBusProxy) battery).g_properties_changed.connect(() => set_battery(path, (int) battery.percentage));
+                set_battery(path, (int) battery.percentage);
+            } catch (Error e) {
+                warning("Failed to read the battery of %s: %s", path, e.message);
+            }
+        }
+
+        private void set_battery(string path, int percentage) {
+            for (unowned List<DeviceInfo?> l = devices; l != null; l = l.next) {
+                if (l.data != null && l.data.path == path) {
+                    if (l.data.battery == percentage) return;
+                    DeviceInfo updated = l.data;
+                    updated.battery = percentage;
+                    l.data = updated;
+                    device_changed(path);
+                    return;
+                }
+            }
         }
 
         private void remove_device_from_list(string path) {

@@ -26,9 +26,8 @@ namespace Singularity.Widgets {
             add_css_class ("flat");
             add_css_class ("singularity-sidebar-row");
 
-            var row = new Box (Orientation.HORIZONTAL, 12);
+            var row = new Box (Orientation.HORIZONTAL, 8);
             _img = new Image.from_icon_name (icon_name);
-            _img.pixel_size = 16;
             row.append (_img);
             _lbl = new Label (text);
             _lbl.xalign = 0;

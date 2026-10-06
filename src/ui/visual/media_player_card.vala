@@ -1,6 +1,15 @@
 using Gtk;
 using Gdk;
 
+namespace Singularity {
+
+    public interface MediaStreamControl : Object {
+        public signal void streams_changed();
+        public abstract bool find_streams(int pid, string[] hints, out bool muted);
+        public abstract void set_streams_muted(int pid, string[] hints, bool muted);
+    }
+}
+
 namespace Singularity.Widgets {
 
     public class MediaPlayerCard : Box {
@@ -29,6 +38,23 @@ namespace Singularity.Widgets {
         private string track_id = "";
         private string? last_art_url = null;
         private string accent_hex = "#3584e4";
+        private Box header;
+        private Image app_icon;
+        private Label app_label;
+        private Box dots_box;
+        private Button mute_btn;
+        private Gee.ArrayList<string> players = new Gee.ArrayList<string>();
+        private Gee.HashMap<string, string> owners = new Gee.HashMap<string, string>();
+        private Gee.HashMap<string, string> identities = new Gee.HashMap<string, string>();
+        private Gee.HashMap<string, string> desktop_entries = new Gee.HashMap<string, string>();
+        private Gee.HashMap<string, string> app_names = new Gee.HashMap<string, string>();
+        private Gee.HashMap<string, Icon> app_icons = new Gee.HashMap<string, Icon>();
+        public static MediaStreamControl? stream_control { get; set; default = null; }
+        private double mpris_volume = -1.0;
+        private double restore_volume = 1.0;
+        private bool mpris_muted = false;
+        private int owner_pid = 0;
+        private ulong mixer_handler = 0;
 
         /**
          * When true, the card stays visible even with no active MPRIS player
@@ -66,8 +92,9 @@ namespace Singularity.Widgets {
             cover_stack.halign = Align.CENTER;
             cover_stack.add_css_class("album-art");
             cover_stack.overflow = Overflow.HIDDEN;
-            cover_art_icon = new Image.from_icon_name("audio-x-generic-symbolic");
-            cover_art_icon.pixel_size = 28;
+            string cover_icon = large_icon_name("audio-x-generic-symbolic");
+            cover_art_icon = new Image.from_icon_name(cover_icon);
+            cover_art_icon.pixel_size = cover_icon.has_suffix("-symbolic") ? 24 : 48;
             cover_art_icon.valign = Align.CENTER;
             cover_art_icon.halign = Align.CENTER;
             cover_stack.add_named(cover_art_icon, "icon");
@@ -164,12 +191,41 @@ namespace Singularity.Widgets {
             progress_box.append(time_total_label);
             right_box.append(progress_box);
 
+            header = new Box(Orientation.HORIZONTAL, 6);
+            header.add_css_class("media-player-header");
+            header.margin_top = 10;
+            header.margin_start = 14;
+            header.margin_end = 10;
+            app_icon = new Image.from_icon_name("audio-x-generic-symbolic");
+            app_icon.pixel_size = 16;
+            app_label = new Label("");
+            app_label.add_css_class("caption");
+            app_label.add_css_class("dim-label");
+            app_label.xalign = 0.0f;
+            app_label.hexpand = true;
+            app_label.ellipsize = Pango.EllipsizeMode.END;
+            dots_box = new Box(Orientation.HORIZONTAL, 4);
+            dots_box.valign = Align.CENTER;
+            dots_box.visible = false;
+            mute_btn = new Button.from_icon_name("audio-volume-high-symbolic");
+            mute_btn.add_css_class("flat");
+            mute_btn.add_css_class("media-small-btn");
+            mute_btn.valign = Align.CENTER;
+            mute_btn.tooltip_text = _("Mute");
+            mute_btn.visible = false;
+            mute_btn.clicked.connect(on_mute_clicked);
+            header.append(app_icon);
+            header.append(app_label);
+            header.append(dots_box);
+            header.append(mute_btn);
+            append(header);
+
             // contenuto diretto nel Box - niente Overlay, niente bg widget
             var main_row = new Box(Orientation.HORIZONTAL, 12);
             main_row.hexpand = true;
             main_row.vexpand = true;
             main_row.valign = Align.CENTER;
-            main_row.margin_top    = 12;
+            main_row.margin_top    = 6;
             main_row.margin_bottom = 12;
             main_row.margin_start  = 12;
             main_row.margin_end    = 12;
@@ -246,15 +302,27 @@ namespace Singularity.Widgets {
                         string? new_owner = (string?) pars.get_child_value(2);
                         if (name == null || !name.has_prefix("org.mpris.MediaPlayer2.")) return;
                         if (new_owner != null && new_owner != "") {
-                            connect_to_player(name);
-                        } else if ((new_owner == null || new_owner == "") && name == current_player_name) {
-                            disconnect_player();
-                            current_player_name = null;
-                            update_ui_idle();
-                            find_player.begin();
+                            add_player(name, new_owner);
+                            if (current_player_name == null) connect_to_player(name);
+                        } else {
+                            remove_player(name);
+                            if (name == current_player_name) {
+                                disconnect_player();
+                                current_player_name = null;
+                                update_ui_idle();
+                                find_player.begin();
+                            }
                         }
                     }
                 );
+
+                _player_props_sub_id = connection.signal_subscribe(null,
+                    "org.freedesktop.DBus.Properties", "PropertiesChanged",
+                    "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2.Player",
+                    DBusSignalFlags.NONE,
+                    (conn, sender, path, iface, sig, parameters) => {
+                        on_player_properties(sender, parameters);
+                    });
 
                 find_player.begin();
                 _schedule_next_poll(5);
@@ -290,18 +358,238 @@ namespace Singularity.Widgets {
                 VariantIter iter;
                 result.get("(as)", out iter);
                 string? best_name = null;
+                string? playing_name = null;
                 string? name;
+                var found = new Gee.ArrayList<string>();
                 while (iter.next("s", out name)) {
                     if (name == null) continue;
                     if (!name.has_prefix("org.mpris.MediaPlayer2.")) continue;
-                    if (best_name == null) best_name = name;
-                    if (yield player_is_playing(name)) {
-                        best_name = name;
-                        break;
-                    }
+                    found.add(name);
                 }
-                if (best_name != null) connect_to_player(best_name);
+                foreach (string player in found) {
+                    string? owner = yield name_owner(player);
+                    if (owner == null) continue;
+                    add_player(player, owner);
+                    if (best_name == null) best_name = player;
+                    if (playing_name == null && (yield player_is_playing(player))) playing_name = player;
+                }
+                foreach (string player in players.to_array()) {
+                    if (!found.contains(player)) remove_player(player);
+                }
+                if (current_player_name != null && players.contains(current_player_name) && playing_name == null) return;
+                string? target = playing_name ?? best_name;
+                if (target != null) connect_to_player(target);
             } catch (Error e) { }
+        }
+
+        private async string? name_owner(string name) {
+            var bus = connection;
+            if (bus == null) return null;
+            try {
+                var result = yield bus.call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                    "org.freedesktop.DBus", "GetNameOwner", new Variant("(s)", name),
+                    new VariantType("(s)"), DBusCallFlags.NONE, 500, null);
+                return result.get_child_value(0).get_string();
+            } catch (Error e) {
+                return null;
+            }
+        }
+
+        private void add_player(string name, string owner) {
+            owners[name] = owner;
+            if (!players.contains(name)) {
+                players.add(name);
+                load_identity.begin(name);
+            }
+            rebuild_dots();
+        }
+
+        private void remove_player(string name) {
+            players.remove(name);
+            owners.unset(name);
+            identities.unset(name);
+            desktop_entries.unset(name);
+            app_names.unset(name);
+            app_icons.unset(name);
+            rebuild_dots();
+        }
+
+        private string? player_for_sender(string sender) {
+            foreach (var entry in owners.entries) {
+                if (entry.value == sender) return entry.key;
+            }
+            return null;
+        }
+
+        private void on_player_properties(string sender, Variant parameters) {
+            string? name = player_for_sender(sender);
+            if (name == null) return;
+            var changed = parameters.get_child_value(1);
+            var status = changed.lookup_value("PlaybackStatus", VariantType.STRING);
+            if (status != null && status.get_string() == "Playing") {
+                if (name != current_player_name) connect_to_player(name);
+            }
+            if (name == current_player_name) request_state_update();
+        }
+
+        private async void load_identity(string name) {
+            var bus = connection;
+            if (bus == null) return;
+            try {
+                var all = yield bus.call(name, "/org/mpris/MediaPlayer2",
+                    "org.freedesktop.DBus.Properties", "GetAll",
+                    new Variant("(s)", "org.mpris.MediaPlayer2"),
+                    new VariantType("(a{sv})"), DBusCallFlags.NONE, 1000, null);
+                var properties = all.get_child_value(0);
+                var identity = properties.lookup_value("Identity", VariantType.STRING);
+                var entry = properties.lookup_value("DesktopEntry", VariantType.STRING);
+                if (!players.contains(name)) return;
+                if (identity != null) identities[name] = identity.get_string();
+                if (entry != null) desktop_entries[name] = entry.get_string();
+            } catch (Error e) {}
+            if (!players.contains(name)) return;
+            resolve_app(name);
+            rebuild_dots();
+            if (name == current_player_name) update_identity();
+        }
+
+        private void resolve_app(string name) {
+            string? entry = desktop_entries[name];
+            string? identity = identities[name];
+            string wanted = entry != null && entry != "" ? (entry.has_suffix(".desktop") ? entry : entry + ".desktop").down() : "";
+            AppInfo? found = null;
+            foreach (var info in AppInfo.get_all()) {
+                string id = (info.get_id() ?? "").down();
+                if (wanted != "" && id == wanted) {
+                    found = info;
+                    break;
+                }
+                if (found == null && wanted != "" && id.has_suffix(wanted)) found = info;
+                if (found == null && identity != null && info.should_show() && info.get_name() == identity) found = info;
+            }
+            if (found != null) {
+                app_names[name] = found.get_display_name();
+                if (found.get_icon() != null) app_icons[name] = found.get_icon();
+            }
+        }
+
+        private static string fallback_name(string name) {
+            string suffix = name.substring("org.mpris.MediaPlayer2.".length);
+            int dot = suffix.index_of_char('.');
+            if (dot > 0) suffix = suffix.substring(0, dot);
+            if (suffix == "") return name;
+            return suffix.substring(0, 1).up() + suffix.substring(1);
+        }
+
+        private string display_name(string name) {
+            return app_names[name] ?? identities[name] ?? fallback_name(name);
+        }
+
+        private void update_identity() {
+            var name = current_player_name;
+            header.visible = name != null;
+            if (name == null) {
+                app_label.label = "";
+                app_icon.icon_name = "audio-x-generic-symbolic";
+                return;
+            }
+            app_label.label = display_name(name);
+            var icon = app_icons[name];
+            if (icon != null) app_icon.gicon = icon;
+            else app_icon.icon_name = "audio-x-generic-symbolic";
+        }
+
+        private void rebuild_dots() {
+            Widget? child;
+            while ((child = dots_box.get_first_child()) != null) dots_box.remove(child);
+            dots_box.visible = players.size > 1;
+            if (players.size < 2) return;
+            foreach (string name in players) {
+                var dot = new Button();
+                dot.add_css_class("media-player-dot");
+                if (name == current_player_name) dot.add_css_class("active");
+                dot.tooltip_text = display_name(name);
+                dot.valign = Align.CENTER;
+                string target = name;
+                dot.clicked.connect(() => connect_to_player(target));
+                dots_box.append(dot);
+            }
+        }
+
+        private async void resolve_owner_pid() {
+            owner_pid = 0;
+            var bus = connection;
+            var name = current_player_name;
+            if (bus == null || name == null) return;
+            try {
+                var result = yield bus.call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                    "org.freedesktop.DBus", "GetConnectionUnixProcessID", new Variant("(s)", name),
+                    new VariantType("(u)"), DBusCallFlags.NONE, 500, null);
+                if (name == current_player_name) owner_pid = (int) result.get_child_value(0).get_uint32();
+            } catch (Error e) {}
+            update_mute_button();
+        }
+
+        private string[] stream_hints() {
+            var name = current_player_name;
+            string[] hints = {};
+            if (name == null) return hints;
+            string? entry = desktop_entries[name];
+            if (entry != null && entry != "") hints += entry;
+            string? identity = identities[name];
+            if (identity != null && identity != "") hints += identity;
+            hints += fallback_name(name);
+            return hints;
+        }
+
+        private bool player_streams(out bool muted) {
+            muted = false;
+            if (stream_control == null || current_player_name == null) return false;
+            return stream_control.find_streams(owner_pid, stream_hints(), out muted);
+        }
+
+        private void update_mute_button() {
+            bool muted;
+            bool streams = player_streams(out muted);
+            bool available = streams || mpris_volume >= 0.0;
+            if (!streams) muted = mpris_muted || mpris_volume == 0.0;
+            mute_btn.visible = available && current_player_name != null;
+            mute_btn.icon_name = muted ? "audio-volume-muted-symbolic" : "audio-volume-high-symbolic";
+            mute_btn.tooltip_text = muted ? _("Unmute") : _("Mute");
+        }
+
+        private void on_mute_clicked() {
+            bool muted;
+            if (player_streams(out muted)) {
+                stream_control.set_streams_muted(owner_pid, stream_hints(), !muted);
+                mute_btn.icon_name = muted ? "audio-volume-high-symbolic" : "audio-volume-muted-symbolic";
+                return;
+            }
+            if (mpris_volume < 0.0) return;
+            double target;
+            if (mpris_volume > 0.0) {
+                restore_volume = mpris_volume;
+                target = 0.0;
+                mpris_muted = true;
+            } else {
+                target = restore_volume > 0.0 ? restore_volume : 1.0;
+                mpris_muted = false;
+            }
+            set_player_volume.begin(target);
+        }
+
+        private async void set_player_volume(double value) {
+            var bus = connection;
+            var name = current_player_name;
+            if (bus == null || name == null) return;
+            try {
+                yield bus.call(name, "/org/mpris/MediaPlayer2",
+                    "org.freedesktop.DBus.Properties", "Set",
+                    new Variant("(ssv)", "org.mpris.MediaPlayer2.Player", "Volume", new Variant.double(value)),
+                    null, DBusCallFlags.NONE, 1000, null);
+                mpris_volume = value;
+            } catch (Error e) {}
+            update_mute_button();
         }
 
         private async bool player_is_playing(string name) {
@@ -330,21 +618,26 @@ namespace Singularity.Widgets {
             if (bus == null || name == current_player_name) return;
             disconnect_player();
             current_player_name = name;
-            _player_props_sub_id = bus.signal_subscribe(name,
-                "org.freedesktop.DBus.Properties", "PropertiesChanged",
-                "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2.Player",
-                DBusSignalFlags.NONE,
-                (conn, sender, path, iface, sig, parameters) => {
-                    request_state_update();
+            mpris_volume = -1.0;
+            mpris_muted = false;
+            last_art_url = null;
+            if (!players.contains(name)) {
+                name_owner.begin(name, (obj, res) => {
+                    string? owner = name_owner.end(res);
+                    if (owner != null) add_player(name, owner);
                 });
+            }
+            if (mixer_handler == 0 && stream_control != null) {
+                mixer_handler = stream_control.streams_changed.connect(update_mute_button);
+            }
+            update_identity();
+            rebuild_dots();
+            resolve_owner_pid.begin();
             request_state_update();
         }
 
         private void disconnect_player() {
-            if (_player_props_sub_id != 0 && connection != null) {
-                connection.signal_unsubscribe(_player_props_sub_id);
-                _player_props_sub_id = 0;
-            }
+            owner_pid = 0;
         }
 
         private void request_state_update() {
@@ -379,6 +672,12 @@ namespace Singularity.Widgets {
                     pos_us = pos_result.get_child_value(0).get_variant().get_int64();
                 } catch (Error pe) {}
                 if (name != current_player_name) return;
+                var volume_variant = properties.lookup_value("Volume", VariantType.DOUBLE);
+                if (volume_variant != null) {
+                    mpris_volume = volume_variant.get_double();
+                    if (mpris_volume > 0.0) mpris_muted = false;
+                }
+                update_mute_button();
                 string title = "Unknown Title";
                 string artist = "Unknown Artist";
                 string art_url = "";
@@ -478,6 +777,8 @@ namespace Singularity.Widgets {
             time_current_label.label = "0:00";
             time_total_label.label = "0:00";
             track_length_us = 0;
+            mute_btn.visible = false;
+            update_identity();
             this.visible = always_visible;
         }
 
@@ -613,6 +914,14 @@ namespace Singularity.Widgets {
             if (_signal_sub_id != 0 && connection != null) {
                 connection.signal_unsubscribe(_signal_sub_id);
                 _signal_sub_id = 0;
+            }
+            if (_player_props_sub_id != 0 && connection != null) {
+                connection.signal_unsubscribe(_player_props_sub_id);
+                _player_props_sub_id = 0;
+            }
+            if (mixer_handler != 0 && stream_control != null) {
+                stream_control.disconnect(mixer_handler);
+                mixer_handler = 0;
             }
             disconnect_player();
             base.dispose();

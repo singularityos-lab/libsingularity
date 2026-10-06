@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="singularity_snap_unstable_v1">
+  <copyright>
+    Copyright © 2026 Singularity Desktop
+  </copyright>
+
+  <interface name="zsingularity_snap_manager_v1" version="2">
+    <description summary="snap layout picker">
+      Lets a desktop shell offer a layout picker when the pointer rests on
+      the maximize button of a window or drags a window to the top edge of
+      an output, and snap windows to arbitrary zones of the work area.
+      Nothing is shown until a client enables the picker.
+    </description>
+
+    <enum name="source">
+      <entry name="button" value="0"/>
+      <entry name="drag" value="1"/>
+    </enum>
+
+    <request name="set_enabled">
+      <description summary="enable or disable the picker triggers">
+        While no bound client has the picker enabled the compositor keeps
+        its own edge snapping behaviour and sends no picker events.
+      </description>
+      <arg name="enabled" type="uint"/>
+    </request>
+
+    <request name="set_picker_area">
+      <description summary="report the picker rectangle">
+        Reports the picker rectangle in output layout coordinates. While
+        the cursor of a window drag is inside it the compositor does not
+        snap the window itself and reports the release with a drop event.
+        A zero width or height clears the area.
+      </description>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
+
+    <request name="set_zone_preview">
+      <description summary="preview a zone on screen">
+        Shows or hides the compositor snapping overlay over a zone, in
+        output layout coordinates, while a window is being dragged.
+      </description>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+      <arg name="visible" type="uint"/>
+    </request>
+
+    <request name="snap_to_zone">
+      <description summary="snap a window to a zone">
+        Snaps a toplevel to a zone of the work area of the output that
+        contains the reference point. The zone is given in thousandths of
+        the work area. The window stays snapped when the work area changes
+        and returns to its previous size when it is dragged away.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="ref_x" type="int"/>
+      <arg name="ref_y" type="int"/>
+      <arg name="x" type="uint"/>
+      <arg name="y" type="uint"/>
+      <arg name="width" type="uint"/>
+      <arg name="height" type="uint"/>
+    </request>
+
+    <request name="button_enter" since="2">
+      <description summary="pointer rests on a client drawn maximize button">
+        For clients that draw their own window controls. Reports that the
+        pointer entered the maximize button of a toplevel surface; the
+        rectangle is in surface local coordinates. The compositor treats it
+        like its own maximize button: after the usual delay, and only while
+        the pointer is still over that surface, the enabled clients receive
+        picker_show with the button source for that window. Nothing happens
+        while no client has the picker enabled.
+      </description>
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
+
+    <request name="button_leave" since="2">
+      <description summary="pointer left a client drawn maximize button">
+        The pointer left the maximize button reported with button_enter, or
+        the button was pressed. A pending picker is cancelled and a shown
+        one receives picker_hide with the button source.
+      </description>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+
+    <event name="picker_show">
+      <description summary="show the layout picker">
+        The anchor is the maximize button for the button source and the
+        cursor position for the drag source. The area is the work area of
+        the output, all in output layout coordinates.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1" allow-null="true"/>
+      <arg name="source" type="uint" enum="source"/>
+      <arg name="anchor_x" type="int"/>
+      <arg name="anchor_y" type="int"/>
+      <arg name="anchor_width" type="int"/>
+      <arg name="anchor_height" type="int"/>
+      <arg name="area_x" type="int"/>
+      <arg name="area_y" type="int"/>
+      <arg name="area_width" type="int"/>
+      <arg name="area_height" type="int"/>
+    </event>
+
+    <event name="picker_motion">
+      <description summary="cursor moved during a drag">
+        Cursor position in output layout coordinates while a drag picker
+        is shown.
+      </description>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+    </event>
+
+    <event name="picker_hide">
+      <description summary="hide the layout picker">
+        For the drag source the picker must go away. For the button source
+        the pointer left the maximize button; the client may keep the picker
+        while the pointer is over it.
+      </description>
+      <arg name="source" type="uint" enum="source"/>
+    </event>
+
+    <event name="picker_drop">
+      <description summary="window released over the picker">
+        The dragged window was released inside the picker area at the given
+        cursor position. The compositor did not snap it.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1" allow-null="true"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+    </event>
+  </interface>
+</protocol>

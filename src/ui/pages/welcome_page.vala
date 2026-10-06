@@ -19,7 +19,7 @@ namespace Singularity.Widgets {
 
         public signal void close_requested();
 
-        /** Name of the symbolic icon shown above the title. Empty = no icon. */
+        /** The app's full-color hicolor icon shown above the title. Empty = no icon. */
         public string app_icon_name {
             get { return _icon_name; }
             set {
@@ -40,6 +40,61 @@ namespace Singularity.Widgets {
                 _title_lbl.label = value;
                 _title_lbl.visible = value != "";
             }
+        }
+
+        /**
+         * Marks the page as the start of a section inside the app rather
+         * than the app's start screen. A section page leaves the window's
+         * bubbles and sidebar toggle in place. Default false.
+         */
+        public bool is_section {
+            get { return _is_section; }
+            set {
+                if (_is_section == value) return;
+                _is_section = value;
+                if (!get_mapped()) return;
+                if (value) _leave_host();
+                else _join_host();
+            }
+        }
+
+        /**
+         * Lays the page out for embedding inside another scrolling view,
+         * such as a settings page. The page then drops its own vertical
+         * scrolling and reports the full height of its content, so the
+         * outer view scrolls it. Default false.
+         */
+        public bool embedded {
+            get { return _embedded; }
+            set {
+                _embedded = value;
+                _scroll.vscrollbar_policy = value ? PolicyType.NEVER : PolicyType.AUTOMATIC;
+                _scroll.propagate_natural_height = value;
+            }
+        }
+
+        /**
+         * Lays the page out for a narrow fixed-width column, such as the
+         * shell sidebar: small top and bottom margins, no side margins,
+         * and an action list as wide as the column. Default false.
+         */
+        public bool compact {
+            get { return _compact; }
+            set {
+                _compact = value;
+                _left_pane.margin_top = value ? 10 : 40;
+                _left_pane.margin_bottom = value ? 8 : 36;
+                _left_pane.margin_start = value ? 0 : 40;
+                _left_pane.margin_end = value ? 0 : 40;
+                _left_pane.spacing = value ? 12 : 20;
+                _left_pane.halign = value ? Align.FILL : Align.CENTER;
+                _actions_box.halign = value ? Align.FILL : Align.CENTER;
+            }
+        }
+
+        /** Number of actions registered with add_action. */
+        public int action_count {
+            get { return _actions.length; }
         }
 
         /** Subtitle / tagline (smaller, muted). */
@@ -63,12 +118,28 @@ namespace Singularity.Widgets {
         private Box _left_pane;
         private Box _right_pane;
         private bool _is_wide = false;
+        private bool _is_section = false;
+        private bool _embedded = false;
+        private bool _compact = false;
+        private ScrolledWindow _scroll;
 
-        private struct ActionEntry {
+        private class ActionEntry {
             public string icon;
             public string label;
             public string description;
+            public string? caption;
             public ActionCallback callback;
+            public Widget? row = null;
+            public Label? desc_label = null;
+
+            public ActionEntry(string icon, string label, string description, string? caption,
+                               owned ActionCallback callback) {
+                this.icon = icon;
+                this.label = label;
+                this.description = description;
+                this.caption = caption;
+                this.callback = (owned) callback;
+            }
         }
 
         [CCode (has_target = true)]
@@ -95,7 +166,7 @@ namespace Singularity.Widgets {
             top_bar.margin_top = 8;
             top_bar.margin_end = 8;
 
-            _close_btn = new Singularity.Widgets.IconButton("window-close-symbolic", "Close");
+            _close_btn = new Singularity.Widgets.IconButton("window-close-symbolic", _("Close"));
             _close_btn.halign = Align.END;
             _close_btn.hexpand = true;
             _close_btn.visible = false;
@@ -105,6 +176,7 @@ namespace Singularity.Widgets {
 
             // Scrollable body
             var scroll = new ScrolledWindow();
+            _scroll = scroll;
             scroll.set_policy(PolicyType.NEVER, PolicyType.AUTOMATIC);
             scroll.hexpand = true;
             scroll.vexpand = true;
@@ -116,21 +188,21 @@ namespace Singularity.Widgets {
             _split_box.vexpand = true;
 
             // -- Left pane: icon + title + subtitle + actions ---------------
-            _left_pane = new Box(Orientation.VERTICAL, 28);
+            _left_pane = new Box(Orientation.VERTICAL, 20);
             _left_pane.add_css_class("welcome-page-left");
             _left_pane.valign = Align.CENTER;
             _left_pane.halign = Align.CENTER;
             _left_pane.hexpand = true;
-            _left_pane.margin_top = 52;
-            _left_pane.margin_bottom = 48;
-            _left_pane.margin_start = 48;
-            _left_pane.margin_end = 48;
+            _left_pane.margin_top = 40;
+            _left_pane.margin_bottom = 36;
+            _left_pane.margin_start = 40;
+            _left_pane.margin_end = 40;
 
             var header = new Box(Orientation.VERTICAL, 6);
             header.halign = Align.CENTER;
 
             _app_icon = new Image();
-            _app_icon.pixel_size = 72;
+            _app_icon.pixel_size = 64;
             _app_icon.halign = Align.CENTER;
             _app_icon.visible = false;
             _app_icon.add_css_class("welcome-page-icon");
@@ -138,13 +210,15 @@ namespace Singularity.Widgets {
 
             _title_lbl = new Label("");
             _title_lbl.add_css_class("title-1");
-            _title_lbl.halign = Align.CENTER;
+            _title_lbl.wrap = true;
+            _title_lbl.justify = Justification.CENTER;
             _title_lbl.visible = false;
             header.append(_title_lbl);
 
             _subtitle_lbl = new Label("");
             _subtitle_lbl.add_css_class("dim-label");
-            _subtitle_lbl.halign = Align.CENTER;
+            _subtitle_lbl.wrap = true;
+            _subtitle_lbl.justify = Justification.CENTER;
             _subtitle_lbl.visible = false;
             header.append(_subtitle_lbl);
 
@@ -175,6 +249,31 @@ namespace Singularity.Widgets {
             map.connect(ensure_actions_built);
         }
 
+        // -- Window integration --------------------------------------------
+
+        private unowned Window? _host = null;
+
+        public override void map() {
+            base.map();
+            if (!_is_section) _join_host();
+        }
+
+        public override void unmap() {
+            _leave_host();
+            base.unmap();
+        }
+
+        private void _join_host() {
+            if (_host != null) return;
+            _host = get_root() as Window;
+            if (_host != null) _host.welcome_page_shown();
+        }
+
+        private void _leave_host() {
+            if (_host != null) _host.welcome_page_hidden();
+            _host = null;
+        }
+
         // -- Responsive layout ---------------------------------------------
 
         public override void size_allocate(int width, int height, int baseline) {
@@ -189,12 +288,12 @@ namespace Singularity.Widgets {
                     _right_pane.vexpand = true;
                 } else {
                     _left_pane.hexpand = true;
-                    _left_pane.set_size_request(560, -1);
+                    _left_pane.set_size_request(-1, -1);
                     _right_pane.valign = Align.START;
                 }
             }
             // Responsive margins: shrink on narrow widths
-            int h_margin = width < 400 ? 16 : (width < 600 ? 28 : 48);
+            int h_margin = _compact ? 0 : (width < 400 ? 16 : (width < 600 ? 24 : 40));
             _left_pane.margin_start = h_margin;
             _left_pane.margin_end = h_margin;
             base.size_allocate(width, height, baseline);
@@ -207,13 +306,60 @@ namespace Singularity.Widgets {
          * Call before the widget is mapped.
          */
         public void add_action(string icon_name, string label,
-                               string description, ActionCallback callback) {
-            _actions += ActionEntry() {
-                icon = icon_name,
-                label = label,
-                description = description,
-                callback = callback
-            };
+                               string description, owned ActionCallback callback) {
+            add_action_with_caption(icon_name, label, description, null, (owned) callback);
+        }
+
+        /**
+         * Register an action with a caption shown dim at the right of its
+         * row, for example the action's keyboard shortcut.
+         * Call before the widget is mapped.
+         */
+        public void add_action_with_caption(string icon_name, string label,
+                                            string description, string? caption,
+                                            owned ActionCallback callback) {
+            _actions += new ActionEntry(icon_name, label, description, caption, (owned) callback);
+        }
+
+        /**
+         * Returns the title of the action at `index`, in the order the
+         * actions were added.
+         */
+        public string get_action_label(int index) {
+            return _actions[index].label;
+        }
+
+        /** Returns the description of the action at `index`. */
+        public string get_action_description(int index) {
+            return _actions[index].description;
+        }
+
+        public void set_action_description(int index, string description) {
+            if (index < 0 || index >= _actions.length) return;
+            _actions[index].description = description;
+            if (_actions[index].desc_label != null) {
+                _actions[index].desc_label.label = description;
+                _actions[index].desc_label.visible = description != "";
+            }
+        }
+
+        public Widget? get_action_widget(int index) {
+            if (index < 0 || index >= _actions.length) return null;
+            return _actions[index].row;
+        }
+
+        /** Returns the icon name of the action at `index`. */
+        public string get_action_icon_name(int index) {
+            return _actions[index].icon;
+        }
+
+        /**
+         * Runs the callback of the action at `index`, as if its row had
+         * been clicked. Used by search to open an action directly.
+         */
+        public void trigger_action(int index) {
+            if (index < 0 || index >= _actions.length) return;
+            _actions[index].callback();
         }
 
         /**
@@ -257,15 +403,14 @@ namespace Singularity.Widgets {
                 card.has_frame = false;
                 card.hexpand = true;
 
-                var card_box = new Box(Orientation.HORIZONTAL, 16);
-                card_box.margin_top = 16;
-                card_box.margin_bottom = 16;
-                card_box.margin_start = 18;
-                card_box.margin_end = 18;
+                var card_box = new Box(Orientation.HORIZONTAL, 12);
+                card_box.add_css_class("welcome-card-content");
                 card_box.valign = Align.CENTER;
 
-                var icon = new Image.from_icon_name(entry.icon);
-                icon.pixel_size = 36;
+                string shown = large_icon_name(entry.icon);
+                var icon = new Image.from_icon_name(shown);
+                icon.pixel_size = shown.has_suffix("-symbolic") ? 20 : 32;
+                icon.set_size_request(36, 36);
                 icon.valign = Align.CENTER;
 
                 var text_box = new Box(Orientation.VERTICAL, 3);
@@ -274,14 +419,16 @@ namespace Singularity.Widgets {
 
                 var title = new Label(entry.label);
                 title.add_css_class("title-4");
-                title.halign = Align.START;
                 title.xalign = 0;
+                title.wrap = true;
+                title.wrap_mode = Pango.WrapMode.WORD_CHAR;
 
                 var desc = new Label(entry.description);
+                desc.visible = entry.description != "";
                 desc.add_css_class("dim-label");
                 desc.add_css_class("caption");
-                desc.halign = Align.START;
                 desc.wrap = true;
+                desc.wrap_mode = Pango.WrapMode.WORD_CHAR;
                 desc.xalign = 0;
 
                 text_box.append(title);
@@ -290,8 +437,10 @@ namespace Singularity.Widgets {
                 card_box.append(text_box);
                 card.set_child(card_box);
 
-                var cb = entry.callback;
-                card.clicked.connect(() => cb());
+                var action = entry;
+                action.row = card;
+                action.desc_label = desc;
+                card.clicked.connect(() => action.callback());
                 col.append(card);
             }
 
@@ -316,8 +465,10 @@ namespace Singularity.Widgets {
                 row.margin_start = 14;
                 row.margin_end = 14;
 
-                var icon = new Image.from_icon_name(entry.icon);
-                icon.pixel_size = 32;
+                string shown = large_icon_name(entry.icon);
+                var icon = new Image.from_icon_name(shown);
+                icon.pixel_size = shown.has_suffix("-symbolic") ? 24 : 32;
+                icon.set_size_request(32, 32);
                 icon.valign = Align.CENTER;
 
                 var text_box = new Box(Orientation.VERTICAL, 2);
@@ -326,14 +477,16 @@ namespace Singularity.Widgets {
 
                 var title = new Label(entry.label);
                 title.add_css_class("title-4");
-                title.halign = Align.START;
                 title.xalign = 0;
+                title.wrap = true;
+                title.wrap_mode = Pango.WrapMode.WORD_CHAR;
 
                 var desc = new Label(entry.description);
+                desc.visible = entry.description != "";
                 desc.add_css_class("dim-label");
                 desc.add_css_class("caption");
-                desc.halign = Align.START;
                 desc.wrap = true;
+                desc.wrap_mode = Pango.WrapMode.WORD_CHAR;
                 desc.xalign = 0;
 
                 text_box.append(title);
@@ -346,11 +499,20 @@ namespace Singularity.Widgets {
 
                 row.append(icon);
                 row.append(text_box);
+                if (entry.caption != null && entry.caption != "") {
+                    var caption = new Label(entry.caption);
+                    caption.add_css_class("dim-label");
+                    caption.add_css_class("caption");
+                    caption.valign = Align.CENTER;
+                    row.append(caption);
+                }
                 row.append(chevron);
                 btn.set_child(row);
 
-                var cb = entry.callback;
-                btn.clicked.connect(() => cb());
+                var action = entry;
+                action.row = btn;
+                action.desc_label = desc;
+                btn.clicked.connect(() => action.callback());
                 list_box.append(btn);
             }
 

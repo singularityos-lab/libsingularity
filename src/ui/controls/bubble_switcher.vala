@@ -19,6 +19,7 @@ namespace Singularity.Widgets {
 
         private Stack? _stack;
         private Map<string, Button> _buttons = new HashMap<string, Button>();
+        private Gee.List<string> _names = new ArrayList<string>();
         private string? _active_name = null;
 
         public BubbleSwitcher(Stack? stack = null) {
@@ -47,6 +48,7 @@ namespace Singularity.Widgets {
             btn.clicked.connect(() => set_active(name));
             append(btn);
             _buttons.set(name, btn);
+            _names.add(name);
 
             if (_stack == null && _active_name == null) _active_name = name;
             update_active_button();
@@ -63,6 +65,25 @@ namespace Singularity.Widgets {
             selected(name);
         }
 
+        public void set_option_visible(string name, bool visible) {
+            var btn = _buttons.get(name);
+            if (btn == null || btn.visible == visible) return;
+            btn.visible = visible;
+            if (visible || active_option != name) return;
+            foreach (var other in _names) {
+                var candidate = _buttons.get(other);
+                if (candidate != null && candidate.visible) {
+                    set_active(other);
+                    return;
+                }
+            }
+        }
+
+        public bool is_option_visible(string name) {
+            var btn = _buttons.get(name);
+            return btn != null && btn.visible;
+        }
+
         public string? active_option {
             get { return _stack != null ? _stack.visible_child_name : _active_name; }
         }
@@ -75,6 +96,7 @@ namespace Singularity.Widgets {
                 child = next;
             }
             _buttons.clear();
+            _names.clear();
 
             var pages = _stack.get_pages();
             for (uint i = 0; i < pages.get_n_items(); i++) {
@@ -88,12 +110,22 @@ namespace Singularity.Widgets {
             }
         }
 
+        internal Gee.List<string> option_names() {
+            return _names.read_only_view;
+        }
+
+        internal string option_label(string name) {
+            var btn = _buttons.get(name);
+            return btn != null ? (btn.label ?? name) : name;
+        }
+
         private void update_active_button() {
             string? wanted = active_option;
             foreach (var entry in _buttons.entries) {
                 if (entry.key == wanted) entry.value.add_css_class("current");
                 else entry.value.remove_css_class("current");
             }
+            notify_property("active-option");
         }
     }
 }

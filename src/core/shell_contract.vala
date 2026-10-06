@@ -4,7 +4,7 @@ namespace Singularity.Shell {
 
     /**
      * D-Bus interface exposed by the Singularity shell at
-     * `dev.sinty.Shell` (object path `/dev/sinty/Shell`).
+     * `dev.sinty.desktop` (object path `/dev/sinty/Shell`).
      *
      * Apps and plugins can obtain a proxy for this interface to interact
      * with the running shell:
@@ -12,7 +12,7 @@ namespace Singularity.Shell {
      * {{{
      *   ShellService shell = Bus.get_proxy_sync(
      *       BusType.SESSION,
-     *       "dev.sinty.Shell",
+     *       "dev.sinty.desktop",
      *       "/dev/sinty/Shell"
      *   );
      *   shell.open_settings("desktop");
@@ -83,5 +83,14 @@ namespace Singularity.Shell {
          * @return      true if the user confirmed, false otherwise.
          */
         public abstract bool show_confirm(string title, string body) throws IOError;
+
+        /**
+         * Renders a live shell component of the primary monitor to a PNG.
+         *
+         * @param name `"panel"` for the top bar, `"dock"` or `"background"`.
+         * @return     Path of the PNG in the user runtime directory, or an
+         *             empty string when the component is not shown.
+         */
+        public abstract string snapshot_component(string name) throws IOError;
     }
 }

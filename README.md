@@ -63,6 +63,10 @@ var app = new Singularity.Application("org.myapp.MyApp");
 app.run(args);
 ```
 
+## Third-party code
+
+- `protocols/ext-*.xml`, `protocols/wlr-*.xml`, `protocols/xdg-output-unstable-v1.xml` and `protocols/virtual-keyboard-unstable-v1.xml`: Wayland protocol definitions from [wayland-protocols](https://gitlab.freedesktop.org/wayland/wayland-protocols), [wlr-protocols](https://gitlab.freedesktop.org/wlroots/wlr-protocols) and the virtual keyboard protocol, under the licenses stated in each file.
+
 ## License
 
 LGPL-2.1-only, see [LICENSE](LICENSE).

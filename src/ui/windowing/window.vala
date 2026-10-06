@@ -76,6 +76,14 @@ namespace Singularity.Widgets {
      */
     public class Window : Gtk.ApplicationWindow {
 
+        /** Priority that keeps a bubble in the row at any width. */
+        public const int BUBBLE_PRIORITY_PINNED = int.MAX;
+
+        private const int NARROW_CONTENT_WIDTH = 360;
+        private const int PHONE_WIDTH = 500;
+        private const int ADAPTIVE_HYSTERESIS = 24;
+        private const int DRAWER_GAP = 48;
+
         /** The application toolbar shown at the top of the window. */
         public ToolBar toolbar { get; private set; }
 
@@ -132,6 +140,8 @@ namespace Singularity.Widgets {
             floating hover controls. HoverControls redirects app bubbles into
             the toolbar (same bypass path as SSD). Ignored while force_ssd is on. */
         public bool legacy_titlebar { get { return _legacy_titlebar; } }
+
+        public bool floating_bubbles { get { return !_force_ssd && !_legacy_titlebar; } }
         private WindowHandle? _flat_drag_handle  = null;
         private Button?       _flat_close_btn    = null;
         private RoundedFrame? _app_frame         = null;
@@ -141,6 +151,71 @@ namespace Singularity.Widgets {
         private ulong _map_clamp_handler       = 0;
         private ulong _close_handler           = 0;
         private ulong _maximized_handler       = 0;
+
+        private ContentBin? _content_bin     = null;
+        private Revealer    _drawer_revealer;
+        private Revealer    _scrim_revealer;
+        private Box         _drawer_box;
+        private Button?     _auto_sidebar_toggle = null;
+        private bool _narrow              = false;
+        private bool _phone               = false;
+        private bool _drawer_open         = false;
+        private bool _sidebar_wanted      = false;
+        private bool _sidebar_user_hidden = false;
+        private bool _toggle_probe        = false;
+        private uint _toggle_probe_source = 0;
+        private uint _adaptive_source     = 0;
+        private int  _welcome_pages       = 0;
+
+        private Overlay?         _root_overlay        = null;
+        private ToastHost?       _toast_host          = null;
+        private Button?          _app_menu_btn        = null;
+        private PopoverMenu?     _app_menu_popover    = null;
+        private bool             _menubar_hidden      = false;
+        private bool             _shell_present       = false;
+        private uint             _shell_watch         = 0;
+        private ulong            _global_menu_handler = 0;
+        private Gtk.Application? _menubar_app         = null;
+        private ulong            _menubar_handler     = 0;
+        private Singularity.Shell.GlobalMenuBar? _classic_menubar = null;
+        private ScrolledWindow? _tool_row = null;
+        private Box? _tool_start = null;
+        private Box? _tool_end = null;
+
+        /**
+         * The tool row under the classic titlebar, or null with floating
+         * bubbles. In the classic titlebar and with server-side decorations
+         * the widgets added with `add_bubble_*` go here, so the titlebar only
+         * holds the menu bar, the title and the window controls.
+         */
+        public Widget? tool_row { get { return _tool_row; } }
+
+        internal void add_tool(Widget w, bool trailing = false, bool first = false) {
+            if (_tool_row == null) return;
+            var parent = w.get_parent();
+            if (parent is Box) ((Box) parent).remove(w);
+            else if (parent != null) w.unparent();
+            var box = trailing ? _tool_end : _tool_start;
+            if (first) box.prepend(w);
+            else box.append(w);
+            w.notify["visible"].connect(_sync_tool_row);
+            _sync_tool_row();
+        }
+
+        private void _sync_tool_row() {
+            if (_tool_row == null) return;
+            bool any = false;
+            foreach (var box in new Box[] { _tool_start, _tool_end }) {
+                for (var c = box.get_first_child(); c != null; c = c.get_next_sibling()) {
+                    if (c.visible) {
+                        any = true;
+                        break;
+                    }
+                }
+            }
+            _tool_row.visible = any;
+        }
+        private MenuModel?       _classic_menubar_model = null;
 
         public Window(Gtk.Application app) {
             Object(application: app);
@@ -159,6 +234,8 @@ namespace Singularity.Widgets {
             if (_force_ssd) {
                 add_css_class("ssd-mode");
             }
+            if (_legacy_titlebar) add_css_class("legacy-titlebar");
+            add_css_class(_force_ssd || _legacy_titlebar ? "static-titlebar" : "floating-bubbles");
 
             _apply_rounded_corners_setting();
             if (desktop_settings != null) {
@@ -202,6 +279,7 @@ namespace Singularity.Widgets {
             overlay.hexpand = true;
             overlay.vexpand = true;
             app_frame.append(overlay);
+            _root_overlay = overlay;
 
             var outer_box = new Box(Orientation.VERTICAL, 0);
             overlay.set_child(outer_box);
@@ -226,6 +304,24 @@ namespace Singularity.Widgets {
                 legacy_handle.set_child(toolbar);
                 legacy_handle.valign = Align.START;
                 outer_box.append(legacy_handle);
+            }
+
+            if (_force_ssd || _legacy_titlebar) {
+                _tool_start = new Box(Orientation.HORIZONTAL, 6);
+                _tool_end = new Box(Orientation.HORIZONTAL, 6);
+                _tool_end.hexpand = true;
+                _tool_end.halign = Align.END;
+                var tools = new Box(Orientation.HORIZONTAL, 6);
+                tools.append(_tool_start);
+                tools.append(_tool_end);
+                _tool_row = new ScrolledWindow();
+                _tool_row.add_css_class("singularity-tool-row");
+                _tool_row.hscrollbar_policy = PolicyType.EXTERNAL;
+                _tool_row.vscrollbar_policy = PolicyType.NEVER;
+                _tool_row.propagate_natural_height = true;
+                _tool_row.child = tools;
+                _tool_row.visible = false;
+                outer_box.append(_tool_row);
             }
 
             main_container = new Box(Orientation.HORIZONTAL, 0);
@@ -280,6 +376,39 @@ namespace Singularity.Widgets {
                 _flat_close_btn = null;
             }
 
+            _scrim_revealer = new Revealer();
+            _scrim_revealer.transition_type = RevealerTransitionType.CROSSFADE;
+            _scrim_revealer.transition_duration = 200;
+            _scrim_revealer.visible = false;
+            var scrim = new Box(Orientation.VERTICAL, 0);
+            scrim.add_css_class("window-drawer-scrim");
+            scrim.hexpand = true;
+            scrim.vexpand = true;
+            var scrim_click = new GestureClick();
+            scrim_click.released.connect(_on_scrim_released);
+            scrim.add_controller(scrim_click);
+            _scrim_revealer.set_child(scrim);
+            overlay.add_overlay(_scrim_revealer);
+
+            _drawer_box = new Box(Orientation.VERTICAL, 0);
+            _drawer_box.add_css_class("window-drawer");
+            _drawer_revealer = new Revealer();
+            _drawer_revealer.transition_type = RevealerTransitionType.SLIDE_RIGHT;
+            _drawer_revealer.transition_duration = 200;
+            _drawer_revealer.halign = Align.START;
+            _drawer_revealer.valign = Align.FILL;
+            _drawer_revealer.margin_end = DRAWER_GAP;
+            _drawer_revealer.visible = false;
+            _drawer_revealer.set_child(_drawer_box);
+            _drawer_revealer.notify["child-revealed"].connect(_on_drawer_revealed);
+            overlay.add_overlay(_drawer_revealer);
+            Singularity.Animation.FocusRing.install(this, overlay);
+
+            var adaptive_keys = new EventControllerKey();
+            adaptive_keys.propagation_phase = PropagationPhase.CAPTURE;
+            adaptive_keys.key_pressed.connect(_on_adaptive_key);
+            ((Widget) this).add_controller(adaptive_keys);
+
             _toolbar_static_handler = toolbar.notify["is-static"].connect(update_layout);
             update_layout();
 
@@ -292,6 +421,20 @@ namespace Singularity.Widgets {
             });
             notify["fullscreened"].connect(_update_shadow_margin);
             _update_shadow_margin();
+
+            _shell_present = Singularity.Runtime.is_shell_running();
+            if (desktop_settings != null
+                    && desktop_settings.settings_schema.has_key("global-menu-enabled")) {
+                _global_menu_handler = desktop_settings.changed["global-menu-enabled"].connect(
+                    _sync_app_menu
+                );
+            }
+            _shell_watch = Bus.watch_name(BusType.SESSION, Singularity.Runtime.SHELL_BUS_NAME,
+                BusNameWatcherFlags.NONE,
+                () => { _shell_present = true; _sync_app_menu(); },
+                () => { _shell_present = false; _sync_app_menu(); });
+            notify["application"].connect(_track_menubar);
+            _track_menubar();
         }
 
         private void _update_shadow_margin() {
@@ -335,6 +478,32 @@ namespace Singularity.Widgets {
                 disconnect(_maximized_handler);
                 _maximized_handler = 0;
             }
+            if (_adaptive_source != 0) {
+                Source.remove(_adaptive_source);
+                _adaptive_source = 0;
+            }
+            if (_toggle_probe_source != 0) {
+                Source.remove(_toggle_probe_source);
+                _toggle_probe_source = 0;
+            }
+            if (_shell_watch != 0) {
+                Bus.unwatch_name(_shell_watch);
+                _shell_watch = 0;
+            }
+            if (_global_menu_handler != 0 && desktop_settings != null) {
+                desktop_settings.disconnect(_global_menu_handler);
+                _global_menu_handler = 0;
+            }
+            if (_menubar_handler != 0 && _menubar_app != null) {
+                _menubar_app.disconnect(_menubar_handler);
+                _menubar_handler = 0;
+            }
+            _menubar_app = null;
+            if (_app_menu_popover != null && _app_menu_btn == null
+                    && _app_menu_popover.get_parent() != null) {
+                _app_menu_popover.unparent();
+                _app_menu_popover = null;
+            }
             base.dispose();
         }
 
@@ -365,6 +534,7 @@ namespace Singularity.Widgets {
         public override void size_allocate(int width, int height, int baseline) {
             base.size_allocate(width, height, baseline);
             _apply_background_effect();
+            _queue_adaptive_update();
         }
 
         private void restore_window_state() {
@@ -520,22 +690,23 @@ namespace Singularity.Widgets {
 
             _user_content.add_css_class("singularity-content");
 
-            Widget actual = _user_content;
-            if (_bubble_bar != null) {
-                // Detach from any prior parent before re-wrapping.
+            if (_content_bin == null) _content_bin = new ContentBin();
+            if (_user_content.get_parent() != _content_bin) {
                 var parent = _user_content.get_parent();
-                if (parent is Singularity.Widgets.HoverControls) {
-                    // already wrapped, fine
-                } else if (parent != null) {
-                    if (parent is Box) ((Box) parent).remove(_user_content);
-                }
-                _bubble_bar.set_content(_user_content);
+                if (parent is Box) ((Box) parent).remove(_user_content);
+                _content_bin.child = _user_content;
+            }
+
+            Widget actual = _content_bin;
+            if (_bubble_bar != null) {
+                if (_content_bin.get_parent() == null) _bubble_bar.set_content(_content_bin);
                 actual = _bubble_bar;
             }
 
             actual.hexpand = true;
             actual.vexpand = true;
             content_area.append(actual);
+            _queue_adaptive_update();
         }
 
         // ===================================================================
@@ -556,11 +727,23 @@ namespace Singularity.Widgets {
         private Singularity.Widgets.HoverControls _ensure_bubble_bar () {
             if (_bubble_bar == null) {
                 _bubble_bar = Singularity.Widgets.HoverControls.with_window_bubbles (this);
+                _bubble_bar.set_compact_controls (_phone);
+                _bubble_bar.set_welcome (_welcome_pages > 0);
                 // If set_content ran before the first bubble was registered,
                 // re-wrap the user content now so the bar overlays it.
-                if (_user_content != null) _install_content ();
+                if (_user_content != null) {
+                    if (_content_bin != null && _content_bin.get_parent () != null)
+                        content_area.remove (_content_bin);
+                    _install_content ();
+                }
+                _sync_app_menu ();
             }
             return _bubble_bar;
+        }
+
+        private T _bubble_added<T> (T bubble) {
+            _sync_sidebar_toggle ();
+            return bubble;
         }
 
         /**
@@ -575,22 +758,44 @@ namespace Singularity.Widgets {
             btn.tooltip_text = tooltip;
             btn.clicked.connect (() => action ());
             _ensure_bubble_bar ().add (btn);
-            return btn;
+            return _bubble_added<Button> (btn);
         }
 
         /** Neutral pill text bubble. Use for plain actions (e.g. Cancel). */
         public Button add_bubble_text (string label, owned BubbleAction action) {
-            return _ensure_bubble_bar ().add_text_button (label, (owned) action);
+            return _bubble_added<Button> (_ensure_bubble_bar ().add_text_button (label, (owned) action));
         }
 
         /** Accent suggested-action pill. Reserve for the primary CTA. */
         public Button add_bubble_suggested (string label, owned BubbleAction action) {
-            return _ensure_bubble_bar ().add_suggested_button (label, (owned) action);
+            return _bubble_added<Button> (_ensure_bubble_bar ().add_suggested_button (label, (owned) action));
         }
 
-        /** Inject an arbitrary widget as a bubble (use sparingly). */
+        /**
+         * Inject an arbitrary widget as a bubble (use sparingly).
+         *
+         * Buttons and menu buttons move into the more bubble like any other
+         * bubble when the row gets narrow. Other widgets stay in the row and
+         * give up width down to nothing, so they should clip their content.
+         */
         public void add_bubble_widget (Widget w) {
             _ensure_bubble_bar ().add (w);
+            _bubble_added<Widget> (w);
+        }
+
+        /**
+         * Tunes when a bubble moves into the automatic more bubble on narrow
+         * windows.
+         *
+         * Bubbles with a lower priority move first and, among equal
+         * priorities, the last added moves first. Every bubble starts at 0.
+         * `BUBBLE_PRIORITY_PINNED` keeps the bubble in the row.
+         *
+         * @param bubble   A widget previously added with `add_bubble_*`.
+         * @param priority Higher values stay in the row longer.
+         */
+        public void set_bubble_priority (Widget bubble, int priority) {
+            if (_bubble_bar != null) _bubble_bar.set_bubble_priority (bubble, priority);
         }
 
         /**
@@ -608,7 +813,7 @@ namespace Singularity.Widgets {
                 lbl.add_css_class ("caption");
             }
             _ensure_bubble_bar ().add (lbl);
-            return lbl;
+            return _bubble_added<Label> (lbl);
         }
 
         /**
@@ -630,7 +835,8 @@ namespace Singularity.Widgets {
                 else popover.popup ();
             });
             _ensure_bubble_bar ().add (btn);
-            return btn;
+            _bubble_bar.mark_app_menu (btn);
+            return _bubble_added<Button> (btn);
         }
 
         /**
@@ -644,11 +850,20 @@ namespace Singularity.Widgets {
             var sb = new Singularity.Widgets.SearchBubble (placeholder);
             sb.search_changed.connect ((t) => action (t));
             _ensure_bubble_bar ().add (sb);
-            return sb;
+            return _bubble_added<Singularity.Widgets.SearchBubble> (sb);
         }
 
         /** True if any bubble has been added. */
         public bool has_bubbles { get { return _bubble_bar != null; } }
+
+        public bool bubbles_hidden {
+            get { return _bubbles_hidden; }
+            set {
+                _bubbles_hidden = value;
+                if (_bubble_bar != null) _bubble_bar.set_row_hidden (value);
+            }
+        }
+        private bool _bubbles_hidden = false;
 
         /**
          * Toggle hover-to-reveal mode on the bubble bar. Use for
@@ -678,23 +893,49 @@ namespace Singularity.Widgets {
                 child = next;
             }
 
-            sidebar_revealer.set_child(sidebar_scroll_wrap);
+            if (!_narrow) sidebar_revealer.set_child(sidebar_scroll_wrap);
             widget.vexpand = true;
             sidebar_area.append(widget);
+            if (_welcome_pages > 0) _apply_sidebar_welcome(sidebar_area);
+            _sync_sidebar_toggle();
+            _queue_adaptive_update();
         }
 
         /**
          * Shows or hides the sidebar with a slide-in/out animation.
          *
+         * On narrow windows the sidebar is not docked: a call that follows
+         * `get_sidebar_visible()` or comes from user input (a toggle button,
+         * a shortcut) opens or closes it as a drawer over the content, any
+         * other call only records whether the sidebar belongs on screen.
+         *
          * @param visible `true` to reveal the sidebar, `false` to hide it.
          */
         public void set_sidebar_visible(bool visible) {
-            sidebar_revealer.reveal_child = visible;
+            bool from_user = _take_toggle_probe() || _in_input_dispatch();
+            if (!_narrow) {
+                _sidebar_wanted = visible;
+                _sidebar_user_hidden = from_user && !visible;
+                sidebar_revealer.reveal_child = visible;
+            } else if (from_user) {
+                _set_drawer_open(visible);
+            } else {
+                _sidebar_wanted = visible;
+                if (!visible) {
+                    _sidebar_user_hidden = false;
+                    _set_drawer_open(false);
+                }
+            }
+            _sync_sidebar_toggle();
         }
 
-        /** Returns `true` if the sidebar is currently visible. */
+        /**
+         * Returns `true` if the sidebar is currently visible, docked or,
+         * on narrow windows, open as a drawer.
+         */
         public bool get_sidebar_visible() {
-            return sidebar_revealer.reveal_child;
+            _arm_toggle_probe();
+            return _narrow ? _drawer_open : sidebar_revealer.reveal_child;
         }
 
         /**
@@ -705,6 +946,446 @@ namespace Singularity.Widgets {
         public void set_sidebar_width(int width) {
             _sidebar_width = width;
             sidebar_scroll_wrap.set_size_request(width, -1);
+            _queue_adaptive_update();
+        }
+
+        // -- Adaptive layout -------------------------------------------
+
+        internal void welcome_page_shown() {
+            _welcome_pages++;
+            if (_welcome_pages == 1) _apply_welcome();
+        }
+
+        internal void welcome_page_hidden() {
+            if (_welcome_pages == 0) return;
+            _welcome_pages--;
+            if (_welcome_pages == 0) _apply_welcome();
+        }
+
+        private void _apply_welcome() {
+            if (_bubble_bar != null) _bubble_bar.set_welcome(_welcome_pages > 0);
+            _apply_sidebar_welcome(sidebar_area);
+            _sync_sidebar_toggle();
+        }
+
+        private void _apply_sidebar_welcome(Widget root) {
+            for (var c = root.get_first_child(); c != null; c = c.get_next_sibling()) {
+                if (c is AppSidebar) ((AppSidebar) c).set_welcome(_welcome_pages > 0);
+                else _apply_sidebar_welcome(c);
+            }
+        }
+
+        private bool _has_sidebar() {
+            return sidebar_area.get_first_child() != null;
+        }
+
+        private void _arm_toggle_probe() {
+            _toggle_probe = true;
+            if (_toggle_probe_source != 0) return;
+            _toggle_probe_source = Idle.add(() => {
+                _toggle_probe = false;
+                _toggle_probe_source = 0;
+                return false;
+            });
+        }
+
+        private bool _take_toggle_probe() {
+            bool probed = _toggle_probe;
+            _toggle_probe = false;
+            return probed;
+        }
+
+        private static bool _in_input_dispatch() {
+            unowned GLib.Source? source = MainContext.current_source();
+            if (source == null) return false;
+            unowned string? name = source.get_name();
+            return name != null && name.has_prefix("GDK") && name.contains("Event source");
+        }
+
+        private void _queue_adaptive_update() {
+            if (_adaptive_source != 0) return;
+            _adaptive_source = Idle.add(() => {
+                _adaptive_source = 0;
+                _update_adaptive();
+                return false;
+            });
+        }
+
+        private int _narrow_threshold() {
+            int min, nat;
+            sidebar_area.measure(Orientation.HORIZONTAL, -1, out min, out nat, null, null);
+            int sidebar = int.max(_sidebar_width, min);
+            int content = _content_bin != null ? _content_bin.child_minimum_width() : 0;
+            return sidebar + int.max(NARROW_CONTENT_WIDTH, content);
+        }
+
+        private void _update_adaptive() {
+            int width = get_width();
+            if (width <= 0) return;
+
+            bool phone = _phone ? width < PHONE_WIDTH + ADAPTIVE_HYSTERESIS : width < PHONE_WIDTH;
+            if (phone != _phone) {
+                _phone = phone;
+                if (_bubble_bar != null) _bubble_bar.set_compact_controls(phone);
+            }
+
+            bool narrow = false;
+            if (_has_sidebar()) {
+                int threshold = _narrow_threshold();
+                narrow = _narrow ? width < threshold + ADAPTIVE_HYSTERESIS : width < threshold;
+            }
+            if (narrow != _narrow) _set_narrow(narrow);
+        }
+
+        private void _set_narrow(bool narrow) {
+            _narrow = narrow;
+            if (narrow) {
+                sidebar_revealer.reveal_child = false;
+                sidebar_revealer.set_child(null);
+                sidebar_scroll_wrap.hscrollbar_policy = PolicyType.AUTOMATIC;
+                sidebar_scroll_wrap.propagate_natural_width = true;
+                _drawer_box.append(sidebar_scroll_wrap);
+            } else {
+                _drawer_open = false;
+                _drawer_revealer.reveal_child = false;
+                _drawer_revealer.visible = false;
+                _scrim_revealer.reveal_child = false;
+                _scrim_revealer.visible = false;
+                _drawer_box.remove(sidebar_scroll_wrap);
+                sidebar_scroll_wrap.hscrollbar_policy = PolicyType.NEVER;
+                sidebar_scroll_wrap.propagate_natural_width = false;
+                sidebar_revealer.set_child(sidebar_scroll_wrap);
+                sidebar_revealer.reveal_child = _sidebar_wanted;
+            }
+            _sync_sidebar_toggle();
+        }
+
+        private void _set_drawer_open(bool open) {
+            if (!_narrow) open = false;
+            if (_drawer_open == open) return;
+            _drawer_open = open;
+            if (open) {
+                _hook_sidebar_items(sidebar_area);
+                _scrim_revealer.visible = true;
+                _drawer_revealer.visible = true;
+            }
+            _scrim_revealer.reveal_child = open;
+            _drawer_revealer.reveal_child = open;
+        }
+
+        private void _on_drawer_revealed() {
+            if (_drawer_open || _drawer_revealer.child_revealed) return;
+            _drawer_revealer.visible = false;
+            _scrim_revealer.visible = false;
+        }
+
+        private void _on_scrim_released(int n_press, double x, double y) {
+            _set_drawer_open(false);
+        }
+
+        private void _hook_sidebar_items(Widget root) {
+            for (var c = root.get_first_child(); c != null; c = c.get_next_sibling()) {
+                if (c.get_data<string>("singularity-drawer-hook") == null) {
+                    if (c is Button && c.has_css_class("singularity-sidebar-row")) {
+                        c.set_data<string>("singularity-drawer-hook", "1");
+                        ((Button) c).clicked.connect(_on_sidebar_item_activated);
+                    } else if (c is ListBox && c.has_css_class("navigation-sidebar")) {
+                        c.set_data<string>("singularity-drawer-hook", "1");
+                        ((ListBox) c).row_activated.connect(_on_sidebar_row_activated);
+                    }
+                }
+                _hook_sidebar_items(c);
+            }
+        }
+
+        private void _on_sidebar_item_activated() {
+            if (_drawer_open) _set_drawer_open(false);
+        }
+
+        private void _on_sidebar_row_activated(ListBoxRow row) {
+            if (_drawer_open) _set_drawer_open(false);
+        }
+
+        private void _toggle_sidebar_from_user() {
+            if (_narrow) {
+                _set_drawer_open(!_drawer_open);
+            } else {
+                bool reveal = !sidebar_revealer.reveal_child;
+                _sidebar_wanted = reveal;
+                _sidebar_user_hidden = !reveal;
+                sidebar_revealer.reveal_child = reveal;
+            }
+            _sync_sidebar_toggle();
+        }
+
+        private void _sync_sidebar_toggle() {
+            if (_bubble_bar == null) return;
+            bool show = _has_sidebar() && _welcome_pages == 0
+                && !_bubble_bar.has_own_sidebar_toggle()
+                && (_narrow ? (_sidebar_wanted || _sidebar_user_hidden) : _sidebar_user_hidden);
+            if (!show && _auto_sidebar_toggle == null) return;
+            if (_auto_sidebar_toggle == null) {
+                _auto_sidebar_toggle = new Button.from_icon_name("sidebar-show-symbolic");
+                _auto_sidebar_toggle.tooltip_text = _("Toggle Sidebar");
+                _auto_sidebar_toggle.clicked.connect(_toggle_sidebar_from_user);
+                _bubble_bar.set_sidebar_toggle(_auto_sidebar_toggle);
+            }
+            _auto_sidebar_toggle.visible = show;
+        }
+
+        private bool _on_adaptive_key(uint keyval, uint keycode, Gdk.ModifierType state) {
+            if (keyval == Gdk.Key.Escape) {
+                if (_drawer_open) {
+                    _set_drawer_open(false);
+                    return true;
+                }
+                if (_bubble_bar != null && _bubble_bar.search_expanded) {
+                    _bubble_bar.collapse_search();
+                    return true;
+                }
+                return false;
+            }
+            var held = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
+                | Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SUPER_MASK;
+            bool plain = (state & held) == 0;
+            if (keyval == Gdk.Key.F10 && plain && _app_menu_popover != null) {
+                if (application != null && application.get_actions_for_accel("F10").length > 0)
+                    return false;
+                return popup_app_menu();
+            }
+            if (keyval == Gdk.Key.F9 && plain && _has_sidebar()) {
+                if (application != null && application.get_actions_for_accel("F9").length > 0)
+                    return false;
+                _toggle_sidebar_from_user();
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Shows a toast at the bottom of the window. Toasts added while
+         * another one is visible wait in a queue.
+         *
+         * @param toast The toast to show.
+         */
+        public void add_toast(Toast toast) {
+            if (_toast_host == null) {
+                _toast_host = new ToastHost();
+                _root_overlay.add_overlay(_toast_host.slot);
+            }
+            _toast_host.add_toast(toast);
+        }
+
+        /**
+         * True while the window offers the application menu bar in an App
+         * Menu bubble, because the desktop does not show it in its top panel.
+         */
+        public bool has_app_menu { get { return _app_menu_offered; } }
+
+        /**
+         * True while the desktop shows the application menus in its top
+         * panel, so the window offers no App Menu of its own. Notifies when
+         * the shell starts or stops or the user switches the setting.
+         */
+        public bool global_menu_in_use { get { return _global_menu_in_use; } }
+
+        private bool _app_menu_offered = false;
+        private bool _global_menu_in_use = false;
+
+        private void _set_app_menu_state(bool offered, bool global_menu) {
+            if (_global_menu_in_use != global_menu) {
+                _global_menu_in_use = global_menu;
+                notify_property("global-menu-in-use");
+            }
+            if (_app_menu_offered != offered) {
+                _app_menu_offered = offered;
+                notify_property("has-app-menu");
+            }
+        }
+
+        /**
+         * Opens the App Menu bubble. The same happens when the user presses
+         * F10 and no application action uses that accelerator.
+         *
+         * @return `false` when the window has no App Menu, because the app
+         *         has no menu bar or the desktop shows it in its top panel.
+         */
+        public bool popup_app_menu() {
+            if (_classic_menubar != null && _classic_menubar.visible && _app_menu_offered) {
+                var first = _classic_menubar.get_first_child();
+                if (first == null) return false;
+                first.activate();
+                return true;
+            }
+            if (_app_menu_popover == null || !_app_menu_offered) return false;
+            if (_bubble_bar != null && _bubble_bar.search_expanded) _bubble_bar.collapse_search();
+            if (_app_menu_btn == null) {
+                int w = content_area.get_width();
+                Gdk.Rectangle rect = { int.max(0, w - 24), 8, 1, 1 };
+                _app_menu_popover.set_pointing_to(rect);
+            }
+            _app_menu_popover.popup();
+            return true;
+        }
+
+        private void _track_menubar() {
+            if (_menubar_app != application) {
+                if (_menubar_handler != 0 && _menubar_app != null)
+                    _menubar_app.disconnect(_menubar_handler);
+                _menubar_handler = 0;
+                _menubar_app = application;
+                if (_menubar_app != null)
+                    _menubar_handler = _menubar_app.notify["menubar"].connect(_sync_app_menu);
+            }
+            _sync_app_menu();
+        }
+
+        private void _show_classic_menubar(MenuModel model) {
+            if (_classic_menubar == null) {
+                _classic_menubar = new Singularity.Shell.GlobalMenuBar();
+                _classic_menubar.add_css_class("singularity-classic-menubar");
+                _classic_menubar.valign = Align.CENTER;
+                _classic_menubar.register_action_group("win", this);
+                Widget? after = null;
+                for (var c = toolbar.start_box.get_first_child(); c != null; c = c.get_next_sibling()) {
+                    if (c != toolbar.minimize_btn && c != toolbar.maximize_btn && c != toolbar.close_btn) break;
+                    after = c;
+                }
+                toolbar.start_box.insert_child_after(_classic_menubar, after);
+            }
+            if (application != null) _classic_menubar.register_action_group("app", application);
+            if (_classic_menubar_model != model) {
+                _classic_menubar_model = model;
+                _classic_menubar.update_model(model);
+            }
+            _classic_menubar.visible = true;
+            toolbar.visible = true;
+        }
+
+        private bool _global_menu_active() {
+            return _shell_present && Singularity.Runtime.global_menu_enabled();
+        }
+
+        private void _sync_app_menu() {
+            bool global_menu = _global_menu_active();
+            if (!global_menu) {
+                if (show_menubar) {
+                    show_menubar = false;
+                    _menubar_hidden = true;
+                }
+            } else if (_menubar_hidden) {
+                _menubar_hidden = false;
+                show_menubar = true;
+            }
+
+            MenuModel? model = application != null ? application.menubar : null;
+            if (global_menu || model == null) {
+                if (_app_menu_popover != null) _app_menu_popover.popdown();
+                if (_app_menu_btn != null) _app_menu_btn.visible = false;
+                if (_classic_menubar != null) _classic_menubar.visible = false;
+                if (_force_ssd) toolbar.visible = false;
+                _set_app_menu_state(false, global_menu);
+                return;
+            }
+
+            if (_app_menu_popover == null) {
+                _app_menu_popover = new PopoverMenu.from_model(model);
+                _app_menu_popover.add_css_class("singularity-app-menu");
+                if (_app_menu_btn == null && _bubble_bar == null) {
+                    _app_menu_popover.set_parent(content_area);
+                    _app_menu_popover.set_position(PositionType.BOTTOM);
+                    _app_menu_popover.has_arrow = false;
+                }
+            } else if (_app_menu_popover.menu_model != model) {
+                _app_menu_popover.menu_model = model;
+            }
+
+            _set_app_menu_state(true, false);
+            if (_force_ssd || _legacy_titlebar) {
+                _show_classic_menubar(model);
+                return;
+            }
+            if (_bubble_bar == null) return;
+            if (_app_menu_btn == null) {
+                if (_app_menu_popover.get_parent() != null) _app_menu_popover.unparent();
+                _app_menu_btn = add_bubble_menu("open-menu-symbolic", _("App Menu"), _app_menu_popover);
+                _app_menu_btn.add_css_class("singularity-app-menu-bubble");
+                _bubble_bar.set_bubble_priority(_app_menu_btn, BUBBLE_PRIORITY_PINNED);
+                _bubble_bar.mark_trailing(_app_menu_btn);
+            }
+            _app_menu_btn.visible = true;
+        }
+    }
+
+    /**
+     * The application menu for windows that are not a
+     * Singularity.Widgets.Window, such as a terminal with its own
+     * controls. Window offers the same menu by itself.
+     */
+    public class AppMenu : Object {
+        private static AppMenu? _instance = null;
+        private bool _shell_present = false;
+        private uint _shell_watch = 0;
+        private GLib.Settings? _settings = null;
+
+        /**
+         * True while the desktop shows the application menus in its top
+         * panel: the shell is running and `global-menu-enabled` is on. The
+         * app should then offer no menu button of its own.
+         */
+        public bool global_menu_in_use { get; private set; default = false; }
+
+        /** The shared monitor. */
+        public static AppMenu get_default() {
+            if (_instance == null) _instance = new AppMenu();
+            return _instance;
+        }
+
+        private AppMenu() {
+            _shell_present = Singularity.Runtime.is_shell_running();
+            _settings = Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
+            if (_settings != null && _settings.settings_schema.has_key("global-menu-enabled"))
+                _settings.changed["global-menu-enabled"].connect(() => update());
+            _shell_watch = Bus.watch_name(BusType.SESSION, Singularity.Runtime.SHELL_BUS_NAME,
+                BusNameWatcherFlags.NONE,
+                () => { _shell_present = true; update(); },
+                () => { _shell_present = false; update(); });
+            update();
+        }
+
+        private void update() {
+            bool active = _shell_present && Singularity.Runtime.global_menu_enabled();
+            if (global_menu_in_use != active) global_menu_in_use = active;
+        }
+
+        /**
+         * Builds the popover of the application menu from the menu bar of
+         * `app`, styled like the App Menu bubble, or returns null when the
+         * app has no menu bar.
+         */
+        public static Gtk.PopoverMenu? create_popover(Gtk.Application app) {
+            if (app.menubar == null) return null;
+            var popover = new Gtk.PopoverMenu.from_model(app.menubar);
+            popover.add_css_class("singularity-app-menu");
+            return popover;
+        }
+
+        /**
+         * Opens the application menu of `app` below `anchor`. The popover is
+         * removed when it closes.
+         *
+         * @return false when the app has no menu bar.
+         */
+        public static bool popup(Gtk.Application app, Gtk.Widget anchor) {
+            var popover = create_popover(app);
+            if (popover == null) return false;
+            popover.set_parent(anchor);
+            popover.closed.connect(() => Idle.add(() => {
+                popover.unparent();
+                return Source.REMOVE;
+            }));
+            popover.popup();
+            return true;
         }
     }
 }

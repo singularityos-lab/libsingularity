@@ -72,6 +72,7 @@ namespace Singularity.Text {
 
     internal class TextViewSpeller : Object {
         private unowned Gtk.TextView view;
+        private Gtk.TextBuffer buffer;
         private Gtk.TextTag tag;
         private GLib.Menu section = new GLib.Menu();
         private Gtk.TextMark word_start;
@@ -80,7 +81,7 @@ namespace Singularity.Text {
 
         public TextViewSpeller(Gtk.TextView view) {
             this.view = view;
-            var buffer = view.buffer;
+            buffer = view.buffer;
             tag = buffer.create_tag(null, "underline", Pango.Underline.ERROR);
             Gtk.TextIter start;
             buffer.get_start_iter(out start);
@@ -112,6 +113,10 @@ namespace Singularity.Text {
             recheck();
         }
 
+        ~TextViewSpeller() {
+            if (recheck_id != 0) Source.remove(recheck_id);
+        }
+
         private void schedule_recheck() {
             if (recheck_id != 0) Source.remove(recheck_id);
             recheck_id = Timeout.add(300, () => {
@@ -122,7 +127,6 @@ namespace Singularity.Text {
         }
 
         private void recheck() {
-            var buffer = view.buffer;
             Gtk.TextIter start, end, cursor;
             buffer.get_bounds(out start, out end);
             buffer.remove_tag(tag, start, end);
@@ -143,7 +147,6 @@ namespace Singularity.Text {
 
         private void prepare_menu(double x, double y) {
             section.remove_all();
-            var buffer = view.buffer;
             int bx, by;
             view.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, (int) x, (int) y, out bx, out by);
             Gtk.TextIter iter;
@@ -162,7 +165,6 @@ namespace Singularity.Text {
         }
 
         private void replace_word(string replacement) {
-            var buffer = view.buffer;
             Gtk.TextIter start, end;
             buffer.get_iter_at_mark(out start, word_start);
             buffer.get_iter_at_mark(out end, word_end);
@@ -209,6 +211,10 @@ namespace Singularity.Text {
             text.changed.connect(schedule_recheck);
             SpellChecker.get_default().changed.connect(schedule_recheck);
             recheck();
+        }
+
+        ~EntrySpeller() {
+            if (recheck_id != 0) Source.remove(recheck_id);
         }
 
         private void schedule_recheck() {

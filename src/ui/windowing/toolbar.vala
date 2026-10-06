@@ -87,6 +87,7 @@ namespace Singularity.Widgets {
                 if (w.maximized) w.unmaximize();
                 else w.maximize();
             });
+            SnapLayouts.attach_maximize_button(maximize_btn);
             end_box.append(maximize_btn);
 
             close_btn = new Singularity.Widgets.CloseButton();

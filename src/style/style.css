@@ -136,22 +136,7 @@ headerbar windowcontrols button image {
     color: @text_color;
 }
 
-/* Generic standalone button: pill rounding to match AppDialog
-   buttons (which carry an explicit `.pill` class). Specific button
-   roles (toolbar, sidebar, path, bubble, etc.) override this
-   border-radius via their own selectors. */
-button {
-    background-color: @card_bg;
-    border: 1px solid @border_color;
-    border-radius: 999px;
-    color: @text_color;
-    padding: 6px 12px;
-    box-shadow: none;
-}
-button:hover { background-color: @card_hover_bg; }
-button:active,
-button:checked { background-color: alpha(@text_color, 0.18); }
-button:disabled { opacity: 0.5; }
+/* @button-defaults */
 
 /* Flat button */
 button.flat,
@@ -178,7 +163,7 @@ button.flat.sidebar-nav-active:focus {
    padding and consistent radius so all apps render their navigation
    identically (Files, Photos, Store, etc). */
 .singularity-sidebar-row {
-    padding: 6px 10px;
+    padding: 6px 12px;
     border-radius: 8px;
     min-height: 0;
 }
@@ -189,6 +174,7 @@ button.flat.sidebar-nav-active:focus {
 /* Suggested / destructive action buttons */
 button.suggested-action {
     background-color: @accent_color;
+    background-image: none;
     border-color: @accent_color;
     color: @accent_fg;
 }
@@ -198,6 +184,7 @@ button.suggested-action:disabled { opacity: 0.5; }
 
 button.destructive-action {
     background-color: @destructive_hover;
+    background-image: none;
     border-color: @destructive_hover;
     color: @text_color;
 }
@@ -248,12 +235,21 @@ spinbutton {
 }
 entry:focus-within,
 spinbutton:focus-within {
-    border-color: @accent_color;
-    box-shadow: 0 0 0 2px alpha(@accent_color, 0.20);
+    border-color: @focus_ring_color;
+    box-shadow: 0 0 0 1px @focus_ring_color;
     outline: none;
 }
 entry:disabled,
 spinbutton:disabled { opacity: 0.5; }
+entry.error,
+entry.error:focus-within {
+    border-color: @error_color;
+    box-shadow: 0 0 0 1px @error_color;
+}
+label.error,
+image.error {
+    color: @error_color;
+}
 entry image.left,
 entry > image.left {
     margin-right: 6px;
@@ -352,7 +348,7 @@ label.dim-label { opacity: 0.55; }
     font-weight: 600;
 }
 .heading {
-    font-size: 8px;
+    font-size: 14px;
     font-weight: 500;
     opacity: 0.65;
 }
@@ -376,11 +372,15 @@ radio {
     border: 1.5px solid alpha(@text_color, 0.35);
     background-color: @card_bg;
     color: @accent_fg;
-    transition: background-color 0.12s ease,
-                border-color 0.12s ease,
-                box-shadow 0.12s ease;
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard),
+                border-color var(--motion-duration-small) var(--motion-curve-standard),
+                box-shadow var(--motion-duration-small) var(--motion-curve-standard),
+                -gtk-icon-transform var(--motion-duration-small) var(--motion-curve-standard),
+                -gtk-icon-filter var(--motion-duration-small) var(--motion-curve-standard);
 }
-check  { border-radius: 5px; }
+check  { border-radius: 5px; -gtk-icon-transform: scale(0.4); -gtk-icon-filter: opacity(0); }
+check:checked,
+check:indeterminate { -gtk-icon-transform: none; -gtk-icon-filter: none; }
 radio  { border-radius: 100%; }
 
 check:hover,
@@ -392,6 +392,16 @@ radio:checked {
     background-color: @accent_color;
     border-color: @accent_color;
     color: @accent_fg;
+}
+
+check:checked {
+    -gtk-icon-source: -gtk-icontheme("object-select-symbolic");
+    -gtk-icon-size: 14px;
+}
+
+check:indeterminate {
+    -gtk-icon-source: -gtk-icontheme("list-remove-symbolic");
+    -gtk-icon-size: 14px;
 }
 
 checkbutton:focus-visible > check,
@@ -408,6 +418,10 @@ switch {
     border: 1px solid @border_color;
     min-width: 40px;
     min-height: 22px;
+}
+switch {
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard),
+                border-color var(--motion-duration-small) var(--motion-curve-standard);
 }
 switch:checked { background-color: @accent_color; border-color: @accent_color; }
 switch slider {
@@ -539,12 +553,13 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
     color: @text_color;
 }
 
-/* Active state always gets white text on accent bg regardless of mode. */
+/* Active state puts text on the accent: use the contrast colour computed
+   for the accent in every panel mode. */
 .panel-window .activities-button:active *,
 .panel-window .clock-button:active *,
 .panel-window .notification-button:active *,
 .panel-window .system-pill-button:active * {
-    color: white;
+    color: @accent_fg_color;
 }
 
 .panel {
@@ -615,12 +630,12 @@ window.singularity-glass .panel,
 .clock-button:active,
 .system-pill-button:active {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
 }
 
 .notification-button:active {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
     box-shadow: none;
 }
 
@@ -681,28 +696,8 @@ window.singularity-glass .panel,
     box-shadow: 0 10px 30px alpha(black, 0.34);
 }
 
-.workspace-switch-feedback.opening {
-    animation: workspace-feedback-open 140ms ease-out;
-}
-
-.workspace-switch-feedback.closing {
-    animation: workspace-feedback-close 150ms ease-in forwards;
-}
-
-.workspace-switch-marker {
-    min-height: 10px;
-    border-radius: 999px;
-    background-color: white;
-}
-
-@keyframes workspace-feedback-open {
-    from { opacity: 0; transform: scale(0.82); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes workspace-feedback-close {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.9); }
+.workspace-switch-markers {
+    color: white;
 }
 
 .tiling-slot-organizer {
@@ -710,18 +705,13 @@ window.singularity-glass .panel,
     background-color: alpha(@theme_bg_color, 0.94);
     border: 1px solid alpha(currentColor, 0.14);
     box-shadow: 0 12px 34px alpha(black, 0.34);
-    animation: tiling-organizer-open 180ms cubic-bezier(0.2, 0.85, 0.25, 1);
-}
-
-.tiling-slot-organizer.closing {
-    animation: tiling-organizer-close 140ms ease-in forwards;
 }
 
 .tiling-slot-preview {
     border-radius: 12px;
     background-color: alpha(currentColor, 0.1);
     border: 1px solid alpha(currentColor, 0.12);
-    animation: tiling-slot-spread 220ms cubic-bezier(0.2, 0.85, 0.25, 1);
+    animation: tiling-slot-spread var(--motion-duration-medium) var(--motion-curve-enter);
 }
 
 .tiling-slot-preview.dragged {
@@ -734,27 +724,11 @@ window.singularity-glass .panel,
     min-height: 8px;
     border-radius: 999px;
     background-color: currentColor;
-    animation: tiling-slot-seed 190ms ease-out forwards;
-}
-
-@keyframes tiling-organizer-open {
-    from { opacity: 0; transform: scale(0.12); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes tiling-organizer-close {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.2); }
 }
 
 @keyframes tiling-slot-spread {
     from { opacity: 0; transform: scale(0.22); }
     to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes tiling-slot-seed {
-    from { opacity: 1; transform: scaleX(1); }
-    to { opacity: 0; transform: scaleX(10); }
 }
 
 /* Flat panel mode: solid black background, no pill buttons */
@@ -897,22 +871,9 @@ window.singularity-glass .dock-window:backdrop .dock-box,
     border-radius: 16px;
     padding: 7px 6px 2px 6px;
     box-shadow: 0 4px 14px alpha(@shadow_color, 0.45), 0 1px 0 alpha(@text_color, 0.3) inset;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.24s cubic-bezier(0.2, 0.85, 0.25, 1), opacity 0.22s ease-out;
+    transition: background-color var(--motion-duration-medium) var(--motion-curve-standard), box-shadow var(--motion-duration-medium) var(--motion-curve-standard);
     border: 1px solid alpha(@text_color, 0.03);
     border-top: 0;
-}
-
-/* Reveal slide-up: applied without transition to offset the dock below its
-   surface, then removed to animate it back into view. */
-.dock-box.dock-reveal-offset {
-    transform: translateY(90px);
-    opacity: 0;
-    transition: none;
-}
-
-.dock-box.dock-hiding {
-    transform: translateY(90px);
-    opacity: 0;
 }
 
 .dock-window:backdrop .dock-box,
@@ -1038,61 +999,12 @@ window.singularity-glass .dock-window:backdrop .dock-box,
     min-height: 5px;
 }
 
-@keyframes dock-slide-bounce {
-    0%   { transform: translateY(62px); opacity: 0; }
-    55%  { transform: translateY(-8px); opacity: 1; }
-    72%  { transform: translateY(4px); }
-    86%  { transform: translateY(-2px); }
-    100% { transform: translateY(0); opacity: 1; }
-}
-
-.dock-container.dock-intro {
-    animation: dock-slide-bounce 560ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
-}
-
-@keyframes panel-slide-down {
-    from { transform: translateY(-44px); opacity: 0; }
-    to   { transform: translateY(0); opacity: 1; }
-}
-
-.panel.panel-intro {
-    animation: panel-slide-down 560ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
-}
-
-@keyframes wallpaper-zoom-in {
-    from { transform: scale(1.06); }
-    to   { transform: scale(1.0); }
-}
-
-.background-window .wallpaper-intro {
-    animation: wallpaper-zoom-in 950ms cubic-bezier(0.22, 1.0, 0.36, 1.0) forwards;
-    transform-origin: center center;
-}
-
-@keyframes dock-pulse {
-    0% {
-        transform: scale(1);
-    }
-
-    40% {
-        transform: scale(1.15);
-    }
-
-    70% {
-        transform: scale(0.96);
-    }
-
-    100% {
-        transform: scale(1);
-    }
-}
-
-.dock-item-wrapper.launching {
-    animation: dock-pulse 0.35s ease-in-out 2;
-}
-
 .dock-item-wrapper {
     background-color: transparent;
+}
+
+.dock-launch-ripple {
+    color: @accent_color;
 }
 
 /* Pill (inner): rounded container around icon + suffix; sits inside the
@@ -1366,37 +1278,8 @@ popover.dock-window-previews > contents {
     padding: 2px;
 }
 
-@keyframes overview-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to   { opacity: 1; transform: scale(1.0); }
-}
-@keyframes overview-out {
-  from { opacity: 1; transform: scale(1.0); }
-  to   { opacity: 0; transform: scale(0.97); }
-}
-@keyframes ws-overview-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to   { opacity: 1; transform: scale(1.0); }
-}
-@keyframes ws-overview-out {
-  from { opacity: 1; transform: scale(1.0); }
-  to   { opacity: 0; transform: scale(0.97); }
-}
-
 .overview-box {
     background-color: @overview_bg;
-}
-.overview-box.animating-in {
-    animation: overview-in 220ms ease-out forwards;
-}
-.overview-box.animating-out {
-    animation: overview-out 180ms ease-in forwards;
-}
-.workspace-overview-box.animating-in {
-    animation: ws-overview-in 220ms ease-out forwards;
-}
-.workspace-overview-box.animating-out {
-    animation: ws-overview-out 180ms ease-in forwards;
 }
 .hot-corner-window {
     background-color: alpha(@shadow_color, 0.002);
@@ -1429,14 +1312,6 @@ popover.dock-window-previews > contents {
     background-color: @overview_bg;
     padding: 24px 0 12px 0;
     border-bottom: 1px solid alpha(@text_color, 0.1);
-}
-
-.window-preview-item {
-    transition: transform 0.2s ease;
-}
-
-.window-preview-item:hover {
-    transform: scale(1.02);
 }
 
 .window-preview-thumbnail {
@@ -1486,7 +1361,7 @@ popover.dock-window-previews > contents {
     min-width: 400px;
     font-size: 15px;
     box-shadow: 0 4px 12px alpha(@shadow_color, 0.2);
-    transition: all 0.2s ease;
+    transition: background-color var(--motion-duration-micro) var(--motion-curve-standard), color var(--motion-duration-micro) var(--motion-curve-standard), border-color var(--motion-duration-micro) var(--motion-curve-standard), box-shadow var(--motion-duration-micro) var(--motion-curve-standard), opacity var(--motion-duration-micro) var(--motion-curve-standard);
 }
 
 .search-entry text {
@@ -1663,7 +1538,7 @@ popover.dock-window-previews > contents {
 .quick-setting-group {
     background-color: alpha(@text_color, 0.04);
     border-radius: 64px;
-    transition: all 0.15s ease;
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard), color var(--motion-duration-small) var(--motion-curve-standard), border-color var(--motion-duration-small) var(--motion-curve-standard), box-shadow var(--motion-duration-small) var(--motion-curve-standard), opacity var(--motion-duration-small) var(--motion-curve-standard);
 }
 
 /* Tile part: transparent over group bg, rounded on left only */
@@ -1735,7 +1610,7 @@ popover.dock-window-previews > contents {
     background-color: alpha(@text_color, 0.08);
     border-radius: 64px;
     padding: 0;
-    transition: all 0.2s ease;
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard), color var(--motion-duration-small) var(--motion-curve-standard), border-color var(--motion-duration-small) var(--motion-curve-standard), box-shadow var(--motion-duration-small) var(--motion-curve-standard), opacity var(--motion-duration-small) var(--motion-curve-standard);
     border: 1px solid transparent;
     box-shadow: none;
 }
@@ -1746,7 +1621,7 @@ popover.dock-window-previews > contents {
 
 .quick-setting-tile.active {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
 }
 
 .quick-setting-tile.active:hover {
@@ -1824,7 +1699,7 @@ popover.dock-window-previews > contents {
 
 .audio-device-chip.active {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
 }
 
 .search-result-row:selected {
@@ -2001,7 +1876,7 @@ popover.dock-window-previews > contents {
 .sidebar {
     background-color: @window_tint;
     border: 1px solid @border_color;
-    border-radius: 40px;
+    border-radius: 34px;
     font-family: 'Inter', sans-serif;
     padding: 0 12px;
     /* Same two-layer recipe used by app windows and dialog cards. */
@@ -2051,7 +1926,7 @@ window.sidebar-window {
     box-shadow: none;
     border-radius: 0;
 }
-.sidebar-window { border-radius: 40px; }
+.sidebar-window { border-radius: 34px; }
 
 /* App menu popup (menu mode of the apps launcher). Same recipe as the
    sidebar-window: the outer GtkWindow paints nothing so the inner
@@ -2316,22 +2191,109 @@ window.singularity .panel-window,
     background-color: transparent;
 }
 
-.singularity button {
+/* @singularity-button */
+
+.singularity button.singularity-bubble-button {
     background-color: @card_bg;
-    color: white;
-    border: none;
-    outline: none;
-    border-radius: 8px;
-    padding: 6px 12px;
+    background-image: none;
+    border: 1px solid @hover_btn_border;
+    border-radius: 999px;
+    padding: 5px 11px;
+    box-shadow: 0 1px 3px alpha(black, 0.12);
+    transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
-.singularity button:active {
+.singularity button.singularity-bubble-button.pill {
+    padding: 7px 19px;
+}
+
+.singularity button.singularity-bubble-button:hover {
+    background-color: @button_hover_bg;
+    border-color: @button_hover_border;
+    box-shadow: 0 2px 6px alpha(black, 0.16);
+}
+
+.singularity button.singularity-bubble-button:active,
+.singularity button.singularity-bubble-button:checked {
+    background-color: @button_active_bg;
+    border-color: @button_hover_border;
+    box-shadow: 0 1px 2px alpha(black, 0.10);
+}
+
+.singularity button.singularity-bubble-button.flat {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.singularity button.singularity-bubble-button.flat:hover {
+    background-color: @button_hover_bg;
+    border-color: @button_hover_border;
+}
+
+.singularity button.singularity-bubble-button.flat:active,
+.singularity button.singularity-bubble-button.flat:checked {
+    background-color: @button_active_bg;
+    border-color: @button_hover_border;
+}
+
+.singularity button.singularity-bubble-button.suggested-action {
     background-color: @accent_color;
-    color: white;
+    border-color: mix(@accent_color, black, 0.2);
+    box-shadow: 0 1px 3px alpha(@accent_color, 0.35), 0 1px 2px alpha(black, 0.12);
+    color: @accent_fg_color;
 }
 
-.singularity button:disabled {
+.singularity button.singularity-bubble-button.suggested-action:hover {
+    background-color: mix(@accent_color, white, 0.14);
+    border-color: mix(@accent_color, black, 0.1);
+    box-shadow: 0 2px 8px alpha(@accent_color, 0.45), 0 1px 2px alpha(black, 0.12);
+}
+
+.singularity button.singularity-bubble-button.suggested-action:active,
+.singularity button.singularity-bubble-button.suggested-action:checked {
+    background-color: mix(@accent_color, black, 0.2);
+    border-color: mix(@accent_color, black, 0.3);
+    box-shadow: 0 1px 2px alpha(black, 0.16);
+}
+
+.singularity button.singularity-bubble-button.destructive-action {
+    background-color: @destructive_bg;
+    border-color: mix(@destructive_bg, black, 0.2);
+    box-shadow: 0 1px 3px alpha(@destructive_bg, 0.35), 0 1px 2px alpha(black, 0.12);
+}
+
+.singularity button.singularity-bubble-button.destructive-action:hover {
+    background-color: mix(@destructive_bg, white, 0.1);
+    border-color: mix(@destructive_bg, black, 0.1);
+    box-shadow: 0 2px 8px alpha(@destructive_bg, 0.45), 0 1px 2px alpha(black, 0.12);
+}
+
+.singularity button.singularity-bubble-button.destructive-action:active,
+.singularity button.singularity-bubble-button.destructive-action:checked {
+    background-color: mix(@destructive_bg, black, 0.2);
+    border-color: mix(@destructive_bg, black, 0.3);
+    box-shadow: 0 1px 2px alpha(black, 0.16);
+}
+
+.singularity button.singularity-bubble-button.destructive-action label,
+.singularity button.singularity-bubble-button.destructive-action image {
+    color: @destructive_fg;
+}
+
+.singularity button.singularity-bubble-button:disabled {
     background-color: alpha(@text_color, 0.05);
+    border-color: alpha(@text_color, 0.06);
+    box-shadow: none;
+}
+
+.singularity button.singularity-bubble-button.flat:disabled {
+    background-color: transparent;
+    border-color: transparent;
+}
+
+.singularity button.singularity-bubble-button.destructive-action:disabled label,
+.singularity button.singularity-bubble-button.destructive-action:disabled image {
     color: alpha(@text_color, 0.3);
 }
 
@@ -2469,34 +2431,44 @@ window.singularity .panel-window,
     outline: none;
 }
 
-.singularity entry:focus {
+.singularity entry:focus,
+.singularity entry:focus-within {
     background-color: alpha(@text_color, 0.09);
-    box-shadow: 0 0 0 2px alpha(@accent_color, 0.4);
+    box-shadow: inset 0 0 0 2px @focus_ring_color;
+}
+
+.singularity entry.error,
+.singularity entry.error:focus-within {
+    box-shadow: inset 0 0 0 2px @error_color;
 }
 
 .singularity entry selection {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
 }
 
 .singularity spinbutton {
     background-color: alpha(@text_color, 0.06);
-    color: white;
+    color: @text_color;
     border: none;
     border-radius: 8px;
     padding: 0;
     box-shadow: none;
 }
 
+.singularity spinbutton:focus-within {
+    box-shadow: inset 0 0 0 2px @focus_ring_color;
+}
+
 .singularity spinbutton text {
     background-color: transparent;
-    color: white;
+    color: @text_color;
     padding: 8px;
 }
 
 .singularity spinbutton button {
     background-color: transparent;
-    color: white;
+    color: @text_color;
     border-radius: 4px;
     margin: 2px;
     padding: 2px 6px;
@@ -2556,7 +2528,7 @@ window.singularity .panel-window,
 }
 
 .singularity-toolbar.browser-toolbar {
-    transition: margin-top 280ms ease-out, opacity 200ms ease;
+    transition: opacity var(--motion-duration-medium) var(--motion-curve-standard);
 }
 
 .singularity-toolbar.browser-toolbar.toolbar-hidden {
@@ -2737,7 +2709,10 @@ button.segmented-button.active:checked {
     min-width: 18px;
     min-height: 18px;
     margin: 2px;
-    transition: background-color 0.12s ease, border-color 0.12s ease;
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard),
+                border-color var(--motion-duration-small) var(--motion-curve-standard),
+                -gtk-icon-transform var(--motion-duration-small) var(--motion-curve-standard),
+                -gtk-icon-filter var(--motion-duration-small) var(--motion-curve-standard);
 }
 .singularity check { border-radius: 5px; }
 .singularity radio { border-radius: 100%; }
@@ -2783,7 +2758,6 @@ button.segmented-button.active:checked {
 
 .app-title {
     font-weight: bold;
-    font-size: 14px;
 }
 
 /* Global Menu Bar (custom GlobalMenuBar widget) */
@@ -2929,6 +2903,18 @@ entry > popover modelbutton:focus {
     min-height: 14px;
 }
 
+.media-caption {
+    background-color: @media_caption_bg;
+    color: @media_caption_fg;
+    border-radius: 999px;
+}
+
+.media-caption,
+.media-caption label,
+.media-caption image {
+    color: @media_caption_fg;
+}
+
 .osd-toolbar {
     background-color: alpha(@shadow_color, 0.7);
     transition: opacity 0.3s ease;
@@ -2991,7 +2977,7 @@ button.menu-row:hover,
 button.flat.menu-row:hover,
 popover .menu-row:hover {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
     box-shadow: none;
 }
 
@@ -3013,7 +2999,7 @@ popover .menu-row:hover {
 button.menu-row:hover *,
 button.flat.menu-row:hover *,
 popover .menu-row:hover * {
-    color: white;
+    color: @accent_fg_color;
 }
 
 .menu-row:focus,
@@ -3028,6 +3014,15 @@ button.menu-row label,
 button.flat.menu-row label {
     font-weight: 400;
     font-size: 13px;
+}
+
+.menu-row .submenu-arrow {
+    color: alpha(@text_color, 0.6);
+    margin-left: 12px;
+}
+
+.menu-row:hover .submenu-arrow {
+    color: @accent_fg_color;
 }
 
 .global-menu-popover .menu-row label {
@@ -3116,7 +3111,7 @@ flowbox popover.context-menu button.menu-row {
     padding: 4px;
     border-radius: 8px;
     background-color: transparent;
-    transition: all 0.2s;
+    transition: background-color var(--motion-duration-micro) var(--motion-curve-standard), color var(--motion-duration-micro) var(--motion-curve-standard), border-color var(--motion-duration-micro) var(--motion-curve-standard), box-shadow var(--motion-duration-micro) var(--motion-curve-standard), opacity var(--motion-duration-micro) var(--motion-curve-standard);
     border: 2px solid transparent;
 }
 
@@ -3136,7 +3131,7 @@ flowbox popover.context-menu button.menu-row {
 
 .singularity .suggested-action {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
 }
 
 .singularity .suggested-action:hover {
@@ -3182,7 +3177,7 @@ flowbox popover.context-menu button.menu-row {
     background-color: alpha(@text_color, 0.08);
     border-radius: 999px;
     padding: 4px 10px;
-    transition: all 200ms ease;
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard), color var(--motion-duration-small) var(--motion-curve-standard), border-color var(--motion-duration-small) var(--motion-curve-standard), box-shadow var(--motion-duration-small) var(--motion-curve-standard), opacity var(--motion-duration-small) var(--motion-curve-standard);
     min-height: 0;
     border: none;
     margin: 3px;
@@ -3196,7 +3191,7 @@ flowbox popover.context-menu button.menu-row {
 
 .singularity .toggle-tile.active {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
 }
 
 .singularity .toggle-tile.active:hover {
@@ -3212,7 +3207,7 @@ flowbox popover.context-menu button.menu-row {
     font-size: 13px;
 }
 
-.singularity popover:not(.context-menu)>contents {
+.singularity popover:not(.context-menu):not(.menu)>contents {
     background-color: transparent;
     box-shadow: none;
     border: none;
@@ -3222,6 +3217,51 @@ flowbox popover.context-menu button.menu-row {
 .singularity popover arrow {
     background-color: transparent;
     border: none;
+}
+
+.singularity-toast {
+    padding: 6px 6px 6px 16px;
+    border-radius: 18px;
+    background-color: alpha(black, 0.78);
+    color: white;
+    box-shadow: 0 4px 12px alpha(@shadow_color, 0.35);
+}
+
+.singularity-toast label,
+.singularity-toast button,
+.singularity .singularity-toast button.flat,
+.singularity .singularity-toast button.flat image {
+    color: white;
+}
+
+.singularity .singularity-toast button.flat:hover {
+    background-color: alpha(white, 0.14);
+}
+
+.singularity-banner {
+    margin: 6px 8px;
+    padding: 8px 8px 8px 12px;
+    border-radius: 12px;
+    background-color: alpha(@window_fg_color, 0.07);
+}
+
+.singularity-banner.warning {
+    background-color: alpha(@warning_color, 0.18);
+}
+
+.singularity-banner.error {
+    background-color: alpha(@error_color, 0.16);
+}
+
+.singularity popover.menu.singularity-app-menu > contents {
+    background-color: @surface_raised;
+    color: @text_color;
+    border: 1px solid alpha(@text_color, 0.1);
+    border-radius: 12px;
+    box-shadow:
+        0 1px 2px alpha(@shadow_color, 0.30),
+        0 6px 14px alpha(@shadow_color, 0.42);
+    padding: 4px;
 }
 
 .singularity .flat {
@@ -3246,7 +3286,7 @@ flowbox popover.context-menu button.menu-row {
     color: alpha(@text_color, 0.5);
     font-size: 13px;
     font-weight: 500;
-    transition: all 0.2s ease;
+    transition: background-color var(--motion-duration-micro) var(--motion-curve-standard), color var(--motion-duration-micro) var(--motion-curve-standard), border-color var(--motion-duration-micro) var(--motion-curve-standard), box-shadow var(--motion-duration-micro) var(--motion-curve-standard), opacity var(--motion-duration-micro) var(--motion-curve-standard);
 }
 
 .singularity .tab-button:hover {
@@ -3404,7 +3444,6 @@ flowbox popover.context-menu button.menu-row {
 .singularity .file-grid {
     background-color: transparent;
     padding: 12px;
-    padding-top: 60px;
 }
 
 .singularity .file-grid gridview > child {
@@ -3456,6 +3495,15 @@ columnview row:selected {
     box-shadow: none;
     outline: none;
     border: none;
+}
+
+.singularity columnview row:selected entry,
+.singularity columnview row:selected entry:focus-within {
+    background-color: @window_bg;
+}
+
+.singularity columnview row:selected entry:focus-within {
+    box-shadow: inset 0 0 0 2px @focus_ring_color;
 }
 
 .singularity .file-grid-item label {
@@ -3548,7 +3596,7 @@ button.close-button:checked,
 togglebutton.close-button:checked {
     background: @accent_color;
     box-shadow: none;
-    color: white;
+    color: @accent_fg_color;
 }
 
 .desktop-icons {
@@ -3636,7 +3684,7 @@ togglebutton.close-button:checked {
     color: white;
     border: none;
     box-shadow: none;
-    transition: all 0.2s;
+    transition: background-color var(--motion-duration-micro) var(--motion-curve-standard), color var(--motion-duration-micro) var(--motion-curve-standard), border-color var(--motion-duration-micro) var(--motion-curve-standard), box-shadow var(--motion-duration-micro) var(--motion-curve-standard), opacity var(--motion-duration-micro) var(--motion-curve-standard);
 }
 
 .singularity .close-button:hover {
@@ -3761,7 +3809,8 @@ window.singularity.dialog {
     background-color: transparent;
     margin: 4px 12px;
     padding: 0;
-    transition: all 250ms ease;
+    transition: background-color var(--motion-duration-micro) var(--motion-curve-standard),
+                border-color var(--motion-duration-micro) var(--motion-curve-standard);
     border: none;
     border-radius: 16px;
 }
@@ -3770,7 +3819,9 @@ window.singularity.dialog {
     border-radius: 12px;
     box-shadow: 0 4px 12px alpha(@shadow_color, 0.4);
     border: 1px solid transparent;
-    transition: all 250ms ease;
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard),
+                border-color var(--motion-duration-small) var(--motion-curve-standard),
+                box-shadow var(--motion-duration-small) var(--motion-curve-standard);
 }
 
 .singularity .workspace-clipper picture,
@@ -3793,8 +3844,7 @@ window.singularity.dialog {
 
 .singularity .workspace-preview.selected .workspace-clipper {
     border-color: @accent_color;
-    border-width: 2px;
-    box-shadow: 0 0 0 1px @accent_color, 0 0 15px alpha(@accent_color, 0.4), 0 8px 32px alpha(@shadow_color, 0.6);
+    box-shadow: 0 0 0 2px @accent_color, 0 0 15px alpha(@accent_color, 0.4), 0 8px 32px alpha(@shadow_color, 0.6);
 }
 
 .singularity .workspace-preview.drag-over .workspace-clipper {
@@ -3832,7 +3882,8 @@ window.singularity.dialog {
 
 .singularity .ghost-workspace image {
     opacity: 0.4;
-    transition: all 0.2s ease;
+    transition: opacity var(--motion-duration-micro) var(--motion-curve-standard),
+                transform var(--motion-duration-micro) var(--motion-curve-standard);
 }
 
 .singularity .ghost-workspace:hover image {
@@ -3865,13 +3916,13 @@ window.singularity.dialog {
 .singularity .preferences-group {
     background-color: @card_bg;
     border: 1px solid @border_color;
-    border-radius: 24px;
+    border-radius: 12px;
     padding: 0;
 }
 
 .singularity .preferences-group .heading {
-    font-size: 17px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 .singularity .preferences-list {
@@ -3882,7 +3933,7 @@ window.singularity.dialog {
 .singularity .preferences-row {
     background-color: transparent;
     border-bottom: 1px solid alpha(@text_color, 0.05);
-    min-height: 50px;
+    min-height: 36px;
     margin: 0;
     padding: 0;
     transition: background-color 0.2s;
@@ -3898,13 +3949,63 @@ window.singularity.dialog {
 }
 
 .singularity .preferences-row:first-child {
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
 }
 
 .singularity .preferences-row:last-child {
-    border-bottom-left-radius: 24px;
-    border-bottom-right-radius: 24px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.singularity .preferences-row .title {
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.singularity .preferences-row .subtitle {
+    font-size: 11px;
+    margin-top: 1px;
+}
+
+.singularity .preferences-group .group-description {
+    font-size: 11px;
+}
+
+.sidebar .preferences-group,
+.sidebar .preferences-row:first-child {
+    border-top-left-radius: 22px;
+    border-top-right-radius: 22px;
+}
+
+.sidebar .preferences-group,
+.sidebar .preferences-row:last-child {
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+}
+
+.singularity .preferences-row button {
+    min-height: 22px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.singularity .preferences-row button.image-button,
+.singularity .preferences-row button.circular-button,
+.singularity .preferences-row button.circular {
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0;
+}
+
+.singularity .preferences-row switch {
+    min-width: 36px;
+    min-height: 20px;
+}
+
+.singularity .preferences-row switch slider {
+    min-width: 16px;
+    min-height: 16px;
 }
 
 .title {
@@ -3929,15 +4030,15 @@ window.singularity.dialog {
 }
 
 .singularity .page-header {
-    min-height: 48px;
-    padding: 12px 12px 0 12px;
-    margin-bottom: 16px;
+    min-height: 40px;
+    padding: 8px 12px 0 12px;
+    margin-bottom: 10px;
 }
 
 .singularity .preferences-row .circular-button {
-    min-width: 32px;
-    min-height: 32px;
-    padding: 6px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 4px;
     margin: 0;
 }
 
@@ -3954,7 +4055,13 @@ window.singularity.dialog {
     color: @text_color;
     background-color: transparent;
     font-size: 13px;
-    transition: all 0.2s;
+    transition: background-color var(--motion-duration-micro) var(--motion-curve-standard), color var(--motion-duration-micro) var(--motion-curve-standard), border-color var(--motion-duration-micro) var(--motion-curve-standard), box-shadow var(--motion-duration-micro) var(--motion-curve-standard), opacity var(--motion-duration-micro) var(--motion-curve-standard);
+}
+
+.singularity-calendar button.calendar-day-btn {
+    padding: 0;
+    min-width: 40px;
+    min-height: 40px;
 }
 
 .calendar-day-btn:hover {
@@ -3963,7 +4070,7 @@ window.singularity.dialog {
 
 .calendar-day-btn.today {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
     font-weight: bold;
 }
 
@@ -4100,7 +4207,7 @@ window.notification-display {
 
 .notification-group-badge {
     background-color: @accent_color;
-    color: white;
+    color: @accent_fg_color;
     border-radius: 9999px;
     font-size: 10px;
     font-weight: 700;
@@ -4180,6 +4287,9 @@ window.auth-dialog .dialog-content {
 window.auth-dialog .power-card {
     min-width: 360px;
 }
+window.auth-dialog .auth-fingerprint-status.success {
+    color: @success_color;
+}
 
 /* placeholder dimmed in preferences entry rows */
 .singularity .preferences-entry > text > placeholder {
@@ -4200,7 +4310,8 @@ window.auth-dialog .power-card {
     padding: 0;
 }
 
-.singularity .preferences-entry:focus {
+.singularity .preferences-entry:focus,
+.singularity .preferences-entry:focus-within {
     background: transparent;
     box-shadow: none;
 }
@@ -4259,7 +4370,7 @@ window.auth-dialog .power-card {
    is excluded - its wrapper already carries the .singularity-view-edge
    margin-top, and the simpler .file-view { padding-top: 0 } rule below
    needs to win. */
-.singularity-app:not(.ssd-mode) .file-grid {
+.singularity-app:not(.static-titlebar) .file-grid {
     padding-top: 60px;
 }
 
@@ -4314,9 +4425,10 @@ button.flat.singularity-hover-btn {
     padding: 0;
     border-radius: 99px;
     background-color: @hover_btn_bg;
+    background-image: none;
     border: 1px solid @hover_btn_border;
-    color: white;
-    box-shadow: none;
+    color: @hover_btn_fg;
+    box-shadow: 0 1px 3px alpha(black, 0.12);
     transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 .singularity-hover-btn.image-button,
@@ -4333,12 +4445,12 @@ button.flat.singularity-hover-btn.text-button {
 button.singularity-hover-btn image,
 button.flat.singularity-hover-btn image {
     -gtk-icon-size: 12px;
-    color: white;
+    color: @hover_btn_fg;
 }
 .singularity-hover-btn label,
 button.singularity-hover-btn label,
 button.flat.singularity-hover-btn label {
-    color: white;
+    color: @hover_btn_fg;
     font-size: 12px;
     font-weight: 500;
     min-height: 0;
@@ -4355,13 +4467,32 @@ button.flat.singularity-hover-btn box {
 .singularity-hover-btn:hover,
 button.singularity-hover-btn:hover,
 button.flat.singularity-hover-btn:hover {
-    background-color: alpha(black, 0.6);
-    border-color: alpha(white, 0.28);
+    background-color: @hover_btn_hover;
 }
 .singularity-hover-btn:active,
 button.singularity-hover-btn:active,
 button.flat.singularity-hover-btn:active {
-    background-color: alpha(black, 0.75);
+    background-color: @hover_btn_active;
+}
+.singularity-hover-btn:checked,
+button.singularity-hover-btn:checked,
+button.flat.singularity-hover-btn:checked {
+    background-color: @accent_bg_color;
+    border-color: alpha(@accent_bg_color, 0.85);
+    color: @accent_fg_color;
+}
+.singularity-hover-btn:checked:hover,
+button.singularity-hover-btn:checked:hover,
+button.flat.singularity-hover-btn:checked:hover {
+    background-color: mix(@accent_bg_color, @accent_fg_color, 0.12);
+}
+.singularity-hover-btn:checked image,
+.singularity-hover-btn:checked label,
+button.singularity-hover-btn:checked image,
+button.singularity-hover-btn:checked label,
+button.flat.singularity-hover-btn:checked image,
+button.flat.singularity-hover-btn:checked label {
+    color: @accent_fg_color;
 }
 /* Popovers/menus anchored to a hover button are descendants of it in the
    GTK4 widget tree, so the white-on-glass color above bleeds onto their own
@@ -4380,7 +4511,7 @@ button.flat.singularity-hover-btn:active {
    with `dimmed: true`). */
 .singularity-hover-label {
     padding: 2px 13px;
-    color: white;
+    color: @hover_btn_fg;
     font-size: 12px;
     font-weight: 500;
 }
@@ -4400,7 +4531,7 @@ button.flat.singularity-hover-btn:active {
     box-shadow: none;
     padding: 0 6px;
     min-height: 18px;
-    color: white;
+    color: @hover_btn_fg;
     font-size: 12px;
 }
 .singularity-search-bubble entry:focus-within,
@@ -4410,47 +4541,101 @@ button.flat.singularity-hover-btn:active {
 }
 .singularity-search-bubble entry > text,
 .singularity-search-bubble .search-entry > text {
-    color: white;
-    caret-color: white;
+    color: @hover_btn_fg;
+    caret-color: @hover_btn_fg;
+}
+.singularity-search-bubble entry > text > placeholder,
+.singularity-search-bubble .search-entry > text > placeholder {
+    color: alpha(@hover_btn_fg, 0.6);
 }
 .singularity-search-bubble image {
-    color: alpha(white, 0.7);
+    color: alpha(@hover_btn_fg, 0.7);
     -gtk-icon-size: 12px;
 }
 
-/* Segmented control inside a bubble: kill the outer panel chrome so
-   the SegmentedControl reads as a compact segmented pill matching
-   the bubble visual. Inner buttons reuse the bubble's white-on-dark
-   palette; the selected one gets an accent tint. */
 .singularity-hover-segmented {
-    background-color: transparent;
-    padding: 0;
+    padding: 2px;
     border-radius: 99px;
     min-height: 0;
 }
 .singularity-hover-segmented .segmented-inner {
-    background-color: alpha(white, 0.10);
-    border-radius: 99px;
-    padding: 2px;
+    background-color: transparent;
+    padding: 0;
     min-height: 0;
 }
 .singularity-hover-segmented button.segmented-button {
     background-color: transparent;
-    color: white;
-    border: none;
+    border: 1px solid transparent;
     box-shadow: none;
-    border-radius: 99px;
-    padding: 2px 10px;
+    border-radius: 20px;
+    padding: 5px 11px;
     min-height: 0;
+    font-weight: normal;
+}
+.singularity-hover-segmented button.segmented-button label {
+    color: alpha(@hover_btn_fg, 0.6);
     font-size: 12px;
-    font-weight: 500;
+    padding: 0;
+    margin: 0;
 }
-.singularity-hover-segmented button.segmented-button:hover {
-    background-color: alpha(white, 0.10);
+.singularity-hover-segmented button.segmented-button.active,
+.singularity-hover-segmented button.segmented-button.active:hover {
+    background-color: alpha(@hover_btn_fg, 0.12);
+    color: @hover_btn_fg;
+    box-shadow: none;
 }
-.singularity-hover-segmented button.segmented-button.active {
-    background-color: alpha(@accent_color, 0.65);
-    color: white;
+.singularity-hover-segmented button.segmented-button:hover label,
+.singularity-hover-segmented button.segmented-button.active label {
+    color: @hover_btn_fg;
+}
+
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-btn,
+.ssd-mode .singularity-sidebar-bubbles button.singularity-hover-btn,
+.ssd-mode .singularity-sidebar-bubbles button.flat.singularity-hover-btn {
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 8px;
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: @text_color;
+}
+.ssd-mode .singularity-sidebar-bubbles button.singularity-hover-btn.text-button {
+    padding: 0 8px;
+}
+.ssd-mode .singularity-sidebar-bubbles button.singularity-hover-btn:hover {
+    background-color: alpha(@text_color, 0.08);
+}
+.ssd-mode .singularity-sidebar-bubbles button.singularity-hover-btn:active,
+.ssd-mode .singularity-sidebar-bubbles button.singularity-hover-btn:checked {
+    background-color: alpha(@text_color, 0.14);
+}
+.ssd-mode .singularity-sidebar-bubbles button.singularity-hover-btn image {
+    -gtk-icon-size: 16px;
+    color: @text_color;
+}
+.ssd-mode .singularity-sidebar-bubbles button.singularity-hover-btn label {
+    color: @text_color;
+}
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-segmented {
+    background-color: alpha(@text_color, 0.06);
+    border-color: transparent;
+    box-shadow: none;
+    border-radius: 8px;
+}
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-segmented button.segmented-button {
+    border-radius: 6px;
+}
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-segmented button.segmented-button label {
+    color: alpha(@text_color, 0.65);
+}
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-segmented button.segmented-button.active,
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-segmented button.segmented-button.active:hover {
+    background-color: alpha(@text_color, 0.12);
+}
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-segmented button.segmented-button:hover label,
+.ssd-mode .singularity-sidebar-bubbles .singularity-hover-segmented button.segmented-button.active label {
+    color: @text_color;
 }
 
 /* Suggested-action variant: opt-in chip-active accent treatment for
@@ -4537,7 +4722,7 @@ button.flat.singularity-hover-btn.suggested-action:active {
     border-radius: 20px;
 }
 .files-path-bubble label {
-    color: alpha(white, 0.85);
+    color: alpha(@hover_btn_fg, 0.85);
     font-size: 12px;
 }
 
@@ -4549,17 +4734,17 @@ button.flat.singularity-hover-btn.suggested-action:active {
     border-radius: 20px;
 }
 .bubble-switcher button.bubble-switcher-item label {
-    color: alpha(white, 0.5);
+    color: alpha(@hover_btn_fg, 0.6);
     font-size: 12px;
     padding: 0;
     margin: 0;
 }
 .bubble-switcher button.bubble-switcher-item.current {
-    background-color: @card_hover_bg;
+    background-color: alpha(@hover_btn_fg, 0.12);
 }
 .bubble-switcher button.bubble-switcher-item:hover label,
 .bubble-switcher button.bubble-switcher-item.current label {
-    color: alpha(white, 0.95);
+    color: @hover_btn_fg;
 }
 .ssd-mode .bubble-switcher button.bubble-switcher-item label {
     color: alpha(@text_color, 0.5);
@@ -4626,6 +4811,12 @@ button.flat.singularity-hover-btn.suggested-action:active {
     background-color: alpha(@shadow_color, 0.25);
     border-top: 1px solid alpha(@text_color, 0.07);
     min-height: 34px;
+}
+
+.chip-bar.filter {
+    background-color: transparent;
+    border-top: none;
+    min-height: 0;
 }
 
 .chip {
@@ -5061,6 +5252,27 @@ flowboxchild.disk-card-child:focus {
     border: 1px solid @border_color;
 }
 
+.media-player-card button.media-player-dot {
+    min-width: 6px;
+    min-height: 6px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    box-shadow: none;
+    background-image: none;
+    background-color: alpha(@window_fg_color, 0.3);
+    transition: background-color var(--motion-duration-small) var(--motion-curve-standard);
+}
+
+.media-player-card button.media-player-dot:hover {
+    background-color: alpha(@window_fg_color, 0.55);
+}
+
+.media-player-card button.media-player-dot.active {
+    min-width: 14px;
+    background-color: @accent_bg_color;
+}
+
 /* --------------------- Overview widgets --------------------- */
 
 .overview-widget {
@@ -5127,12 +5339,14 @@ flowboxchild.disk-card-child:focus {
 }
 
 /* System stats - uses individual "cards" per metric. */
-.overview-sysstats {
+.overview-sysstats,
+.overview-widget-card {
     border-radius: 20px;
     background: alpha(@window_bg_color, 0.30);
     border: 1px solid alpha(@window_fg_color, 0.08);
 }
-.overview-sysstats-card {
+.overview-sysstats-card,
+.overview-widget-tile {
     border-radius: 12px;
     background: alpha(@window_fg_color, 0.04);
 }
@@ -5297,33 +5511,23 @@ popover.context-menu > contents {
     box-shadow: none;
 }
 .singularity-step-island button.flat {
-    color: white;
+    color: @hover_btn_fg;
     background: transparent;
     border: none;
 }
 .singularity-step-island button.flat:hover {
-    background-color: alpha(white, 0.14);
+    background-color: @hover_btn_hover;
 }
 .singularity-step-island button.flat:disabled {
-    color: alpha(white, 0.4);
+    color: alpha(@hover_btn_fg, 0.4);
 }
 .singularity-step-island-title {
-    color: white;
+    color: @hover_btn_fg;
     font-weight: 600;
     margin: 0 2px;
 }
-.singularity-step-dot {
-    min-width: 8px;
-    min-height: 8px;
-    border-radius: 99px;
-    background-color: alpha(white, 0.3);
-    transition: background-color 0.15s ease;
-}
-.singularity-step-dot.active {
-    background-color: white;
-}
-.singularity-step-dot.done {
-    background-color: alpha(white, 0.7);
+.singularity-step-dots {
+    color: @hover_btn_fg;
 }
 
 .singularity-section-header {
@@ -5512,4 +5716,903 @@ row.settings-highlight,
     background-color: alpha(@accent_color, 0.22);
     border-radius: 12px;
     transition: background-color 400ms ease-out;
+}
+
+.swipe-nav-indicator {
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 20px;
+    background-color: alpha(@text_color, 0.12);
+    color: @text_color;
+    transition: background-color 120ms ease-out;
+}
+
+.swipe-nav-indicator.ready {
+    background-color: @accent_color;
+    color: @accent_fg_color;
+}
+
+window.image-viewer {
+    background-color: rgba(0, 0, 0, 0.92);
+}
+
+.image-viewer-bar {
+    padding: 4px;
+    border-radius: 999px;
+    background-color: @hover_btn_bg;
+    border: 1px solid @hover_btn_border;
+    box-shadow: 0 2px 10px alpha(black, 0.35);
+}
+
+.image-viewer-bar button,
+button.image-viewer-nav {
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0;
+    color: @hover_btn_fg;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+
+button.image-viewer-nav {
+    min-width: 40px;
+    min-height: 40px;
+    background-color: @hover_btn_bg;
+    border: 1px solid @hover_btn_border;
+    box-shadow: 0 2px 10px alpha(black, 0.35);
+}
+
+.image-viewer-bar button image,
+button.image-viewer-nav image {
+    color: @hover_btn_fg;
+    -gtk-icon-size: 14px;
+}
+
+.image-viewer-bar button:hover,
+button.image-viewer-nav:hover {
+    background-color: @hover_btn_hover;
+}
+
+.image-viewer-bar button:focus-visible,
+button.image-viewer-nav:focus-visible {
+    outline: 2px solid alpha(@accent_color, 0.6);
+    outline-offset: -2px;
+}
+
+.image-viewer-counter {
+    color: @hover_btn_fg;
+    font-size: 12px;
+    font-weight: 500;
+    font-feature-settings: "tnum";
+}
+
+.scale-chooser-value {
+    font-weight: 700;
+    font-feature-settings: "tnum";
+}
+
+button.scale-chooser-preset {
+    border-radius: 999px;
+    padding: 4px 10px;
+    background-image: none;
+}
+
+button.scale-chooser-preset:checked {
+    background-color: @accent_color;
+    color: @accent_fg_color;
+}
+
+button.scale-chooser-preset.recommended:not(:checked) {
+    box-shadow: inset 0 0 0 1px alpha(@accent_color, 0.8);
+}
+
+.scale-chooser-preview {
+    border-radius: 12px;
+    background-color: alpha(@text_color, 0.04);
+}
+
+/* Narrow windows: the sidebar opens as a drawer over the content. */
+.window-drawer {
+    background-color: @window_bg;
+    border-right: 1px solid @border_color;
+    box-shadow: 0 0 18px alpha(@shadow_color, 0.35);
+}
+.window-drawer .window-sidebar {
+    border-right: none;
+}
+.window-drawer-scrim {
+    background-color: alpha(black, 0.32);
+}
+.window-drawer .cal-nav-picker button.cal-nav-day-btn {
+    padding: 0 2px;
+}
+.window-drawer .cal-nav-picker button.circular {
+    padding: 0;
+}
+.window-drawer .cal-nav-picker button.cal-nav-today-btn {
+    padding: 2px 8px;
+}
+
+button.suggested-action label,
+button.suggested-action image,
+.singularity .suggested-action label,
+.singularity .suggested-action image,
+.singularity button.singularity-bubble-button.suggested-action label,
+.singularity button.singularity-bubble-button.suggested-action image,
+.calendar-day-btn.today label,
+.calendar-day-btn.today image,
+.overview-calc-accent label,
+.overview-calc-accent image,
+.singularity-overlay-search-list row:selected label,
+.singularity-overlay-search-list row:selected image,
+.osk button.osk-key.locked label,
+.osk button.osk-key.locked image,
+button.scale-chooser-preset:checked label,
+button.scale-chooser-preset:checked image {
+    color: @accent_fg_color;
+}
+
+.singularity .singularity-hover-btn.suggested-action label,
+.singularity .singularity-hover-btn.suggested-action image {
+    color: @hover_btn_fg;
+}
+
+button.suggested-action:disabled:not(.singularity-hover-btn) label,
+button.suggested-action:disabled:not(.singularity-hover-btn) image,
+.singularity button.suggested-action:disabled:not(.singularity-hover-btn) label,
+.singularity button.suggested-action:disabled:not(.singularity-hover-btn) image,
+.singularity button.singularity-bubble-button.suggested-action:disabled label,
+.singularity button.singularity-bubble-button.suggested-action:disabled image,
+button.destructive-action:disabled:not(.singularity-hover-btn) label,
+button.destructive-action:disabled:not(.singularity-hover-btn) image,
+.singularity button.destructive-action:disabled:not(.singularity-hover-btn) label,
+.singularity button.destructive-action:disabled:not(.singularity-hover-btn) image {
+    color: @text_color;
+}
+
+.singularity button.share-tile {
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+    padding: 8px 2px 6px 2px;
+    transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.singularity button.share-tile:hover {
+    background-color: @card_bg;
+    border-color: @hover_btn_border;
+    box-shadow: 0 1px 3px alpha(black, 0.12);
+}
+.singularity button.share-tile:active {
+    background-color: @button_active_bg;
+    border-color: @button_hover_border;
+    box-shadow: none;
+}
+.singularity button.share-tile:focus-visible {
+    outline: 2px solid alpha(@accent_color, 0.7);
+    outline-offset: -2px;
+}
+.share-preview {
+    border-radius: 10px;
+}
+.share-qr {
+    border-radius: 12px;
+}
+.print-dialog .dialog-content {
+    padding: 0;
+}
+.print-stage {
+    background-color: alpha(@text_color, 0.045);
+    border-radius: 0 0 0 14px;
+    border-right: 1px solid @border_color;
+}
+.print-preview-bar {
+    padding: 6px 10px;
+    margin: 4px 0 2px 0;
+}
+.print-position {
+    font-feature-settings: "tnum";
+    font-weight: 600;
+}
+.print-zoom-label {
+    min-width: 52px;
+    font-feature-settings: "tnum";
+}
+.print-thumb-strip {
+    padding: 4px 16px 12px 16px;
+}
+.print-thumbs {
+    padding: 6px 4px;
+}
+button.print-thumb {
+    padding: 6px 6px 4px 6px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-image: none;
+    box-shadow: none;
+}
+button.print-thumb:hover {
+    background-color: @card_bg;
+}
+button.print-thumb.selected {
+    border-color: alpha(@accent_color, 0.85);
+    background-color: alpha(@accent_color, 0.08);
+}
+.print-panel {
+    background-color: @window_bg;
+    border-radius: 0 0 14px 0;
+}
+.print-footer {
+    padding: 12px 18px 16px 18px;
+    border-top: 1px solid @border_color;
+}
+button.print-picker-button {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background-color: @card_bg;
+    background-image: none;
+    border: 1px solid @border_color;
+    box-shadow: none;
+}
+button.print-picker-button:hover {
+    background-color: @card_hover_bg;
+    border-color: @hover_btn_border;
+}
+.print-picker-list,
+.print-picker-list row {
+    background: transparent;
+}
+.print-picker-list row.print-picker-row {
+    padding: 8px 10px;
+    border-radius: 12px;
+}
+.print-picker-list row.print-picker-row:hover {
+    background-color: @card_hover_bg;
+}
+.print-status-dot {
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 999px;
+    background-color: @success_color;
+}
+.print-status-dot.printing {
+    background-color: @accent_color;
+}
+.print-status-dot.paused,
+.print-status-dot.low {
+    background-color: @warning_color;
+}
+.print-status-dot.offline {
+    background-color: alpha(@text_color, 0.35);
+}
+.print-status-dot.attention {
+    background-color: @error_color;
+}
+.print-default-star {
+    color: @warning_color;
+    -gtk-icon-size: 12px;
+}
+.print-ink-levels-large label.warning {
+    color: @warning_color;
+    font-weight: 600;
+}
+.print-orientation button {
+    min-width: 34px;
+    min-height: 30px;
+    padding: 0;
+}
+.print-orientation button:checked {
+    background-color: alpha(@accent_color, 0.22);
+    border-color: alpha(@accent_color, 0.5);
+}
+.print-orient-portrait,
+.print-orient-landscape {
+    border: 1.5px solid currentColor;
+    border-radius: 2px;
+    background-color: alpha(currentColor, 0.12);
+}
+
+.markup-editor {
+    background-color: alpha(@text_color, 0.06);
+}
+.markup-toolbar,
+.live-text-bar {
+    background-color: @hover_btn_bg;
+    border: 1px solid @hover_btn_border;
+    border-radius: 99px;
+    box-shadow: 0 6px 18px alpha(black, 0.18), 0 1px 3px alpha(black, 0.12);
+    padding: 4px 6px;
+    color: @hover_btn_fg;
+}
+.markup-toolbar button,
+.markup-toolbar button.flat,
+.markup-toolbar button.image-button,
+.live-text-bar button.live-text-toggle {
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0;
+    border-radius: 99px;
+    background: none;
+    color: @hover_btn_fg;
+    transition: background-color 0.12s ease;
+}
+.markup-toolbar button image {
+    -gtk-icon-size: 16px;
+    color: @hover_btn_fg;
+}
+.markup-toolbar button:hover {
+    background-color: @hover_btn_hover;
+}
+.markup-toolbar button:checked,
+.markup-toolbar button:checked:hover {
+    background-color: @accent_color;
+    color: @accent_fg;
+}
+.markup-toolbar button:checked image {
+    color: @accent_fg;
+}
+.markup-toolbar button:disabled image {
+    opacity: 0.35;
+}
+.markup-toolbar-sep {
+    min-width: 1px;
+    margin: 6px 4px;
+    background-color: alpha(@hover_btn_fg, 0.18);
+}
+.markup-swatch {
+    min-width: 16px;
+    min-height: 16px;
+    border-radius: 99px;
+    box-shadow: 0 0 0 2px alpha(white, 0.9), 0 0 0 3px alpha(black, 0.18);
+}
+.markup-style-popover > contents {
+    border-radius: 18px;
+}
+button.markup-color {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 99px;
+    background: none;
+}
+.markup-color-dot {
+    min-width: 20px;
+    min-height: 20px;
+    border-radius: 99px;
+    box-shadow: inset 0 0 0 1px alpha(black, 0.15);
+}
+.markup-color-0 { background-color: #e01b24; }
+.markup-color-1 { background-color: #ff7800; }
+.markup-color-2 { background-color: #f6d32d; }
+.markup-color-3 { background-color: #33d17a; }
+.markup-color-4 { background-color: #3584e4; }
+.markup-color-5 { background-color: #9141ac; }
+.markup-color-6 { background-color: #000000; }
+.markup-color-7 { background-color: #ffffff; }
+entry.markup-text-entry {
+    min-height: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px alpha(black, 0.2);
+}
+.live-text-bar {
+    border-radius: 22px;
+    padding: 6px 8px 6px 14px;
+}
+.live-text-bar label {
+    color: @hover_btn_fg;
+}
+.live-text-status {
+    font-weight: 600;
+    font-size: 13px;
+}
+.live-text-bar button.pill {
+    min-height: 28px;
+    padding: 0 12px;
+}
+.live-text-bar.unavailable {
+    padding: 10px 16px;
+}
+button.singularity-hover-btn.live-text-toggle:checked,
+button.flat.singularity-hover-btn.live-text-toggle:checked {
+    background-color: @accent_color;
+    border-color: @accent_color;
+}
+button.singularity-hover-btn.live-text-toggle:checked image {
+    color: @accent_fg;
+}
+.singularity-hover-on-content .live-text-toggle:checked {
+    opacity: 1;
+}
+button.markup-choice {
+    min-width: 36px;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 99px;
+    background-color: alpha(@text_color, 0.06);
+}
+button.markup-choice:checked {
+    background-color: @accent_color;
+    color: @accent_fg;
+}
+button.markup-choice:checked label {
+    color: @accent_fg;
+}
+.markup-size-s,
+.markup-size-m,
+.markup-size-l {
+    border-radius: 99px;
+    background-color: currentColor;
+}
+.markup-size-s { min-width: 4px; min-height: 4px; }
+.markup-size-m { min-width: 8px; min-height: 8px; }
+.markup-size-l { min-width: 14px; min-height: 14px; }
+
+.focus-banner {
+    background-color: alpha(@accent_color, 0.14);
+    border: 1px solid alpha(@accent_color, 0.28);
+    border-radius: 16px;
+    padding: 10px 12px;
+}
+.focus-banner-title { font-weight: 700; }
+.focus-on-label { color: @accent_color; font-weight: 600; }
+.panel-button.focus-active image,
+.notification-button.focus-active image { color: @accent_color; }
+.notification-stack-summary { opacity: 0.7; }
+.notification-stack-top { border-top: 1px solid alpha(@text_color, 0.05); }
+.notification-stack-edge {
+    min-height: 6px;
+    margin: 0 14px;
+    border-radius: 0 0 12px 12px;
+    background-color: alpha(@text_color, 0.06);
+}
+.notification-quiet { opacity: 0.82; }
+.notification-quiet-tag { color: alpha(@text_color, 0.6); font-style: italic; }
+.notification-urgent-tag { color: @warning_color; font-weight: 600; }
+.notification-reply entry { border-radius: 99px; }
+window.clipboard-popup-window { background: transparent; }
+.clipboard-popup {
+    background-color: @window_bg;
+    border: 1px solid alpha(@text_color, 0.10);
+    border-radius: 18px;
+    box-shadow: 0 8px 32px alpha(@shadow_color, 0.55);
+    padding: 12px;
+    margin: 24px;
+}
+.clipboard-popup-title { font-weight: 700; font-size: 15px; }
+window.snap-picker-window { background: transparent; }
+.snap-picker {
+    background-color: @window_bg;
+    border: 1px solid alpha(@text_color, 0.10);
+    border-radius: 18px;
+    box-shadow: 0 8px 28px alpha(@shadow_color, 0.5);
+    padding: 12px;
+    margin: 24px;
+}
+.snap-picker-title { font-weight: 700; font-size: 13px; opacity: 0.75; }
+.snap-layout-tile {
+    border-radius: 10px;
+    padding: 0;
+}
+.snap-zone {
+    background-color: alpha(@text_color, 0.12);
+    border: 1px solid alpha(@text_color, 0.16);
+    border-radius: 6px;
+    transition: background-color var(--motion-duration-micro) var(--motion-curve-standard), border-color var(--motion-duration-micro) var(--motion-curve-standard);
+}
+.snap-zone.hover {
+    background-color: @accent_color;
+    border-color: @accent_color;
+}
+window.snap-assist-window { background: transparent; }
+.snap-assist-zone {
+    background-color: alpha(@window_bg, 0.55);
+    border: 1px solid alpha(@text_color, 0.14);
+    border-radius: 18px;
+}
+.snap-assist-zone.active {
+    background-color: alpha(@window_bg, 0.86);
+    box-shadow: 0 10px 36px alpha(@shadow_color, 0.45);
+    padding: 20px;
+}
+.snap-assist-grid flowboxchild { padding: 0; border-radius: 16px; }
+.snap-assist-card {
+    padding: 10px;
+    border-radius: 14px;
+    background-color: alpha(@text_color, 0.05);
+    border: 1px solid alpha(@text_color, 0.08);
+}
+.snap-assist-grid flowboxchild:hover .snap-assist-card,
+.snap-assist-grid flowboxchild:focus-visible .snap-assist-card {
+    background-color: alpha(@accent_color, 0.18);
+    border-color: @accent_color;
+}
+.snap-assist-thumb { border-radius: 10px; background-color: alpha(@text_color, 0.06); }
+.snap-assist-card-title { font-weight: 600; }
+window.shortcut-cheatsheet-window { background: transparent; }
+.shortcut-cheatsheet-scrim { background-color: alpha(@shadow_color, 0.28); }
+.shortcut-cheatsheet {
+    background-color: @window_bg;
+    border: 1px solid alpha(@text_color, 0.10);
+    border-radius: 22px;
+    box-shadow: 0 12px 40px alpha(@shadow_color, 0.55);
+    padding: 20px 24px;
+    margin: 40px;
+}
+.shortcut-cheatsheet-title { font-weight: 700; font-size: 18px; }
+.shortcut-cheatsheet-area { font-weight: 700; font-size: 13px; color: @accent_color; }
+.shortcut-cheatsheet-section { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.shortcut-cheatsheet-row { min-height: 26px; font-size: 13px; }
+.shortcut-cheatsheet-key {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    min-width: 14px;
+    border-radius: 6px;
+    background-color: alpha(@text_color, 0.08);
+    border: 1px solid alpha(@text_color, 0.14);
+    border-bottom-width: 2px;
+}
+.clipboard-list { background: transparent; }
+.clipboard-row { border-radius: 12px; margin: 2px 0; }
+.clipboard-row:selected { background-color: alpha(@accent_color, 0.18); }
+.clipboard-image { border-radius: 8px; }
+button.focus-day { min-width: 36px; min-height: 36px; padding: 0; margin: 0; border-radius: 99px; }
+button.focus-day:checked { background-color: @accent_color; color: @accent_fg_color; }
+.print-picker-check {
+    color: @accent_color;
+}
+
+window.stage-strip-window, window.stage-strip-window > scrolledwindow { background: transparent; }
+.stage-current {
+    border-radius: 14px;
+    padding: 0 12px;
+    background-color: alpha(@window_bg, 0.72);
+    border: 1px solid alpha(@text_color, 0.10);
+    box-shadow: 0 4px 16px alpha(@shadow_color, 0.30);
+}
+.stage-tile { border-radius: 16px; padding: 0; }
+.stage-tile-preview { border-radius: 14px; }
+.stage-thumb {
+    border-radius: 10px;
+    background-color: @window_bg;
+    border: 1px solid alpha(@text_color, 0.12);
+    box-shadow: 0 6px 18px alpha(@shadow_color, 0.45);
+}
+.stage-thumb-empty { background-color: alpha(@window_bg, 0.85); }
+.stage-tile:hover .stage-thumb { border-color: alpha(@accent_color, 0.60); }
+.stage-icon { -gtk-icon-shadow: 0 1px 3px alpha(@shadow_color, 0.45); }
+.stage-new-set {
+    border-radius: 16px;
+    border: 2px dashed alpha(@text_color, 0.30);
+    background-color: alpha(@window_bg, 0.55);
+}
+.stage-drop-hover.stage-tile .stage-thumb,
+.stage-current.stage-drop-hover,
+.stage-new-set.stage-drop-hover {
+    border-color: @accent_color;
+    background-color: alpha(@accent_color, 0.18);
+}
+.stage-current-label { font-weight: 600; }
+
+.singularity-focus-ring-motion .singularity-focus-ringed,
+.singularity-focus-ring-motion .singularity-focus-ringed:focus:focus-visible,
+.singularity-focus-ring-motion .singularity-focus-ringed:focus-within:focus-visible {
+    outline-style: none;
+}
+
+.singularity-focus-ring-motion .singularity-focus-ringed:focus-visible > check,
+.singularity-focus-ring-motion .singularity-focus-ringed:focus-visible > radio {
+    box-shadow: none;
+}
+
+.singularity-drag-lift {
+    border-radius: 10px;
+    box-shadow: 0 2px 6px alpha(black, 0.16);
+    transition: box-shadow var(--motion-duration-small) var(--motion-curve-standard);
+}
+
+.singularity-drag-lift.lifted {
+    box-shadow: 0 14px 32px alpha(black, 0.32), 0 3px 8px alpha(black, 0.18);
+}
+
+.sandbox-badge {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background-color: alpha(currentColor, 0.1);
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.context-ribbon {
+    border-bottom: 1px solid alpha(currentColor, 0.08);
+}
+.context-ribbon-strip {
+    margin: 4px 18px;
+}
+.singularity-tool-row {
+    border-bottom: 1px solid alpha(@text_color, 0.07);
+}
+.singularity-tool-row > viewport > box {
+    padding: 4px 12px;
+    min-height: 36px;
+}
+.singularity-tool-row button,
+.singularity-tool-row button.flat {
+    min-height: 32px;
+    min-width: 32px;
+    padding: 0 8px;
+    border-radius: 8px;
+}
+.singularity-tool-row entry {
+    min-height: 0;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+.singularity-tool-row .bubble-switcher button.bubble-switcher-item {
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 99px;
+}
+.singularity-tool-row .bubble-switcher button.bubble-switcher-item label {
+    color: alpha(@text_color, 0.6);
+    font-size: 13px;
+}
+.singularity-tool-row .bubble-switcher button.bubble-switcher-item.current {
+    background-color: alpha(@text_color, 0.08);
+}
+.singularity-tool-row .bubble-switcher button.bubble-switcher-item:hover label,
+.singularity-tool-row .bubble-switcher button.bubble-switcher-item.current label {
+    color: @text_color;
+}
+.context-ribbon-tab-row {
+    margin: 6px 16px 0;
+}
+.context-ribbon-tab-row .bubble-switcher button.bubble-switcher-item {
+    min-height: 26px;
+    padding: 0 12px;
+}
+.context-ribbon-tab-row .bubble-switcher button.bubble-switcher-item label {
+    color: alpha(@text_color, 0.6);
+    font-size: 13px;
+}
+.context-ribbon-tab-row .bubble-switcher button.bubble-switcher-item.current {
+    background-color: alpha(@text_color, 0.08);
+}
+.context-ribbon-tab-row .bubble-switcher button.bubble-switcher-item:hover label,
+.context-ribbon-tab-row .bubble-switcher button.bubble-switcher-item.current label {
+    color: @text_color;
+}
+.context-ribbon button.context-ribbon-item:checked {
+    background-color: alpha(@accent_color, 0.18);
+    color: @accent_color;
+}
+.context-ribbon button.context-ribbon-item:checked image,
+.context-ribbon button.context-ribbon-item:checked label {
+    color: @accent_color;
+}
+.context-ribbon button.context-ribbon-selector label {
+    font-feature-settings: "tnum";
+}
+popover.context-menu.context-ribbon-menu .menu-row.checked {
+    font-weight: 600;
+}
+
+.sidebar-tabs {
+    padding: 2px;
+    border-radius: 99px;
+    background-color: @hover_btn_bg;
+    border: 1px solid @hover_btn_border;
+    box-shadow: 0 1px 3px alpha(black, 0.12);
+}
+.sidebar-tabs button.bubble-switcher-item {
+    min-height: 24px;
+    padding: 0 10px;
+}
+.sidebar-tabs button.bubble-switcher-item label {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.singularity-classic-menubar {
+    margin: 0 4px;
+}
+dropdown > popover {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 20px;
+}
+dropdown > popover > contents {
+    background-color: @surface_raised;
+    color: @text_color;
+    border: 1px solid alpha(@text_color, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px alpha(@shadow_color, 0.30), 0 6px 14px alpha(@shadow_color, 0.42);
+    padding: 4px;
+}
+dropdown > popover listview {
+    background-color: transparent;
+}
+dropdown > popover listview > row {
+    min-height: 28px;
+    padding: 2px 10px;
+    border-radius: 6px;
+}
+dropdown > popover listview > row:hover {
+    background-color: @accent_color;
+    color: @accent_fg_color;
+}
+dropdown > popover listview > row:selected {
+    background-color: alpha(@accent_color, 0.18);
+}
+
+.singularity-toolbar button.suggested-action,
+.singularity-toolbar button.flat.suggested-action {
+  background-color: @accent_color;
+  color: @accent_fg_color;
+}
+.singularity-toolbar button.suggested-action:hover,
+.singularity-toolbar button.flat.suggested-action:hover {
+  background-color: mix(@accent_color, white, 0.85);
+}
+.singularity-toolbar button.suggested-action label {
+  color: @accent_fg_color;
+}
+
+.context-menu .check-row:not(.checked) image {
+  opacity: 0;
+}
+
+.sx-tool-palette {
+  background-color: @window_bg_color;
+  border-radius: 14px;
+  padding: 4px;
+  box-shadow: 0 2px 10px alpha(black, 0.18), 0 0 0 1px alpha(@window_fg_color, 0.08);
+}
+
+.sx-tool-palette button.sx-tool {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.sx-tool-palette button.sx-tool:checked {
+  background-color: @accent_bg_color;
+  color: @accent_fg_color;
+}
+
+.sx-tool-separator {
+  margin: 3px 6px;
+  background-color: alpha(@window_fg_color, 0.12);
+  min-height: 1px;
+}
+
+.sx-control-strip {
+  min-height: 36px;
+}
+
+.sx-control-strip button.flat:checked,
+.sx-control-strip button.flat:checked:hover {
+  background-color: alpha(@accent_color, 0.22);
+  color: @accent_color;
+}
+
+.sx-control-strip .numeric {
+  font-feature-settings: "tnum";
+}
+
+.sx-control-strip-sep {
+  margin: 8px 2px;
+}
+
+.singularity .preferences-row .row-content {
+    padding: 5px 12px;
+}
+
+.singularity .preferences-row .row-icon {
+    -gtk-icon-size: 16px;
+    margin-right: 10px;
+}
+
+.singularity .preferences-group {
+    margin-bottom: 12px;
+}
+
+.singularity .preferences-group .group-header {
+    padding: 8px 12px 2px;
+}
+
+.preferences-page-margins {
+    margin: 20px 32px;
+}
+
+.welcome-card-content {
+    padding: 12px 14px;
+}
+
+.singularity-sidebar-row {
+    padding: 4px 10px;
+    min-height: 24px;
+}
+.singularity-sidebar-row > box > image {
+    -gtk-icon-size: 16px;
+}
+.sidebar-section-label {
+    margin-top: 10px;
+}
+.sidebar-section-label label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.singularity popover.context-menu button.flat.menu-row,
+.singularity popover.context-menu .menu-row {
+    min-height: 22px;
+    padding: 1px 8px;
+}
+.singularity popover.context-menu .menu-row label {
+    font-size: 13px;
+}
+.singularity popover.context-menu separator {
+    margin: 4px 6px;
+}
+
+.bubble-switcher button.bubble-switcher-item {
+    min-height: 22px;
+    padding: 2px 12px;
+}
+.segmented-inner,
+.segmented-button {
+    min-height: 20px;
+}
+.segmented-button {
+    padding: 1px 12px;
+}
+.singularity entry.search {
+    padding: 3px 10px;
+    min-height: 22px;
+}
+.singularity entry.search image {
+    -gtk-icon-size: 14px;
+}
+
+.singularity-toast {
+    padding: 4px 4px 4px 14px;
+    border-radius: 16px;
+}
+.singularity-toast label {
+    font-size: 13px;
+}
+.singularity .singularity-toast button {
+    min-height: 20px;
+    min-width: 20px;
+    padding: 3px 10px;
+}
+.singularity .singularity-toast button.circular {
+    padding: 3px;
+}
+.singularity-banner {
+    padding: 6px 6px 6px 12px;
+}
+.status-page .status-page-icon {
+    -gtk-icon-size: 64px;
+}
+.status-page.compact .status-page-icon {
+    -gtk-icon-size: 48px;
+}
+.status-page:not(.compact) .status-page-title {
+    font-size: 20px;
+}
+
+.dialog-titlebar {
+    padding: 8px 14px;
+    min-height: 32px;
+}
+.dialog-card button.pill {
+    min-height: 20px;
+    padding: 4px 16px;
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="dev.sinty.test.plugins" path="/dev/sinty/test/plugins/">
+    <key name="enabled-plugins" type="as">
+      <default>[]</default>
+    </key>
+    <key name="disabled-plugins" type="as">
+      <default>[]</default>
+    </key>
+  </schema>
+</schemalist>

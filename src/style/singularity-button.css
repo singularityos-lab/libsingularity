@@ -1,0 +1,19 @@
+.singularity button {
+    background-color: @card_bg;
+    background-image: none;
+    color: white;
+    border: none;
+    outline: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+}
+
+.singularity button:active {
+    background-color: @accent_color;
+    color: white;
+}
+
+.singularity button:disabled {
+    background-color: alpha(@text_color, 0.05);
+    color: alpha(@text_color, 0.3);
+}

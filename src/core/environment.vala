@@ -69,6 +69,99 @@ namespace Singularity {
             }
         }
 
+        /** Session bus name owned by the Singularity shell. */
+        public const string SHELL_BUS_NAME = "dev.sinty.desktop";
+
+        /**
+         * Returns true when the desktop shows application menus in its top
+         * panel: the Singularity shell is running and the desktop's
+         * `global-menu-enabled` key is on. When this returns false,
+         * Widgets.Window hides GTK's in-window menu bar and offers the
+         * application menu bar in an App Menu bubble instead.
+         */
+        public static bool is_global_menu_active () {
+            return is_shell_running () && global_menu_enabled ();
+        }
+
+        /** Key of the desktop settings that turns the file history on and off. */
+        public const string FILE_HISTORY_KEY = "remember-recent-files";
+
+        /**
+         * Whether apps may keep and show recently used files, as set in
+         * Settings, Applications, Privacy. Apps check it before recording
+         * or listing their own file history; true when the desktop
+         * settings are not installed.
+         */
+        public static bool file_history_enabled () {
+            var settings = Core.safe_settings (desktop_settings_schema);
+            if (settings == null || !settings.settings_schema.has_key (FILE_HISTORY_KEY))
+                return true;
+            return settings.get_boolean (FILE_HISTORY_KEY);
+        }
+
+        internal static bool global_menu_enabled () {
+            var settings = Core.safe_settings (desktop_settings_schema);
+            if (settings == null || !settings.settings_schema.has_key ("global-menu-enabled"))
+                return true;
+            return settings.get_boolean ("global-menu-enabled");
+        }
+
+        /**
+         * Returns the directories that may hold `subdir` under a data
+         * directory, most specific first: the user data directory, the
+         * install prefix of the running binary, every XDG system data
+         * directory and /opt/local/share. Duplicates are removed.
+         *
+         * @param subdir Path below the data directory, e.g. `singularity/search-providers`.
+         */
+        public static string[] data_dirs (string subdir) {
+            string[] roots = { Environment.get_user_data_dir () };
+            try {
+                string exe = FileUtils.read_link ("/proc/self/exe");
+                roots += Path.build_filename (Path.get_dirname (Path.get_dirname (exe)), "share");
+            } catch (Error e) {
+            }
+            foreach (unowned string d in Environment.get_system_data_dirs ())
+                roots += d;
+            roots += "/opt/local/share";
+            string[] dirs = {};
+            foreach (string root in roots) {
+                string dir = Path.build_filename (root, subdir);
+                if (!(dir in dirs))
+                    dirs += dir;
+            }
+            return dirs;
+        }
+
+        /**
+         * Returns the files ending in `suffix` found in `data_dirs (subdir)`.
+         * When the same file name exists in several directories, only the
+         * most specific one is returned, so a user copy overrides a system one.
+         *
+         * @param subdir Path below the data directory.
+         * @param suffix File name suffix, e.g. `.ini`.
+         */
+        public static string[] find_data_files (string subdir, string suffix) {
+            string[] names = {};
+            string[] paths = {};
+            foreach (string dir in data_dirs (subdir)) {
+                Dir handle;
+                try {
+                    handle = Dir.open (dir, 0);
+                } catch (FileError e) {
+                    continue;
+                }
+                string? name;
+                while ((name = handle.read_name ()) != null) {
+                    if (!name.has_suffix (suffix) || name in names)
+                        continue;
+                    names += name;
+                    paths += Path.build_filename (dir, name);
+                }
+            }
+            return paths;
+        }
+
         private static int _is_sinty_os = -1;
 
         /**

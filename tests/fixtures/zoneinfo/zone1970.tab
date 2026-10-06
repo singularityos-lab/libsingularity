@@ -1,0 +1,6 @@
+# tzdb timezone descriptions
+#codes	coordinates	TZ	comments
+IT,SM,VA	+4154+01229	Europe/Rome
+GB,GG,IM,JE	+513030-0000731	Europe/London
+NO,SJ	+5955+01045	Europe/Oslo
+AU	-3352+15113	Australia/Sydney	 New South Wales (most areas)

@@ -44,6 +44,7 @@ namespace Singularity {
         public bool vpn_active { get; private set; default = false; }
         public string vpn_name { get; private set; default = ""; }
         public string vpn_icon { get; private set; default = "network-vpn-symbolic"; }
+        public DynamicInternetManager dynamic_internet { get; private set; }
         public signal void access_points_changed();
         public signal void state_changed();
         public signal void vpn_state_changed();
@@ -60,6 +61,7 @@ namespace Singularity {
         // chipset/capability probe completes -- whichever, the settings
         // page's list needs a full rebuild rather than one row's update.
         public signal void ethernet_ports_changed();
+        public signal void wifi_connections_changed();
 
         private const string HOTSPOT_ID = "Singularity Hotspot";
         private const string WIRED_SHARE_ID = "Singularity Wired Sharing";
@@ -118,9 +120,19 @@ namespace Singularity {
         private GenericArray<EthernetPortInfo> ethernet_ports_list = new GenericArray<EthernetPortInfo>();
         private bool wifi_request_in_flight = false;
         private bool wifi_requested_state = false;
+        private GLib.Settings desktop_settings;
 
         public NetworkManagerWrapper() {
+            desktop_settings = new GLib.Settings("dev.sinty.desktop");
+            dynamic_internet = new DynamicInternetManager();
+            dynamic_internet.set_active(
+                desktop_settings.get_boolean("dynamic-internet-enabled"));
             init_client.begin();
+        }
+
+        public void set_dynamic_internet_enabled(bool enabled) {
+            desktop_settings.set_boolean("dynamic-internet-enabled", enabled);
+            dynamic_internet.set_active(enabled);
         }
 
         private async void init_client() {
@@ -129,6 +141,8 @@ namespace Singularity {
                 yield client.init_async(Priority.DEFAULT, null);
                 if (client != null) {
                     message("NetworkManager Client initialized");
+                    dynamic_internet.set_fallback_backend(
+                        new NetworkManagerDynamicInternetBackend(client));
                     find_wifi_device();
                     client.notify["wireless-enabled"].connect(() => {
                         update_state();
@@ -147,9 +161,11 @@ namespace Singularity {
                     });
                     client.connection_added.connect((conn) => {
                         vpn_connections_changed();
+                        if (conn.get_connection_type() == "802-11-wireless") wifi_connections_changed();
                     });
                     client.connection_removed.connect((conn) => {
                         vpn_connections_changed();
+                        if (conn.get_connection_type() == "802-11-wireless") wifi_connections_changed();
                     });
                     foreach (var active in client.get_active_connections())
                         watch_vpn_connection(active);
@@ -170,25 +186,7 @@ namespace Singularity {
             var devices = client.get_devices();
             foreach (var device in devices) {
                 if (device is NM.DeviceWifi) {
-                    var wd = (NM.DeviceWifi) device;
-                    wifi_devices.add(wd);
-                    if (wifi_device == null) {
-                        wifi_device = wd;
-                        has_wifi = true;
-                        wifi_device.access_point_added.connect(() => {
-                            this.access_points_changed();
-                        });
-                        wifi_device.access_point_removed.connect(() => {
-                            this.access_points_changed();
-                        });
-                        wifi_device.notify["active-access-point"].connect(() => {
-                            update_state();
-                            var ap = wifi_device.get_active_access_point();
-                            if (ap != null) {
-                                ap.notify["strength"].connect(() => update_state());
-                            }
-                        });
-                    }
+                    register_wifi_device((NM.DeviceWifi) device);
                 } else if (device is NM.DeviceEthernet) {
                     register_ethernet_device((NM.DeviceEthernet) device);
                 }
@@ -205,13 +203,27 @@ namespace Singularity {
             // which directly contradicts what ethernet_ports_changed()
             // promises its subscribers.
             client.device_added.connect((device) => {
-                if (device is NM.DeviceEthernet) {
+                if (device is NM.DeviceWifi) {
+                    register_wifi_device((NM.DeviceWifi) device);
+                    access_points_changed();
+                    update_state();
+                } else if (device is NM.DeviceEthernet) {
                     register_ethernet_device((NM.DeviceEthernet) device);
                     ethernet_ports_changed();
                     update_state();
                 }
             });
             client.device_removed.connect((device) => {
+                if (device is NM.DeviceWifi) {
+                    var gone_wifi = (NM.DeviceWifi) device;
+                    wifi_devices.remove(gone_wifi);
+                    if (wifi_device == gone_wifi)
+                        wifi_device = wifi_devices.length > 0 ? wifi_devices.get(0) : null;
+                    has_wifi = wifi_devices.length > 0;
+                    access_points_changed();
+                    update_state();
+                    return;
+                }
                 if (!(device is NM.DeviceEthernet)) {
                     return;
                 }
@@ -235,6 +247,22 @@ namespace Singularity {
                 }
                 ethernet_ports_changed();
                 update_state();
+            });
+        }
+
+        private void register_wifi_device(NM.DeviceWifi device) {
+            for (int i = 0; i < wifi_devices.length; i++) {
+                if (wifi_devices.get(i) == device) return;
+            }
+            wifi_devices.add(device);
+            has_wifi = true;
+            if (wifi_device == null) wifi_device = device;
+            device.access_point_added.connect(() => access_points_changed());
+            device.access_point_removed.connect(() => access_points_changed());
+            device.notify["active-access-point"].connect(() => {
+                update_state();
+                var ap = device.get_active_access_point();
+                if (ap != null) ap.notify["strength"].connect(() => update_state());
             });
         }
 
@@ -405,9 +433,10 @@ namespace Singularity {
         }
 
         public void request_scan() {
-            if (wifi_device != null) {
+            for (int i = 0; i < wifi_devices.length; i++) {
+                var device = wifi_devices.get(i);
                 try {
-                    wifi_device.request_scan_async.begin(null);
+                    device.request_scan_async.begin(null);
                 } catch (Error e) {
                     warning("Scan failed: %s", e.message);
                 }
@@ -415,12 +444,63 @@ namespace Singularity {
         }
 
         public GenericArray<NM.AccessPoint> get_access_points() {
-            if (wifi_device != null) {
-                var aps = wifi_device.get_access_points();
-                return aps;
+            var result = new GenericArray<NM.AccessPoint>();
+            for (int i = 0; i < wifi_devices.length; i++) {
+                foreach (var ap in wifi_devices.get(i).get_access_points().data)
+                    result.add(ap);
             }
-            warning("Cannot get APs: No WiFi device");
-            return new GenericArray<NM.AccessPoint>();
+            return result;
+        }
+
+        public bool has_saved_wifi(string ssid) {
+            if (client == null) return false;
+            foreach (var conn in client.get_connections()) {
+                if (conn.get_connection_type() != "802-11-wireless") continue;
+                var wireless = conn.get_setting_wireless();
+                if (wireless == null || wireless.ssid == null) continue;
+                if (wireless.mode == "ap") continue;
+                if (NM.Utils.ssid_to_utf8(wireless.ssid.get_data()) == ssid) return true;
+            }
+            return false;
+        }
+
+        public bool activate_saved_wifi(string ssid, NM.AccessPoint? ap) {
+            if (client == null || wifi_device == null) return false;
+            NM.AccessPoint? target_ap;
+            var target_device = select_wifi_device(ap, out target_ap);
+            if (target_device == null) return false;
+            foreach (var conn in client.get_connections()) {
+                if (conn.get_connection_type() != "802-11-wireless") continue;
+                var wireless = conn.get_setting_wireless();
+                if (wireless == null || wireless.ssid == null || wireless.mode == "ap") continue;
+                if (NM.Utils.ssid_to_utf8(wireless.ssid.get_data()) != ssid) continue;
+                client.activate_connection_async.begin(conn, target_device,
+                    target_ap != null ? target_ap.get_path() : null, null, (obj, res) => {
+                    try {
+                        client.activate_connection_async.end(res);
+                    } catch (Error e) {
+                        warning("Connection failed: %s", e.message);
+                    }
+                });
+                return true;
+            }
+            return false;
+        }
+
+        public string? active_wifi_ssid() {
+            if (wifi_device == null) return null;
+            var ap = wifi_device.get_active_access_point();
+            if (ap == null || ap.ssid == null) return null;
+            return NM.Utils.ssid_to_utf8(ap.ssid.get_data());
+        }
+
+        public bool is_wifi_connected(string ssid) {
+            for (int i = 0; i < wifi_devices.length; i++) {
+                var ap = wifi_devices.get(i).get_active_access_point();
+                if (ap == null || ap.ssid == null) continue;
+                if (NM.Utils.ssid_to_utf8(ap.ssid.get_data()) == ssid) return true;
+            }
+            return false;
         }
 
         public GenericArray<NM.RemoteConnection> get_vpn_connections() {
@@ -709,6 +789,9 @@ namespace Singularity {
 
         public void connect_to_ap(NM.AccessPoint ap, string? password) {
             if (client == null || wifi_device == null) return;
+            NM.AccessPoint? target_ap;
+            var target_device = select_wifi_device(ap, out target_ap);
+            if (target_device == null || target_ap == null) return;
             try {
                 var connection = (NM.SimpleConnection) GLib.Object.new(typeof(NM.SimpleConnection));
                 var s_wifi = (NM.SettingWireless) GLib.Object.new(typeof(NM.SettingWireless));
@@ -720,7 +803,8 @@ namespace Singularity {
                     s_security.psk = password;
                     connection.add_setting(s_security);
                 }
-                client.add_and_activate_connection_async.begin(connection, wifi_device, ap.get_path(), null, (obj, res) => {
+                client.add_and_activate_connection_async.begin(connection, target_device,
+                    target_ap.get_path(), null, (obj, res) => {
                     try {
                         client.add_and_activate_connection_async.end(res);
                     } catch (Error e) {
@@ -730,6 +814,30 @@ namespace Singularity {
             } catch (Error e) {
                 warning("Failed to create connection: %s", e.message);
             }
+        }
+
+        private NM.DeviceWifi? select_wifi_device(NM.AccessPoint? requested,
+                                                   out NM.AccessPoint? selected_ap) {
+            selected_ap = requested;
+            if (requested == null)
+                return dynamic_internet.enabled ? get_free_wifi_device() ?? wifi_device : wifi_device;
+
+            string requested_ssid = requested.ssid != null
+                ? NM.Utils.ssid_to_utf8(requested.ssid.get_data()) : "";
+            NM.DeviceWifi? owner = null;
+            for (int i = 0; i < wifi_devices.length; i++) {
+                var device = wifi_devices.get(i);
+                foreach (var candidate in device.get_access_points().data) {
+                    if (candidate == requested) owner = device;
+                    if (dynamic_internet.enabled && device.get_active_connection() == null
+                            && candidate.ssid != null
+                            && NM.Utils.ssid_to_utf8(candidate.ssid.get_data()) == requested_ssid) {
+                        selected_ap = candidate;
+                        return device;
+                    }
+                }
+            }
+            return owner ?? wifi_device;
         }
 
         public bool wifi_is_upstream() {
@@ -998,7 +1106,7 @@ namespace Singularity {
                     }
                 } else {
                     wifi_ssid = "Disconnected";
-                    wifi_icon = "network-wireless-symbolic";
+                    wifi_icon = "network-wireless-offline-symbolic";
                 }
             }
             state_changed();

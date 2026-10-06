@@ -48,6 +48,11 @@ namespace Singularity.Style {
                 settings.changed["night-light-adaptive-from"].connect(on_settings_changed);
                 settings.changed["night-light-adaptive-to"].connect(on_settings_changed);
                 settings.changed["night-light-dark-theme"].connect(on_settings_changed);
+                if (settings.settings_schema.has_key("night-light-schedule")) {
+                    settings.changed["night-light-schedule"].connect(on_settings_changed);
+                    settings.changed["night-light-sun-from"].connect(on_settings_changed);
+                    settings.changed["night-light-sun-to"].connect(on_settings_changed);
+                }
             } else {
                 if_settings = Core.safe_settings("org.gnome.desktop.interface");
                 if (if_settings != null)
@@ -83,7 +88,7 @@ namespace Singularity.Style {
                 return ColorMode.DARK;
             }
             if (follows_night_light()
-                    && in_window("night-light-adaptive-from", "night-light-adaptive-to")) {
+                    && in_window(night_from_key(), night_to_key())) {
                 return ColorMode.DARK;
             }
             return b;
@@ -140,6 +145,19 @@ namespace Singularity.Style {
                 && settings.get_boolean("night-light-adaptive");
         }
 
+        private bool follows_sun() {
+            return settings.settings_schema.has_key("night-light-schedule")
+                && settings.get_string("night-light-schedule") == "sunset-sunrise";
+        }
+
+        private string night_from_key() {
+            return follows_sun() ? "night-light-sun-from" : "night-light-adaptive-from";
+        }
+
+        private string night_to_key() {
+            return follows_sun() ? "night-light-sun-to" : "night-light-adaptive-to";
+        }
+
         private bool in_window(string from_key, string to_key) {
             int from = parse_minutes(settings.get_string(from_key), 19 * 60);
             int to   = parse_minutes(settings.get_string(to_key), 7 * 60);
@@ -174,7 +192,7 @@ namespace Singularity.Style {
             if (theme_adaptive)
                 wait = int.min(wait, minutes_to_edge("theme-adaptive-from", "theme-adaptive-to", cur));
             if (night_light)
-                wait = int.min(wait, minutes_to_edge("night-light-adaptive-from", "night-light-adaptive-to", cur));
+                wait = int.min(wait, minutes_to_edge(night_from_key(), night_to_key(), cur));
             uint secs = (uint) (wait * 60 - now.get_second() + 2);
             timer_id = Timeout.add_seconds(secs, () => {
                 timer_id = 0;

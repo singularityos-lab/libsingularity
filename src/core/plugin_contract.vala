@@ -133,6 +133,14 @@ namespace Singularity {
                                                    Variant? config);
         /** Open a configuration dialog for this instance. Optional. */
         public virtual void configure_instance(string instance_id) {}
+
+        /**
+         * Whether the widget's context menu offers "Configure…" for this
+         * instance, which calls `configure_instance`. Defaults to false.
+         * Save the result with OverviewWidgetRegistry.save_instance_config;
+         * the overview then rebuilds the instance with the new config.
+         */
+        public virtual bool can_configure(string instance_id) { return false; }
     }
 
     /**
@@ -195,6 +203,8 @@ namespace Singularity {
         /** Emitted when a plugin unregisters a dock context menu provider. */
         public signal void dock_context_menu_provider_removed(DockContextMenuProvider provider);
 
+        private Gee.ArrayList<Gtk.Widget> sidebar_widgets = new Gee.ArrayList<Gtk.Widget>();
+
         public PluginContext() {
         }
 
@@ -220,12 +230,18 @@ namespace Singularity {
          * @param widget The widget to add.
          */
         public void add_sidebar_widget(Gtk.Widget widget) {
+            if (!sidebar_widgets.contains(widget)) sidebar_widgets.add(widget);
             sidebar_widget_added(widget);
         }
 
         /** Removes a previously added widget from the sidebar. */
         public void remove_sidebar_widget(Gtk.Widget widget) {
+            sidebar_widgets.remove(widget);
             sidebar_widget_removed(widget);
+        }
+
+        public Gtk.Widget[] get_sidebar_widgets() {
+            return sidebar_widgets.to_array();
         }
 
         /** Adds a widget to the right of the clock button in the panel. */
@@ -413,6 +429,68 @@ namespace Singularity {
         }
         public void remove_wallpaper_provider(WallpaperProvider provider) {
             wallpaper_provider_removed(provider);
+        }
+
+        // -- Quick settings tiles --------------------------------------------
+        /** Emitted when a plugin adds a quick settings tile. */
+        public signal void quick_tile_added(QuickTile tile);
+        /** Emitted when a plugin removes a quick settings tile. */
+        public signal void quick_tile_removed(QuickTile tile);
+
+        private GenericArray<QuickTile> _quick_tiles = new GenericArray<QuickTile>();
+
+        /**
+         * Adds a tile to the quick settings grid in the sidebar. A tile the
+         * user has never seen is shown by default; afterwards the user's
+         * choice in the quick settings editor is kept. Remove the tile in
+         * the plugin's deactivate.
+         */
+        public void add_quick_tile(QuickTile tile) {
+            for (int i = 0; i < _quick_tiles.length; i++)
+                if (_quick_tiles[i].id == tile.id) return;
+            _quick_tiles.add(tile);
+            quick_tile_added(tile);
+        }
+
+        /** Removes a tile added with add_quick_tile. */
+        public void remove_quick_tile(QuickTile tile) {
+            if (_quick_tiles.remove(tile)) quick_tile_removed(tile);
+        }
+
+        /** Returns the tiles currently added by plugins. */
+        public QuickTile[] get_quick_tiles() {
+            return _quick_tiles.data;
+        }
+
+        /** Emitted when a plugin adds an action to a built-in settings page. */
+        public signal void settings_page_action_added(SettingsPageAction action);
+        /** Emitted when a plugin removes an action from a built-in settings page. */
+        public signal void settings_page_action_removed(SettingsPageAction action);
+
+        private GenericArray<SettingsPageAction> _page_actions = new GenericArray<SettingsPageAction>();
+
+        /**
+         * Adds a button to a built-in settings page of the shell, such as
+         * the Wi-Fi page. Remove it in the plugin's deactivate.
+         */
+        public void add_settings_page_action(SettingsPageAction action) {
+            for (int i = 0; i < _page_actions.length; i++)
+                if (_page_actions[i].id == action.id) return;
+            _page_actions.add(action);
+            settings_page_action_added(action);
+        }
+
+        /** Removes an action added with add_settings_page_action. */
+        public void remove_settings_page_action(SettingsPageAction action) {
+            if (_page_actions.remove(action)) settings_page_action_removed(action);
+        }
+
+        /** Returns the actions plugins added to `page`, such as SettingsPageAction.WIFI. */
+        public SettingsPageAction[] get_settings_page_actions(string page) {
+            SettingsPageAction[] result = {};
+            foreach (var action in _page_actions.data)
+                if (action.page == page) result += action;
+            return result;
         }
 
         // -- Shell surfaces (replaceable dock / panel / overview / ...) -------

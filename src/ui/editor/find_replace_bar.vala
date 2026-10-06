@@ -142,6 +142,16 @@ namespace Singularity.Widgets {
             _revealer.set_child(outer);
 
             append(_revealer);
+
+            var keys = new EventControllerKey();
+            keys.propagation_phase = PropagationPhase.CAPTURE;
+            keys.key_pressed.connect((keyval, keycode, state) => {
+                if (keyval != Gdk.Key.Escape || !_revealer.reveal_child) return false;
+                _revealer.reveal_child = false;
+                closed();
+                return true;
+            });
+            add_controller(keys);
         }
 
         /** Reveals the bar and focuses the find entry. */

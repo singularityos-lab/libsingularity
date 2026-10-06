@@ -23,6 +23,7 @@ namespace Singularity.Widgets {
         private Stack? _stack;
         private Box _inner_box;
         private Map<string, Button> _buttons = new HashMap<string, Button>();
+        private Gee.List<string> _names = new ArrayList<string>();
         private string? _active_name = null;
 
         public SegmentedControl(Stack? stack = null) {
@@ -68,6 +69,7 @@ namespace Singularity.Widgets {
 
             _inner_box.append(btn);
             _buttons.set(name, btn);
+            _names.add(name);
 
             // First option becomes the standalone default.
             if (_stack == null && _active_name == null) _active_name = name;
@@ -94,6 +96,7 @@ namespace Singularity.Widgets {
                 child = next;
             }
             _buttons.clear();
+            _names.clear();
 
             var pages_model = _stack.get_pages();
             uint n = pages_model.get_n_items();
@@ -114,11 +117,25 @@ namespace Singularity.Widgets {
             }
         }
 
+        internal string? current_option() {
+            return (_stack != null) ? _stack.visible_child_name : _active_name;
+        }
+
+        internal Gee.List<string> option_names() {
+            return _names.read_only_view;
+        }
+
+        internal string option_label(string name) {
+            var btn = _buttons.get(name);
+            return btn != null ? (btn.label ?? name) : name;
+        }
+
         private void update_active_button() {
             string? wanted = (_stack != null)
                 ? _stack.visible_child_name
                 : _active_name;
             if (wanted == null) return;
+            notify_property("active-option");
 
             var it = _buttons.map_iterator();
             while (it.next()) {

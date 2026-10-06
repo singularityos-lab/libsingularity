@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="dev.sinty.motiontest" path="/dev/sinty/motiontest/">
+    <key name="reduce-motion" type="b">
+      <default>false</default>
+      <summary>Reduce motion</summary>
+    </key>
+    <key name="motion-duration-scale" type="d">
+      <range min="0.1" max="10.0"/>
+      <default>1.0</default>
+      <summary>Animation duration multiplier</summary>
+    </key>
+  </schema>
+</schemalist>

@@ -1,0 +1,4 @@
+[Text Recognition]
+Engine=@ENGINE@
+Tesseract=@TESSERACT@
+@INSTALL_HINT@

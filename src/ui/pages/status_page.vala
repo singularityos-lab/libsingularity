@@ -15,10 +15,10 @@ namespace Singularity.Widgets {
         private Label description_label;
         private Box child_box;
 
-        /** Symbolic icon shown at the top of the page. Set to empty string to hide. */
+        /** Icon shown at the top of the page, in its full-color version when the theme has one. Set to empty string to hide. */
         public string icon_name {
             set {
-                icon_image.icon_name = value;
+                icon_image.icon_name = large_icon_name(value);
                 icon_image.visible = (value != null && value != "");
             }
         }
@@ -51,6 +51,33 @@ namespace Singularity.Widgets {
             }
         }
 
+        /**
+         * A smaller variant for narrow places such as a popover or a side
+         * panel: a 48 pixel icon, a heading-sized title and tighter spacing.
+         */
+        public bool compact {
+            get { return has_css_class("compact"); }
+            set {
+                if (value) add_css_class("compact");
+                else remove_css_class("compact");
+                spacing = value ? 6 : 12;
+                int margin = value ? 12 : 24;
+                margin_top = margin;
+                margin_bottom = margin;
+                margin_start = margin;
+                margin_end = margin;
+                if (value) {
+                    title_label.remove_css_class("title-1");
+                    title_label.add_css_class("title-4");
+                    child_box.margin_top = 6;
+                } else {
+                    title_label.remove_css_class("title-4");
+                    title_label.add_css_class("title-1");
+                    child_box.margin_top = 0;
+                }
+            }
+        }
+
         public StatusPage() {
             Object(orientation: Orientation.VERTICAL, spacing: 12);
         }
@@ -71,14 +98,15 @@ namespace Singularity.Widgets {
             margin_end = 24;
 
             icon_image = new Image();
-            icon_image.pixel_size = 96;
             icon_image.add_css_class("status-page-icon");
             icon_image.visible = false;
             append(icon_image);
 
             title_label = new Label("");
             title_label.add_css_class("title-1");
+            title_label.add_css_class("status-page-title");
             title_label.wrap = true;
+            title_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
             title_label.justify = Justification.CENTER;
             title_label.visible = false;
             append(title_label);
@@ -87,6 +115,7 @@ namespace Singularity.Widgets {
             description_label.add_css_class("body");
             description_label.add_css_class("dim-label");
             description_label.wrap = true;
+            description_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
             description_label.justify = Justification.CENTER;
             description_label.visible = false;
             append(description_label);
