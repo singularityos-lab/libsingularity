@@ -129,7 +129,10 @@ namespace Singularity.Widgets {
                 face_label.label = label ?? "";
                 face_label.visible = shows_label ();
             }
-            if (widget != null) widget.tooltip_text = tooltip_text ();
+            if (widget != null) {
+                widget.tooltip_text = tooltip_text ();
+                widget.update_property (Gtk.AccessibleProperty.LABEL, menu_label (), -1);
+            }
             if (widget is Button && face_box != null && face_label != null && ((Button) widget).child == face_box) {
                 bool only_icon = icon_shown && !face_label.visible;
                 bool only_text = face_label.visible && !icon_shown;
@@ -322,7 +325,10 @@ namespace Singularity.Widgets {
                 face_icon.icon_name = icon_name;
                 face_icon.visible = icon_name != null && icon_name != "" && style != ToolbarStyle.TEXT_ONLY;
             }
-            if (widget != null) widget.tooltip_text = tooltip_text ();
+            if (widget != null) {
+                widget.tooltip_text = tooltip_text ();
+                widget.update_property (Gtk.AccessibleProperty.LABEL, menu_label (), -1);
+            }
         }
 
         public void add_option (string id, string label) {

@@ -6616,3 +6616,18 @@ dropdown > popover listview > row:selected {
     min-height: 20px;
     padding: 4px 16px;
 }
+
+window.screenshot-thumbnail {
+    background-color: transparent;
+}
+.screenshot-thumbnail-card {
+    padding: 8px;
+}
+.screenshot-thumbnail-image {
+    border-radius: 10px;
+}
+button.recent-color-swatch {
+    padding: 2px;
+    min-width: 0;
+    min-height: 0;
+}

@@ -55,12 +55,14 @@ namespace Singularity.TextRecognition {
     public enum DataKind {
         LINK,
         EMAIL,
-        PHONE;
+        PHONE,
+        DATE;
 
         public string to_label() {
             switch (this) {
                 case LINK: return _("Link");
                 case EMAIL: return _("Email");
+                case DATE: return _("Date");
                 default: return _("Phone Number");
             }
         }
@@ -69,6 +71,7 @@ namespace Singularity.TextRecognition {
             switch (this) {
                 case LINK: return "web-browser-symbolic";
                 case EMAIL: return "mail-send-symbolic";
+                case DATE: return "x-office-calendar-symbolic";
                 default: return "call-start-symbolic";
             }
         }
@@ -80,6 +83,8 @@ namespace Singularity.TextRecognition {
         public string uri { get; set; default = ""; }
         public int first_word { get; set; }
         public int last_word { get; set; }
+        public int64 when { get; set; }
+        public bool timed { get; set; }
     }
 
     public class TextRange : Object {
@@ -230,6 +235,7 @@ namespace Singularity.TextRecognition {
             foreach (var line in lines) {
                 scan(line, DataKind.EMAIL, EMAIL_PATTERN, found);
                 scan(line, DataKind.LINK, LINK_PATTERN, found);
+                scan_dates(line, found);
                 scan(line, DataKind.PHONE, PHONE_PATTERN, found);
             }
             found.sort((a, b) => a.first_word - b.first_word);
@@ -268,6 +274,129 @@ namespace Singularity.TextRecognition {
                 data.last_word = range.last;
                 found.add(data);
             } while (next_match(info));
+        }
+
+        private const string MONTHS = "january|february|march|april|may|june|july|august|september|october|november|december|gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|sept|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec|gen|mag|giu|lug|ago|set|ott|dic";
+        private const string TIME_PATTERN = "^\\s*(?:,|at|alle|ore|@)?\\s*(\\d{1,2})(?:[:.](\\d{2}))?\\s*(?:([ap])\\.?m\\b\\.?)?";
+
+        private void scan_dates(TextLine line, Gee.List<DetectedData> found) {
+            string[] patterns = {
+                "\\b(\\d{4})-(\\d{1,2})-(\\d{1,2})\\b",
+                "\\b(\\d{1,2})[/.](\\d{1,2})[/.](\\d{4}|\\d{2})\\b",
+                "\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(" + MONTHS + ")\\b\\.?(?:,?\\s+(\\d{4})\\b)?",
+                "\\b(" + MONTHS + ")\\b\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?:,?\\s+(\\d{4})\\b)?"
+            };
+            for (int kind = 0; kind < patterns.length; kind++) {
+                Regex regex;
+                try {
+                    regex = new Regex(patterns[kind], RegexCompileFlags.CASELESS | RegexCompileFlags.OPTIMIZE);
+                } catch (RegexError e) {
+                    continue;
+                }
+                MatchInfo info;
+                if (!regex.match(line.text, 0, out info)) continue;
+                do {
+                    int start, end;
+                    if (!info.fetch_pos(0, out start, out end)) continue;
+                    int day, month, year;
+                    if (!date_parts(kind, info, out day, out month, out year)) continue;
+                    int hour = -1, minute = 0;
+                    int extra = time_after(line.text.substring(end), out hour, out minute);
+                    end += extra;
+                    if (overlaps(found, line, start, end)) continue;
+                    var range = range_for(line, start, end);
+                    if (range == null) continue;
+                    var now = new DateTime.now_local();
+                    if (year < 0) {
+                        year = now.get_year();
+                        DateTime? end_of_day = new DateTime.local(year, month, day, 23, 59, 0);
+                        if (end_of_day != null && end_of_day.compare(now) < 0) year++;
+                    }
+                    DateTime? at = new DateTime.local(year, month, day, hour >= 0 ? hour : 0, minute, 0);
+                    if (at == null) continue;
+                    var data = new DetectedData();
+                    data.kind = DataKind.DATE;
+                    data.text = line.text.substring(start, end - start).strip();
+                    data.when = at.to_unix();
+                    data.timed = hour >= 0;
+                    data.first_word = range.first;
+                    data.last_word = range.last;
+                    found.add(data);
+                } while (next_match(info));
+            }
+        }
+
+        private static int month_number(string name) {
+            string m = name.down();
+            string[] en = { "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec" };
+            string[] it = { "gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic" };
+            for (int i = 0; i < 12; i++) {
+                if (m.has_prefix(en[i]) || m.has_prefix(it[i])) return i + 1;
+            }
+            return 0;
+        }
+
+        private static bool date_parts(int kind, MatchInfo info, out int day, out int month, out int year) {
+            day = 0;
+            month = 0;
+            year = -1;
+            string? y = null;
+            switch (kind) {
+                case 0:
+                    year = int.parse(info.fetch(1));
+                    month = int.parse(info.fetch(2));
+                    day = int.parse(info.fetch(3));
+                    break;
+                case 1:
+                    int a = int.parse(info.fetch(1)), b = int.parse(info.fetch(2));
+                    bool month_first = a <= 12 && (b > 12 || (Intl.setlocale(LocaleCategory.TIME, null) ?? "").has_prefix("en_US"));
+                    day = month_first ? b : a;
+                    month = month_first ? a : b;
+                    y = info.fetch(3);
+                    break;
+                case 2:
+                    day = int.parse(info.fetch(1));
+                    month = month_number(info.fetch(2));
+                    y = info.fetch(3);
+                    break;
+                default:
+                    month = month_number(info.fetch(1));
+                    day = int.parse(info.fetch(2));
+                    y = info.fetch(3);
+                    break;
+            }
+            if (y != null && y != "") {
+                year = int.parse(y);
+                if (y.length == 2) year += 2000;
+            }
+            if (month < 1 || month > 12 || day < 1) return false;
+            return Date.valid_dmy((DateDay) day, (DateMonth) month, (DateYear) (year > 0 ? year : 2024));
+        }
+
+        private static int time_after(string rest, out int hour, out int minute) {
+            hour = -1;
+            minute = 0;
+            Regex regex;
+            try {
+                regex = new Regex(TIME_PATTERN, RegexCompileFlags.CASELESS);
+            } catch (RegexError e) {
+                return 0;
+            }
+            MatchInfo info;
+            if (!regex.match(rest, 0, out info)) return 0;
+            string mins = info.fetch(2) ?? "";
+            string half = (info.fetch(3) ?? "").down();
+            if (mins == "" && half == "") return 0;
+            int h = int.parse(info.fetch(1));
+            int m = mins == "" ? 0 : int.parse(mins);
+            if (half == "p" && h < 12) h += 12;
+            if (half == "a" && h == 12) h = 0;
+            if (h > 23 || m > 59) return 0;
+            hour = h;
+            minute = m;
+            int s, e;
+            info.fetch_pos(0, out s, out e);
+            return e;
         }
 
         private static bool next_match(MatchInfo info) {

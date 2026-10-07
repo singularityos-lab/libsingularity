@@ -216,6 +216,10 @@ namespace Singularity.Widgets {
         }
 
         public void activate_data(DetectedData item) {
+            if (item.kind == DataKind.DATE) {
+                ShareTargets.activate_app_action.begin("dev.sinty.calendar", "new-event-at", new Variant("(xbs)", item.when, item.timed, ""));
+                return;
+            }
             var root = get_root() as Gtk.Window;
             new UriLauncher(item.uri).launch.begin(root, null, (obj, res) => {
                 try {
@@ -237,7 +241,14 @@ namespace Singularity.Widgets {
         private void show_menu(double x, double y, DetectedData? item) {
             if (menu != null) menu.unparent();
             menu = new ContextMenu(this);
-            if (item != null) {
+            if (item != null && item.kind == DataKind.DATE) {
+                menu.add_item(_("Create Event"), item.kind.icon_name(), () => activate_data(item));
+                menu.add_item(_("Show in Calendar"), "x-office-calendar-symbolic", () => {
+                    ShareTargets.activate_app_action.begin("dev.sinty.calendar", "show-day", new Variant.int64(item.when));
+                });
+                menu.add_item(_("Copy Date"), "edit-copy-symbolic", () => copy_text(item.text));
+                menu.add_separator();
+            } else if (item != null) {
                 string open_label = item.kind == DataKind.EMAIL ? _("Send Email") : (item.kind == DataKind.PHONE ? _("Call") : _("Open Link"));
                 menu.add_item(open_label, item.kind.icon_name(), () => activate_data(item));
                 string copy_label = item.kind == DataKind.EMAIL ? _("Copy Email Address") : (item.kind == DataKind.PHONE ? _("Copy Phone Number") : _("Copy Link"));
@@ -246,6 +257,32 @@ namespace Singularity.Widgets {
             }
             menu.add_item(_("Copy"), "edit-copy-symbolic", () => copy_selection());
             menu.add_item(_("Select All"), "edit-select-all-symbolic", () => select_all());
+            string chosen = selected_text.strip();
+            if (chosen != "") {
+                menu.add_separator();
+                menu.add_item(_("Translate"), "accessories-dictionary-symbolic", () => {
+                    ShareTargets.activate_app_action.begin("dev.sinty.translate", "translate-text", new Variant.string(chosen));
+                });
+                menu.add_item(_("Add to Tasks"), "object-select-symbolic", () => {
+                    ShareTargets.activate_app_action.begin("dev.sinty.tasks", "add-task", new Variant.string(chosen));
+                });
+                menu.add_item(_("Show on Map"), "mark-location-symbolic", () => {
+                    new UriLauncher("geo:0,0?q=" + Uri.escape_string(chosen.replace("\n", ", "), null, false)).launch.begin(get_root() as Gtk.Window, null);
+                });
+                menu.add_item(_("Add to a Note…"), "document-send-symbolic", () => {
+                    Idle.add(() => {
+                        Notes.NotePicker.popup(this, (id) => {
+                            try {
+                                var note = Notes.NotePicker.target(id, _("Text from an Image"));
+                                Notes.NotePicker.append(note, chosen + "\n");
+                            } catch (Error e) {
+                                warning("Live Text: %s", e.message);
+                            }
+                        });
+                        return Source.REMOVE;
+                    });
+                });
+            }
             Gdk.Rectangle rect = { (int) x, (int) y, 1, 1 };
             menu.set_pointing_to(rect);
             menu.popup();

@@ -84,6 +84,50 @@ void test_data_detection() {
     assert(data.size == 3);
 }
 
+RecognizedText line_of(string sentence) {
+    var tsv = new StringBuilder("level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n");
+    int x = 10, n = 1;
+    foreach (string w in sentence.split(" ")) {
+        tsv.append("5\t1\t1\t1\t1\t%d\t%d\t10\t%d\t20\t95\t%s\n".printf(n++, x, w.length * 9, w));
+        x += w.length * 9 + 8;
+    }
+    return RecognizedText.from_tsv(tsv.str);
+}
+
+DetectedData? only_date(string sentence) {
+    DetectedData? hit = null;
+    foreach (var item in line_of(sentence).detect_data()) {
+        if (item.kind == DataKind.DATE) {
+            assert(hit == null);
+            hit = item;
+        }
+    }
+    return hit;
+}
+
+void test_date_detection() {
+    var a = only_date("Dinner on 12 October 2027 at 7:30 pm with Ada");
+    assert(a != null && a.timed);
+    var at = new DateTime.from_unix_local(a.when);
+    assert(at.get_year() == 2027 && at.get_month() == 10 && at.get_day_of_month() == 12 && at.get_hour() == 19 && at.get_minute() == 30);
+    assert(a.text == "12 October 2027 at 7:30 pm");
+    var b = only_date("Deadline: 2027-03-05");
+    assert(b != null && !b.timed);
+    at = new DateTime.from_unix_local(b.when);
+    assert(at.get_month() == 3 && at.get_day_of_month() == 5);
+    var c = only_date("Concerto il 3 marzo 2027 ore 21:00");
+    assert(c != null && c.timed);
+    at = new DateTime.from_unix_local(c.when);
+    assert(at.get_month() == 3 && at.get_hour() == 21);
+    var d = only_date("Launch Dec 1st, 2027");
+    assert(d != null);
+    at = new DateTime.from_unix_local(d.when);
+    assert(at.get_month() == 12 && at.get_day_of_month() == 1);
+    assert(only_date("Pi is 3.14 and the march continues") == null);
+    assert(only_date("Call +39 06 1234 5678") == null);
+    assert(only_date("Open 31 February 2027") == null);
+}
+
 void test_uri_for() {
     assert(RecognizedText.uri_for(DataKind.LINK, "www.example.org/a") == "https://www.example.org/a");
     assert(RecognizedText.uri_for(DataKind.PHONE, "(555) 123-4567") == "tel:5551234567");
@@ -181,6 +225,7 @@ int main(string[] args) {
     Test.add_func("/text-recognition/selection", test_selection_and_hit);
     Test.add_func("/text-recognition/search", test_search);
     Test.add_func("/text-recognition/data-detection", test_data_detection);
+    Test.add_func("/text-recognition/dates", test_date_detection);
     Test.add_func("/text-recognition/uri", test_uri_for);
     Test.add_func("/text-recognition/languages", test_languages);
     Test.add_func("/text-recognition/config", test_config_seam);

@@ -81,9 +81,24 @@ namespace Singularity.Widgets {
                 color_changed(c);
                 _popover.popdown();
             });
+            var box = new Box(Orientation.VERTICAL, 6);
+            box.append(_chooser);
+            var recent = new RecentColorsRow(10);
+            recent.margin_start = 6;
+            recent.margin_end = 6;
+            recent.margin_bottom = 6;
+            recent.picked.connect((hex) => {
+                var c = Gdk.RGBA();
+                if (!c.parse(hex)) return;
+                _color = c;
+                _swatch.queue_draw();
+                color_changed(c);
+                _popover.popdown();
+            });
+            box.append(recent);
             _popover = new Popover();
             _popover.set_parent(this);
-            _popover.set_child(_chooser);
+            _popover.set_child(box);
         }
 
         private void draw_rounded_rect(Cairo.Context cr, double x, double y,
