@@ -3,6 +3,8 @@
 #include "surface_effect.h"
 
 #include <stdlib.h>
+#include <stdbool.h>
+#include <math.h>
 #include <string.h>
 #include <wayland-client.h>
 
@@ -21,6 +23,10 @@ struct manager_probe {
 
 struct surface_effect {
 	struct zsingularity_blur_v1 *proxy;
+
+	bool applied;
+	uint32_t mode, strength;
+	int x, y, width, height;
 };
 
 static struct zsingularity_blur_manager_v1 *cached_manager;
@@ -159,6 +165,25 @@ singularity_surface_effect_set(GtkWidget *widget, uint32_t mode,
 				GINT_TO_POINTER(1));
 		}
 	}
+
+	double offset_x, offset_y;
+	gtk_native_get_surface_transform(GTK_NATIVE(widget),
+		&offset_x, &offset_y);
+	x -= (int) floor(offset_x);
+	y -= (int) floor(offset_y);
+	if (effect->applied && effect->mode == mode
+			&& effect->strength == strength && effect->x == x
+			&& effect->y == y && effect->width == width
+			&& effect->height == height) {
+		return;
+	}
+	effect->applied = true;
+	effect->mode = mode;
+	effect->strength = strength;
+	effect->x = x;
+	effect->y = y;
+	effect->width = width;
+	effect->height = height;
 
 	if (cached_version >= 2) {
 		zsingularity_blur_v1_set_mode(effect->proxy, mode);

@@ -55,8 +55,8 @@ namespace Singularity.Style {
 
         public static void apply(Gtk.Widget widget, BackgroundEffectMode mode,
                                  int x = 0, int y = 0, int width = 0, int height = 0) {
-            widget.remove_css_class("singularity-glass");
-            widget.remove_css_class("singularity-blur");
+            if (mode != BackgroundEffectMode.GLASS) widget.remove_css_class("singularity-glass");
+            if (mode != BackgroundEffectMode.BLUR) widget.remove_css_class("singularity-blur");
             if (mode == BackgroundEffectMode.GLASS) {
                 widget.add_css_class("singularity-glass");
             } else if (mode == BackgroundEffectMode.BLUR) {

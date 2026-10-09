@@ -232,6 +232,159 @@ async void check_disabled_credentials(Manager manager, TokenService service) thr
     }
 }
 
+class StorageFixture : Object {
+    public Soup.Server server = new Soup.Server("server-header", "storage-test");
+    public string url;
+    public int requests;
+    public bool bad_page;
+    public bool repeated_page;
+
+    public StorageFixture() throws Error {
+        server.add_handler(null, respond);
+        server.listen_local(0, Soup.ServerListenOptions.IPV4_ONLY);
+        url = server.get_uris().data.to_string();
+    }
+
+    private void respond(Soup.Server server, Soup.ServerMessage message, string path, HashTable<string, string>? query) {
+        requests++;
+        assert(message.get_request_headers().get_one("Authorization").has_prefix("Bearer "));
+        string body = "{}";
+        string method = message.get_method();
+        if (path == "/google/drives") {
+            body = query.contains("pageToken") ? "{\"drives\":[{\"id\":\"team-two\",\"name\":\"Team Two\"}]}"
+                : "{\"drives\":[{\"id\":\"team\",\"name\":\"Team\"}],\"nextPageToken\":\"next\"}";
+        } else if (path == "/google/files" && method == "GET") {
+            assert(query["supportsAllDrives"] == "true" && query["includeItemsFromAllDrives"] == "true");
+            string filter = query["q"];
+            if (filter.contains("sharedWithMe")) {
+                body = "{\"files\":[{\"id\":\"shared-folder\",\"name\":\"Shared Folder\",\"mimeType\":\"application/vnd.google-apps.folder\"}]}";
+            } else if (filter.contains("'team'")) {
+                assert(query["corpora"] == "drive" && query["driveId"] == "team");
+                body = "{\"files\":[{\"id\":\"team-file\",\"name\":\"notes.txt\",\"mimeType\":\"text/plain\",\"driveId\":\"team\"}]}";
+            } else if (filter.contains("'cycle'")) {
+                body = "{\"files\":[],\"nextPageToken\":\"same\"}";
+            } else body = "{\"files\":[]}";
+        } else if (path == "/google/files/root") {
+            body = "{\"id\":\"my-google-root\",\"name\":\"My Drive\",\"mimeType\":\"application/vnd.google-apps.folder\"}";
+        } else if (path == "/google/files" || path == "/google/files/team-file") {
+            assert(query["supportsAllDrives"] == "true");
+            if (query["alt"] == "media") body = "content";
+            else body = "{\"id\":\"team-file\",\"name\":\"notes.txt\",\"mimeType\":\"text/plain\"}";
+        } else if (path == "/graph/me/drive/root/children" || path == "/graph/drives/personal/items/my-root/children") {
+            body = "{\"value\":[{\"id\":\"alias\",\"remoteItem\":{\"id\":\"folder\",\"name\":\"Shortcut\",\"folder\":{},\"parentReference\":{\"driveId\":\"remote\"}}}]}";
+        } else if (path == "/graph/me/drive/sharedWithMe") {
+            body = query.contains("page") ? "{\"value\":[{\"id\":\"alias-two\",\"remoteItem\":{\"id\":\"folder\",\"name\":\"Other Share\",\"folder\":{},\"parentReference\":{\"driveId\":\"other\"}}}]}"
+                : "{\"value\":[{\"id\":\"alias\",\"remoteItem\":{\"id\":\"folder\",\"name\":\"Shared Folder\",\"folder\":{},\"parentReference\":{\"driveId\":\"remote\"}}}],\"@odata.nextLink\":\"" + url + "graph/me/drive/sharedWithMe?page=2\"}";
+        } else if (path == "/graph/me/memberOf") {
+            body = query.contains("page") ? "{\"value\":[{\"id\":\"forbidden\",\"displayName\":null,\"@odata.type\":\"#microsoft.graph.group\"}]}"
+                : "{\"value\":[{\"id\":\"company\",\"displayName\":\"Company\",\"@odata.type\":\"#microsoft.graph.group\"}],\"@odata.nextLink\":\"" + url + "graph/me/memberOf?page=2\"}";
+        } else if (path == "/graph/groups/company/drives") {
+            body = query != null && query.contains("page") ? "{\"value\":[{\"id\":\"other\",\"name\":\"Archive\"}]}"
+                : "{\"value\":[{\"id\":\"remote\",\"name\":\"Documents\"}],\"@odata.nextLink\":\"" + url + "graph/groups/company/drives?page=2\"}";
+        } else if (path == "/graph/groups/forbidden/drives") {
+            message.set_status(403, null);
+            return;
+        } else if (path == "/graph/me/followedSites") {
+            body = "{\"value\":[{\"id\":\"site\",\"displayName\":\"Intranet\"}]}";
+        } else if (path == "/graph/sites/site/drives") {
+            body = "{\"value\":[{\"id\":\"remote\",\"name\":\"Documents\"},{\"id\":\"site-drive\",\"name\":\"Resources\"}]}";
+        } else if (path == "/graph/me/drive/root") {
+            body = "{\"id\":\"my-root\",\"name\":\"My Drive\",\"folder\":{},\"parentReference\":{\"driveId\":\"personal\"}}";
+        } else if (path.has_suffix("/root")) {
+            body = "{\"id\":\"folder\",\"name\":\"Root\",\"folder\":{}}";
+        } else if (path == "/graph/drives/remote/items/folder/children" && method == "GET") {
+            if (bad_page || repeated_page) body = "{\"value\":[],\"@odata.nextLink\":\"" + (bad_page ? "http://127.0.0.1:1/foreign" : url + "graph/drives/remote/items/folder/children?$top=200") + "\"}";
+            else body = "{\"value\":[{\"id\":\"file\",\"name\":\"notes.txt\",\"file\":{\"mimeType\":\"text/plain\"},\"size\":7}]}";
+        } else if (path == "/graph/drives/remote/items/file/content") {
+            body = method == "GET" ? "content" : "{\"id\":\"file\",\"name\":\"notes.txt\",\"size\":7}";
+        } else if (path == "/graph/drives/remote/items/file") {
+            body = "{\"id\":\"file\",\"name\":\"renamed.txt\",\"size\":7}";
+        } else if (path == "/graph/drives/remote/items/folder/children" && method == "POST") {
+            body = "{\"id\":\"new-folder\",\"name\":\"New Folder\",\"folder\":{}}";
+        } else {
+            stderr.printf("Unexpected fixture request: %s %s\n", method, path);
+            assert_not_reached();
+        }
+        message.set_status(200, null);
+        message.set_response("application/json", Soup.MemoryUse.COPY, body.data);
+    }
+}
+
+async void check_shared_storage(Manager manager) throws Error {
+    var fixture = new StorageFixture();
+    var google_account = manager.get_account("google");
+    var microsoft_account = manager.get_account("microsoft");
+    var google = new GoogleDrive(google_account, new HttpClient(google_account, Capability.FILES), fixture.url + "google/", fixture.url + "upload/");
+    var microsoft = new OneDrive(microsoft_account, new HttpClient(microsoft_account, Capability.FILES), fixture.url + "graph/");
+    var destination = new MemoryOutputStream.resizable();
+    string source_path = Path.build_filename(Environment.get_tmp_dir(), "storage-source.txt");
+    FileUtils.set_contents(source_path, "content");
+    try {
+        var root = yield google.list("root");
+        assert(root.size == 2 && root[0].id == "singularity:shared" && root[1].id == "singularity:drives");
+        assert((yield google.list((yield google.stat("root")).id)).size == 2);
+        var shared = yield google.list(root[0].id);
+        assert(shared.size == 1 && shared[0].is_folder);
+        var drives = yield google.list(root[1].id);
+        assert(drives.size == 2);
+        var files = yield google.list(drives[0].id);
+        assert(files.size == 1 && files[0].id == "team-file");
+        yield google.download_to(files[0], destination);
+        assert(destination.get_data_size() == 7);
+        yield google.rename(files[0], "renamed.txt");
+        yield google.create_folder(drives[0].id, "New Folder");
+        bool rejected = false;
+        try { yield google.list("cycle"); } catch (AccountsError.PROTOCOL e) { rejected = true; }
+        assert(rejected);
+        root = yield microsoft.list("root");
+        assert(root.size == 3 && root[0].id == "drive:remote/folder" && root[0].is_folder);
+        assert((yield microsoft.list((yield microsoft.stat("root")).id)).size == 3);
+        shared = yield microsoft.list("singularity:shared");
+        assert(shared.size == 2 && shared[0].id != shared[1].id);
+        files = yield microsoft.list(shared[0].id);
+        assert(files.size == 1 && files[0].id == "drive:remote/file" && files[0].parent_id == shared[0].id);
+        destination = new MemoryOutputStream.resizable();
+        yield microsoft.download_to(files[0], destination);
+        assert(destination.get_data_size() == 7);
+        assert((yield microsoft.stat(files[0].id)).id == files[0].id);
+        assert((yield microsoft.rename(files[0], "renamed.txt")).id == files[0].id);
+        assert((yield microsoft.replace(files[0], File.new_for_path(source_path))).id == files[0].id);
+        assert((yield microsoft.create_folder(shared[0].id, "New Folder")).id == "drive:remote/new-folder");
+        drives = yield microsoft.list("singularity:libraries");
+        assert(drives.size == 3 && drives[0].name == "Company - Documents" && drives[2].name == "Intranet - Resources");
+        int before = fixture.requests;
+        foreach (CloudDrive drive in new CloudDrive[] { google, microsoft }) {
+            var group = yield drive.stat("singularity:shared");
+            rejected = false;
+            try { yield drive.delete(group); } catch (IOError.PERMISSION_DENIED e) { rejected = true; }
+            assert(rejected);
+            rejected = false;
+            try { yield drive.create_folder(group.id, "Bad"); } catch (IOError.PERMISSION_DENIED e) { rejected = true; }
+            assert(rejected);
+        }
+        foreach (string id in new string[] { "drive:../file", "drive:remote/%2Ffile", "drive:remote/%", "drive:remote/file/extra" }) {
+            rejected = false;
+            try { yield microsoft.stat(id); } catch (AccountsError.INVALID e) { rejected = true; }
+            assert(rejected);
+        }
+        rejected = false;
+        try { yield microsoft.move(files[0], "drive:other/folder"); } catch (IOError.NOT_SUPPORTED e) { rejected = true; }
+        assert(rejected && fixture.requests == before);
+        fixture.bad_page = true;
+        rejected = false;
+        try { yield microsoft.list(shared[0].id); } catch (AccountsError.PROTOCOL e) { rejected = true; }
+        assert(rejected);
+        fixture.bad_page = false;
+        fixture.repeated_page = true;
+        rejected = false;
+        try { yield microsoft.list(shared[0].id); } catch (AccountsError.PROTOCOL e) { rejected = true; }
+        assert(rejected);
+    } finally {
+        fixture.server.disconnect();
+        FileUtils.unlink(source_path);
+    }
+}
+
 async void check_token_routes() throws Error {
     var connection = yield Bus.get(BusType.SESSION);
     var service = new TokenService();
@@ -281,6 +434,7 @@ async void check_token_routes() throws Error {
         }
         assert(rejected && !service.calls.has_key(id + "|mail-graph"));
     }
+    yield check_shared_storage(manager);
     yield check_disabled_credentials(manager, service);
     yield check_removed_credentials(manager, service);
     connection.unregister_object(registration);

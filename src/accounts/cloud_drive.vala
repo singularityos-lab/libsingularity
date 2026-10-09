@@ -516,6 +516,8 @@ namespace Singularity.Accounts {
      * Google Drive (API v3); ids are Drive file ids and "root" is the top.
      */
     public class GoogleDrive : Object, CloudDrive {
+        private const string SHARED = "singularity:shared";
+        private const string DRIVES = "singularity:drives";
         private Account _account;
         private HttpClient http;
         private string api;
@@ -524,10 +526,13 @@ namespace Singularity.Accounts {
         private Gee.HashSet<string> app_folders = new Gee.HashSet<string>();
         private Gee.HashSet<string> app_entries = new Gee.HashSet<string>();
 
+        private Gee.HashMap<string, string> shared_drives = new Gee.HashMap<string, string>();
+        private string personal_root = "";
+
         public Account account { get { return _account; } }
         public string root_id { get { return app_data_only ? "appDataFolder" : "root"; } }
 
-        private const string FIELDS = "id,name,mimeType,size,modifiedTime,md5Checksum,parents";
+        private const string FIELDS = "id,name,mimeType,size,modifiedTime,md5Checksum,parents,driveId";
         private const string FOLDER_TYPE = "application/vnd.google-apps.folder";
 
         public GoogleDrive(Account account, HttpClient http, string api, string upload_api) {
@@ -544,6 +549,7 @@ namespace Singularity.Accounts {
         }
 
         private void app_folder(string id) throws Error {
+            if (id == SHARED || id == DRIVES) throw new IOError.PERMISSION_DENIED(_("This folder groups shared storage and cannot be changed"));
             if (app_data_only && !app_folders.contains(id)) throw new AccountsError.INVALID(_("The folder is outside application data"));
         }
 
@@ -582,6 +588,7 @@ namespace Singularity.Accounts {
         }
 
         private void app_entry(string id) throws Error {
+            if (id == SHARED || id == DRIVES) throw new IOError.PERMISSION_DENIED(_("This folder groups shared storage and cannot be changed"));
             if (app_data_only && !app_entries.contains(id)) throw new AccountsError.INVALID(_("The file is outside the discovered application data"));
         }
 
@@ -661,37 +668,71 @@ namespace Singularity.Accounts {
         public async Gee.List<CloudEntry> list(string folder_id, Cancellable? cancellable = null) throws Error {
             if (app_data_only) return yield list_app_data(folder_id, null, cancellable);
             var result = new Gee.ArrayList<CloudEntry>();
-            string q = esc("'%s' in parents and trashed = false".printf(folder_id.replace("'", "\\'")));
+            var pages = new Gee.HashSet<string>();
+            var ids = new Gee.HashSet<string>();
+            if (folder_id == DRIVES) {
+                string token = "";
+                do {
+                    string url = api + "drives?pageSize=100&fields=nextPageToken,drives(id,name)";
+                    if (token != "") url += "&pageToken=" + esc(token);
+                    if (!pages.add(url)) throw new AccountsError.PROTOCOL(_("The server repeated a storage page"));
+                    var root = (yield http.send_ok("GET", url, null, null, null, cancellable)).json_object();
+                    foreach (var node in CloudDrive.page_array(root, "drives").get_elements()) {
+                        if (node.get_node_type() != Json.NodeType.OBJECT) throw new AccountsError.PROTOCOL(_("The server returned invalid storage metadata"));
+                        var drive = node.get_object();
+                        string id = CloudDrive.page_string(drive, "id", true);
+                        if (!ids.add(id)) continue;
+                        shared_drives[id] = id;
+                        result.add(new CloudEntry() { id = id, name = CloudDrive.page_string(drive, "name", true), is_folder = true, content_type = "inode/directory", parent_id = DRIVES });
+                    }
+                    token = CloudDrive.page_string(root, "nextPageToken");
+                } while (token != "");
+                return result;
+            }
+            string q = esc(folder_id == SHARED ? "sharedWithMe = true and trashed = false"
+                : "'%s' in parents and trashed = false".printf(folder_id.replace("\\", "\\\\").replace("'", "\\'")));
             string page = "";
-            for (int n = 0; n < 100; n++) {
-                string url = api + "files?q=" + q + "&fields=" + esc("nextPageToken,files(" + FIELDS + ")") + "&pageSize=200&orderBy=folder,name";
+            do {
+                string url = api + "files?q=" + q + "&fields=" + esc("nextPageToken,files(" + FIELDS + ")") + "&pageSize=200&orderBy=folder,name&supportsAllDrives=true&includeItemsFromAllDrives=true";
+                if (shared_drives.has_key(folder_id)) url += "&corpora=drive&driveId=" + esc(shared_drives[folder_id]);
                 if (page != "") url += "&pageToken=" + esc(page);
+                if (!pages.add(url)) throw new AccountsError.PROTOCOL(_("The server repeated a storage page"));
                 var response = yield http.send_ok("GET", url, null, null, null, cancellable);
                 var root = response.json_object();
-                if (root.has_member("files")) {
-                    foreach (var node in root.get_array_member("files").get_elements()) {
-                        var e = entry_of(node.get_object());
-                        if (e.parent_id == "") e.parent_id = folder_id;
-                        result.add(e);
-                    }
+                foreach (var node in CloudDrive.page_array(root, "files").get_elements()) {
+                    if (node.get_node_type() != Json.NodeType.OBJECT) throw new AccountsError.PROTOCOL(_("The server returned invalid storage metadata"));
+                    var file = node.get_object();
+                    string id = CloudDrive.page_string(file, "id", true);
+                    if (!ids.add(id)) continue;
+                    var e = entry_of(file);
+                    string drive_id = CloudDrive.page_string(file, "driveId");
+                    if (drive_id != "") shared_drives[id] = drive_id;
+                    if (e.parent_id == "") e.parent_id = folder_id;
+                    result.add(e);
                 }
-                page = root.has_member("nextPageToken") ? root.get_string_member("nextPageToken") : "";
-                if (page == "") break;
+                page = CloudDrive.page_string(root, "nextPageToken");
+            } while (page != "");
+            if (folder_id == root_id || folder_id == personal_root) {
+                result.add(new CloudEntry() { id = SHARED, name = _("Shared with Me"), is_folder = true, content_type = "inode/directory", parent_id = root_id });
+                result.add(new CloudEntry() { id = DRIVES, name = _("Shared Drives"), is_folder = true, content_type = "inode/directory", parent_id = root_id });
             }
             return result;
         }
 
         public async CloudEntry stat(string id, Cancellable? cancellable = null) throws Error {
+            if (!app_data_only && (id == SHARED || id == DRIVES)) return new CloudEntry() { id = id, name = id == SHARED ? _("Shared with Me") : _("Shared Drives"), is_folder = true, content_type = "inode/directory", parent_id = root_id };
             app_entry(id);
-            var response = yield http.send_ok("GET", api + "files/" + esc(id) + "?fields=" + esc(FIELDS), null, null, null, cancellable);
-            return entry_of(response.json_object());
+            var response = yield http.send_ok("GET", api + "files/" + esc(id) + "?supportsAllDrives=true&fields=" + esc(FIELDS), null, null, null, cancellable);
+            var entry = entry_of(response.json_object());
+            if (!app_data_only && id == root_id) personal_root = entry.id;
+            return entry;
         }
 
         public async void download_to(CloudEntry entry, OutputStream output, Cancellable? cancellable = null, TransferProgress? progress = null) throws Error {
             app_entry(entry.id);
             string url = entry.export_type != ""
                 ? api + "files/" + esc(entry.id) + "/export?mimeType=" + esc(entry.export_type)
-                : api + "files/" + esc(entry.id) + "?alt=media";
+                : api + "files/" + esc(entry.id) + "?alt=media&supportsAllDrives=true";
             yield http.receive("GET", url, output, null, entry.export_type != "" ? -1 : entry.size, progress, cancellable);
         }
 
@@ -708,6 +749,7 @@ namespace Singularity.Accounts {
         }
 
         public async CloudEntry upload(string folder_id, string name, File source, Cancellable? cancellable = null, TransferProgress? progress = null) throws Error {
+            app_folder(folder_id);
             if (app_data_only) {
                 var matching = yield list_app_data(folder_id, name, cancellable);
                 if (matching.size > 1) throw new AccountsError.CONFLICT(_("Several application-data files have this name"));
@@ -716,8 +758,10 @@ namespace Singularity.Accounts {
                     return yield replace(matching[0], source, cancellable, progress);
                 }
             } else {
-                string q = esc("'%s' in parents and name = '%s' and trashed = false".printf(folder_id.replace("'", "\\'"), name.replace("'", "\\'")));
-                var found = yield http.send_ok("GET", api + "files?q=" + q + "&fields=" + esc("files(" + FIELDS + ")"), null, null, null, cancellable);
+                string q = esc("'%s' in parents and name = '%s' and trashed = false".printf(folder_id.replace("\\", "\\\\").replace("'", "\\'"), name.replace("\\", "\\\\").replace("'", "\\'")));
+                string url = api + "files?q=" + q + "&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=" + esc("files(" + FIELDS + ")");
+                if (shared_drives.has_key(folder_id)) url += "&corpora=drive&driveId=" + esc(shared_drives[folder_id]);
+                var found = yield http.send_ok("GET", url, null, null, null, cancellable);
                 var root = found.json_object();
                 if (root.has_member("files") && root.get_array_member("files").get_length() > 0) {
                     var existing = entry_of(root.get_array_member("files").get_object_element(0));
@@ -729,14 +773,14 @@ namespace Singularity.Accounts {
             var parents = new Json.Array();
             parents.add_string_element(folder_id);
             meta.set_array_member("parents", parents);
-            var uploaded = yield resumable("POST", upload_api + "files?uploadType=resumable&fields=" + esc(FIELDS), meta, CloudDrive.guess_type(name), source, cancellable, progress);
+            var uploaded = yield resumable("POST", upload_api + "files?uploadType=resumable&supportsAllDrives=true&fields=" + esc(FIELDS), meta, CloudDrive.guess_type(name), source, cancellable, progress);
             if (app_data_only) app_entries.add(uploaded.id);
             return uploaded;
         }
 
         public async CloudEntry replace(CloudEntry entry, File source, Cancellable? cancellable = null, TransferProgress? progress = null) throws Error {
             app_entry(entry.id);
-            return yield resumable("PATCH", upload_api + "files/" + esc(entry.id) + "?uploadType=resumable&fields=" + esc(FIELDS), new Json.Object(),
+            return yield resumable("PATCH", upload_api + "files/" + esc(entry.id) + "?uploadType=resumable&supportsAllDrives=true&fields=" + esc(FIELDS), new Json.Object(),
                 entry.content_type != "" ? entry.content_type : CloudDrive.guess_type(entry.name), source, cancellable, progress);
         }
 
@@ -787,7 +831,7 @@ namespace Singularity.Accounts {
             app_entry(entry.id);
             var meta = new Json.Object();
             meta.set_string_member("name", new_name);
-            var response = yield http.send_ok("PATCH", api + "files/" + esc(entry.id) + "?fields=" + esc(FIELDS), "application/json", json_bytes(meta), null, cancellable);
+            var response = yield http.send_ok("PATCH", api + "files/" + esc(entry.id) + "?supportsAllDrives=true&fields=" + esc(FIELDS), "application/json", json_bytes(meta), null, cancellable);
             return entry_of(response.json_object());
         }
 
@@ -795,10 +839,11 @@ namespace Singularity.Accounts {
             app_entry(entry.id);
             app_folder(folder_id);
             string old_parent = entry.parent_id;
+            if (old_parent == SHARED || old_parent == DRIVES) old_parent = "";
             if (old_parent == "") old_parent = (yield stat(entry.id, cancellable)).parent_id;
             var meta = new Json.Object();
             if (new_name != null) meta.set_string_member("name", new_name);
-            string url = api + "files/" + esc(entry.id) + "?addParents=" + esc(folder_id) + "&fields=" + esc(FIELDS);
+            string url = api + "files/" + esc(entry.id) + "?supportsAllDrives=true&addParents=" + esc(folder_id) + "&fields=" + esc(FIELDS);
             if (old_parent != "" && old_parent != folder_id) url += "&removeParents=" + esc(old_parent);
             var response = yield http.send_ok("PATCH", url, "application/json", json_bytes(meta), null, cancellable);
             var moved = entry_of(response.json_object());
@@ -819,7 +864,7 @@ namespace Singularity.Accounts {
 
         public async void delete(CloudEntry entry, Cancellable? cancellable = null) throws Error {
             app_entry(entry.id);
-            var response = yield http.send("DELETE", api + "files/" + esc(entry.id), null, null, null, cancellable);
+            var response = yield http.send("DELETE", api + "files/" + esc(entry.id) + "?supportsAllDrives=true", null, null, null, cancellable);
             if (response.status == 404) return;
             HttpClient.check(response, "DELETE");
         }
@@ -832,7 +877,7 @@ namespace Singularity.Accounts {
             var parents = new Json.Array();
             parents.add_string_element(parent_id);
             meta.set_array_member("parents", parents);
-            var response = yield http.send_ok("POST", api + "files?fields=" + esc(FIELDS), "application/json", json_bytes(meta), null, cancellable);
+            var response = yield http.send_ok("POST", api + "files?supportsAllDrives=true&fields=" + esc(FIELDS), "application/json", json_bytes(meta), null, cancellable);
             var created = entry_of(response.json_object());
             if (app_data_only) {
                 if (!created.is_folder) throw new AccountsError.PROTOCOL(_("The server did not create a directory"));
@@ -844,14 +889,17 @@ namespace Singularity.Accounts {
     }
 
     /**
-     * OneDrive through Microsoft Graph; ids are drive item ids and "root" is the top.
+     * OneDrive through Microsoft Graph; shared ids include the owning drive.
      */
     public class OneDrive : Object, CloudDrive {
+        private const string SHARED = "singularity:shared";
+        private const string LIBRARIES = "singularity:libraries";
         private Account _account;
         private HttpClient http;
         private string api;
         private bool app_data_only = false;
         private string app_root = "approot";
+        private string personal_root = "";
         private Gee.HashSet<string> app_folders = new Gee.HashSet<string>();
         private Gee.HashSet<string> app_entries = new Gee.HashSet<string>();
 
@@ -886,11 +934,41 @@ namespace Singularity.Accounts {
             return Uri.escape_string(s, null, false);
         }
 
-        private string item(string id) {
+        private string item(string id) throws Error {
+            if (id == SHARED || id == LIBRARIES) throw new IOError.PERMISSION_DENIED(_("This folder groups shared storage and cannot be changed"));
+            if (!app_data_only && id.has_prefix("drive:")) {
+                var parts = shared_id(id);
+                return api + "drives/" + esc(parts[0]) + "/items/" + esc(parts[1]);
+            }
             return id == "root" ? api + "me/drive/root" : api + "me/drive/items/" + esc(id);
         }
 
-        private CloudEntry entry_of(Json.Object o) throws Error {
+        private static string[] shared_id(string id) throws Error {
+            string[] parts = id.substring(6).split("/");
+            if (parts.length != 2) throw new AccountsError.INVALID(_("Invalid shared file identifier"));
+            for (int i = 0; i < parts.length; i++) {
+                string? value = Uri.unescape_string(parts[i]);
+                if (value == null || value == "" || value == "." || value == ".." || value.contains("/") || value.contains("\\"))
+                    throw new AccountsError.INVALID(_("Invalid shared file identifier"));
+                parts[i] = value;
+            }
+            return parts;
+        }
+
+        private string drive_of(string id) throws Error {
+            if (app_data_only || !id.has_prefix("drive:")) return "";
+            var parts = shared_id(id);
+            return parts[0];
+        }
+
+        private CloudEntry entry_of(Json.Object o, string drive_id = "") throws Error {
+            if (!app_data_only && o.has_member("remoteItem")) {
+                if (o.get_member("remoteItem").get_node_type() != Json.NodeType.OBJECT) throw new AccountsError.PROTOCOL(_("The server returned invalid shared metadata"));
+                o = o.get_object_member("remoteItem");
+                if (o.has_member("remoteItem") || !o.has_member("parentReference") || o.get_member("parentReference").get_node_type() != Json.NodeType.OBJECT)
+                    throw new AccountsError.PROTOCOL(_("The server returned invalid shared metadata"));
+                drive_id = CloudDrive.page_string(o.get_object_member("parentReference"), "driveId", true);
+            }
             if (app_data_only) {
                 string id = CloudDrive.page_string(o, "id", true);
                 CloudDrive.page_string(o, "name");
@@ -912,7 +990,7 @@ namespace Singularity.Accounts {
                 if (id == "root" || id == app_root) throw new AccountsError.PROTOCOL(_("The server returned a file outside application data"));
             }
             var e = new CloudEntry();
-            e.id = o.get_string_member("id");
+            e.id = CloudDrive.page_string(o, "id", true);
             e.name = o.has_member("name") ? o.get_string_member("name") : e.id;
             e.is_folder = o.has_member("folder");
             if (o.has_member("file")) {
@@ -927,21 +1005,81 @@ namespace Singularity.Accounts {
             if (o.has_member("parentReference")) {
                 var p = o.get_object_member("parentReference");
                 if (p.has_member("id")) e.parent_id = p.get_string_member("id");
+                if (!app_data_only && p.has_member("driveId")) drive_id = p.get_string_member("driveId");
+            }
+            if (!app_data_only && drive_id != "") {
+                e.id = "drive:" + esc(drive_id) + "/" + esc(e.id);
+                if (e.parent_id != "") e.parent_id = "drive:" + esc(drive_id) + "/" + esc(e.parent_id);
             }
             return e;
         }
 
+        private async Gee.List<Json.Object> collection(string url, Cancellable? cancellable, bool optional = false) throws Error {
+            var result = new Gee.ArrayList<Json.Object>();
+            var seen = new Gee.HashSet<string>();
+            string next = url;
+            while (next != "") {
+                next = CloudDrive.next_page(url, next);
+                if (!seen.add(next) || seen.size > 100) throw new AccountsError.PROTOCOL(_("The server repeated a storage page"));
+                var response = yield http.send("GET", next, null, null, null, cancellable);
+                if (optional && seen.size == 1 && (response.status == 400 || response.status == 403 || response.status == 404)) return result;
+                HttpClient.check(response, "GET");
+                var root = response.json_object();
+                foreach (var node in CloudDrive.page_array(root, "value").get_elements()) {
+                    if (node.get_node_type() != Json.NodeType.OBJECT) throw new AccountsError.PROTOCOL(_("The server returned invalid storage metadata"));
+                    result.add(node.get_object());
+                }
+                next = CloudDrive.page_string(root, "@odata.nextLink");
+            }
+            return result;
+        }
+
+        private async Gee.List<CloudEntry> libraries(Cancellable? cancellable) throws Error {
+            var result = new Gee.ArrayList<CloudEntry>();
+            var seen = new Gee.HashSet<string>();
+            foreach (var group in yield collection(api + "me/memberOf?$select=id,displayName", cancellable, true)) {
+                if (CloudDrive.page_string(group, "@odata.type") != "#microsoft.graph.group") continue;
+                string group_id = CloudDrive.page_string(group, "id", true);
+                string name = group.has_member("displayName") && !group.get_null_member("displayName") ? CloudDrive.page_string(group, "displayName") : "";
+                yield add_libraries(api + "groups/" + esc(group_id) + "/drives", name, result, seen, cancellable);
+            }
+            foreach (var site in yield collection(api + "me/followedSites", cancellable, true)) {
+                string id = CloudDrive.page_string(site, "id", true);
+                yield add_libraries(api + "sites/" + esc(id) + "/drives", CloudDrive.page_string(site, "displayName"), result, seen, cancellable);
+            }
+            return result;
+        }
+
+        private async void add_libraries(string url, string owner, Gee.List<CloudEntry> result, Gee.Set<string> seen, Cancellable? cancellable) throws Error {
+            foreach (var drive in yield collection(url, cancellable, true)) {
+                string id = CloudDrive.page_string(drive, "id", true);
+                if (!seen.add(id)) continue;
+                var response = yield http.send("GET", api + "drives/" + esc(id) + "/root", null, null, null, cancellable);
+                if (response.status == 403 || response.status == 404) continue;
+                HttpClient.check(response, "GET");
+                var folder = entry_of(response.json_object(), id);
+                string name = CloudDrive.page_string(drive, "name");
+                folder.name = owner != "" ? owner + (name != "" ? " - " + name : "") : (name != "" ? name : folder.name);
+                folder.parent_id = LIBRARIES;
+                result.add(folder);
+            }
+        }
+
         public async Gee.List<CloudEntry> list(string folder_id, Cancellable? cancellable = null) throws Error {
             if (app_data_only) return yield list_app_data(folder_id, cancellable);
+            if (folder_id == LIBRARIES) return yield libraries(cancellable);
             var result = new Gee.ArrayList<CloudEntry>();
-            string? next = item(folder_id) + "/children?$top=200";
-            for (int n = 0; n < 100 && next != null; n++) {
-                var response = yield http.send_ok("GET", next, null, null, null, cancellable);
-                var root = response.json_object();
-                if (root.has_member("value")) {
-                    foreach (var node in root.get_array_member("value").get_elements()) result.add(entry_of(node.get_object()));
-                }
-                next = root.has_member("@odata.nextLink") ? root.get_string_member("@odata.nextLink") : null;
+            string url = folder_id == SHARED ? api + "me/drive/sharedWithMe?allowexternal=true" : item(folder_id) + "/children?$top=200";
+            var ids = new Gee.HashSet<string>();
+            foreach (var file in yield collection(url, cancellable)) {
+                var entry = entry_of(file, drive_of(folder_id));
+                if (!ids.add(entry.id)) continue;
+                if (entry.parent_id == "" || folder_id == SHARED) entry.parent_id = folder_id;
+                result.add(entry);
+            }
+            if (folder_id == root_id || folder_id == personal_root) {
+                result.add(new CloudEntry() { id = SHARED, name = _("Shared with Me"), is_folder = true, content_type = "inode/directory", parent_id = root_id });
+                result.add(new CloudEntry() { id = LIBRARIES, name = _("Company Libraries"), is_folder = true, content_type = "inode/directory", parent_id = root_id });
             }
             return result;
         }
@@ -978,9 +1116,12 @@ namespace Singularity.Accounts {
         }
 
         public async CloudEntry stat(string id, Cancellable? cancellable = null) throws Error {
+            if (!app_data_only && (id == SHARED || id == LIBRARIES)) return new CloudEntry() { id = id, name = id == SHARED ? _("Shared with Me") : _("Company Libraries"), is_folder = true, content_type = "inode/directory", parent_id = root_id };
             app_entry(id);
             var response = yield http.send_ok("GET", item(id), null, null, null, cancellable);
-            return entry_of(response.json_object());
+            var entry = entry_of(response.json_object(), drive_of(id));
+            if (!app_data_only && id == root_id) personal_root = entry.id;
+            return entry;
         }
 
         public async void download_to(CloudEntry entry, OutputStream output, Cancellable? cancellable = null, TransferProgress? progress = null) throws Error {
@@ -994,14 +1135,14 @@ namespace Singularity.Accounts {
 
         public async CloudEntry upload(string folder_id, string name, File source, Cancellable? cancellable = null, TransferProgress? progress = null) throws Error {
             if (app_data_only && !app_folders.contains(folder_id)) throw new AccountsError.INVALID(_("The folder is outside application data"));
-            var uploaded = yield send_content(item(folder_id) + ":/" + esc(name) + ":", CloudDrive.guess_type(name), source, cancellable, progress);
+            var uploaded = yield send_content(item(folder_id) + ":/" + esc(name) + ":", CloudDrive.guess_type(name), source, cancellable, progress, drive_of(folder_id));
             if (app_data_only) app_entries.add(uploaded.id);
             return uploaded;
         }
 
         public async CloudEntry replace(CloudEntry entry, File source, Cancellable? cancellable = null, TransferProgress? progress = null) throws Error {
             app_entry(entry.id);
-            return yield send_content(item(entry.id), entry.content_type != "" ? entry.content_type : CloudDrive.guess_type(entry.name), source, cancellable, progress);
+            return yield send_content(item(entry.id), entry.content_type != "" ? entry.content_type : CloudDrive.guess_type(entry.name), source, cancellable, progress, drive_of(entry.id));
         }
 
         private static Bytes json_bytes(Json.Object o) {
@@ -1012,12 +1153,12 @@ namespace Singularity.Accounts {
             return new Bytes(gen.to_data(null).data);
         }
 
-        private async CloudEntry send_content(string target, string content_type, File source, Cancellable? cancellable, TransferProgress? progress) throws Error {
+        private async CloudEntry send_content(string target, string content_type, File source, Cancellable? cancellable, TransferProgress? progress, string drive_id) throws Error {
             int64 size = yield CloudDrive.size_of(source, cancellable);
             if (size <= CLOUD_SIMPLE_UPLOAD_LIMIT) {
                 var simple = yield http.send_file("PUT", target + "/content", content_type, new UploadSource(source, 0, size), null, true, progress, cancellable);
                 HttpClient.check(simple, "PUT");
-                return entry_of(simple.json_object());
+                return entry_of(simple.json_object(), drive_id);
             }
             var conflict = new Json.Object();
             conflict.set_string_member("@microsoft.graph.conflictBehavior", "replace");
@@ -1044,7 +1185,7 @@ namespace Singularity.Accounts {
                         continue;
                     }
                     HttpClient.check(response, "PUT");
-                    return entry_of(response.json_object());
+                    return entry_of(response.json_object(), drive_id);
                 }
             } catch (Error e) {
                 try {
@@ -1064,20 +1205,29 @@ namespace Singularity.Accounts {
             var gen = new Json.Generator();
             gen.set_root(node);
             var response = yield http.send_ok("PATCH", item(entry.id), "application/json", new Bytes(gen.to_data(null).data), null, cancellable);
-            return entry_of(response.json_object());
+            return entry_of(response.json_object(), drive_of(entry.id));
         }
 
         public async CloudEntry move(CloudEntry entry, string folder_id, string? new_name = null, Cancellable? cancellable = null) throws Error {
             app_entry(entry.id);
             if (app_data_only && !app_folders.contains(folder_id)) throw new AccountsError.INVALID(_("The folder is outside application data"));
+            item(folder_id);
             string parent = folder_id == "root" ? (yield stat("root", cancellable)).id : folder_id;
             var reference = new Json.Object();
+            if (parent.has_prefix("drive:")) {
+                var parts = shared_id(parent);
+                string source_drive = drive_of(entry.id);
+                if (source_drive == "") source_drive = drive_of((yield stat(entry.id, cancellable)).id);
+                if (source_drive != parts[0]) throw new IOError.NOT_SUPPORTED(_("Moving files between drives is not supported"));
+                reference.set_string_member("driveId", parts[0]);
+                parent = parts[1];
+            }
             reference.set_string_member("id", parent);
             var meta = new Json.Object();
             meta.set_object_member("parentReference", reference);
             if (new_name != null) meta.set_string_member("name", new_name);
             var response = yield http.send_ok("PATCH", item(entry.id), "application/json", json_bytes(meta), null, cancellable);
-            var moved = entry_of(response.json_object());
+            var moved = entry_of(response.json_object(), drive_of(entry.id));
             if (moved.parent_id == "") moved.parent_id = folder_id;
             return moved;
         }
@@ -1111,7 +1261,7 @@ namespace Singularity.Accounts {
             var gen = new Json.Generator();
             gen.set_root(node);
             var response = yield http.send_ok("POST", item(parent_id) + "/children", "application/json", new Bytes(gen.to_data(null).data), null, cancellable);
-            var created = entry_of(response.json_object());
+            var created = entry_of(response.json_object(), drive_of(parent_id));
             if (app_data_only) {
                 if (!created.is_folder) throw new AccountsError.PROTOCOL(_("The server did not create a directory"));
                 app_entries.add(created.id);

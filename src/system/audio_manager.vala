@@ -60,6 +60,8 @@ namespace Singularity {
         public signal void state_changed();
         public signal void external_volume_changed();
         private bool sink_seen = false;
+        private uint8 output_channels = 2;
+        private uint8 input_channels = 2;
         private int64 local_change_at = 0;
         public signal void devices_changed();
         public signal void mixer_changed();
@@ -101,12 +103,14 @@ namespace Singularity {
         }
         private PulseAudio.GLibMainLoop loop;
         private PulseAudio.Context context;
-        public uint32 default_sink_index { get; private set; default = 0; }
-        public uint32 default_source_index { get; private set; default = 0; }
+        public uint32 default_sink_index { get; private set; default = PulseAudio.INVALID_INDEX; }
+        public uint32 default_source_index { get; private set; default = PulseAudio.INVALID_INDEX; }
         private uint reconnect_delay_ms = 1000;
         private uint reconnect_source_id = 0;
         private uint _refresh_timer = 0;
         private bool _refreshing = false;
+        private int _refresh_pending = 0;
+        private bool _refresh_again = false;
 
         private const string MONO_SINK = "singularity_mono";
         private bool mono_enabled = false;
@@ -125,6 +129,14 @@ namespace Singularity {
         }
 
         private void connect_context() {
+            if (context != null) {
+                context.set_state_callback(null);
+                context.set_subscribe_callback(null);
+                context.disconnect();
+            }
+            _refreshing = false;
+            _refresh_pending = 0;
+            _refresh_again = false;
             var api = loop.get_api();
             context = new PulseAudio.Context(api, "Singularity Desktop");
             context.set_state_callback((c) => {
@@ -138,6 +150,18 @@ namespace Singularity {
                     });
                     c.subscribe(Context.SubscriptionMask.SINK | Context.SubscriptionMask.SOURCE | Context.SubscriptionMask.SINK_INPUT | Context.SubscriptionMask.SERVER, null);
                 } else if (state == Context.State.FAILED || state == Context.State.TERMINATED) {
+                    _refreshing = false;
+                    _refresh_pending = 0;
+                    sink_seen = false;
+                    default_sink_index = PulseAudio.INVALID_INDEX;
+                    default_source_index = PulseAudio.INVALID_INDEX;
+                    mono_module = PulseAudio.INVALID_INDEX;
+                    mono_pending = false;
+                    sinks = new List<AudioDevice?>();
+                    sources = new List<AudioDevice?>();
+                    sink_inputs = new List<SinkInput?>();
+                    devices_changed();
+                    mixer_changed();
                     warning("AudioManager: PulseAudio Context FAILED/TERMINATED, reconnecting in %ums", reconnect_delay_ms);
                     schedule_reconnect();
                 }
@@ -169,10 +193,20 @@ namespace Singularity {
         }
 
         private void refresh_all() {
-            if (_refreshing) return;
+            if (context.get_state() != Context.State.READY) return;
+            if (_refreshing) {
+                _refresh_again = true;
+                return;
+            }
             _refreshing = true;
             context.get_server_info((c, info) => {
+                if (c != context) return;
+                if (info == null) {
+                    _refreshing = false;
+                    return;
+                }
                 if (info != null) {
+                    _refresh_pending = 3;
                     string default_sink = info.default_sink_name ?? "";
                     if (default_sink == MONO_SINK && mono_master != null) {
                         default_sink = mono_master;
@@ -183,8 +217,9 @@ namespace Singularity {
                     get_source_info(info.default_source_name);
                     sinks = new List<AudioDevice?>();
                     context.get_sink_info_list((c, info, eol) => {
+                        if (c != context) return;
                         if (eol != 0) {
-                            _refreshing = false;
+                            finish_refresh();
                             devices_changed();
                             return;
                         }
@@ -201,7 +236,9 @@ namespace Singularity {
                     });
                     sources = new List<AudioDevice?>();
                     context.get_source_info_list((c, info, eol) => {
+                        if (c != context) return;
                         if (eol != 0) {
+                            finish_refresh();
                             devices_changed();
                             return;
                         }
@@ -220,7 +257,9 @@ namespace Singularity {
                     });
                     sink_inputs = new List<SinkInput?>();
                     context.get_sink_input_info_list((c, info, eol) => {
+                        if (c != context) return;
                         if (eol != 0) {
+                            finish_refresh();
                             mixer_changed();
                             return;
                         }
@@ -253,13 +292,23 @@ namespace Singularity {
             });
         }
 
+        private void finish_refresh() {
+            if (--_refresh_pending > 0) return;
+            _refreshing = false;
+            if (_refresh_again) {
+                _refresh_again = false;
+                queue_refresh();
+            }
+        }
+
         private void get_sink_info(string name) {
             context.get_sink_info_by_name(name, (c, info, eol) => {
-                if (eol != 0 || info == null) return;
+                if (c != context || eol != 0 || info == null) return;
                 bool same_sink = sink_seen && default_sink_index == info.index;
                 double old_volume = volume;
                 bool old_muted = is_muted;
                 default_sink_index = info.index;
+                output_channels = info.volume.channels;
                 double vol = 0;
                 if (info.volume.channels > 0) {
                     long total = 0;
@@ -291,6 +340,7 @@ namespace Singularity {
         }
 
         public void update_volume(double val) {
+            if (default_sink_index == PulseAudio.INVALID_INDEX) return;
             if (context.get_state() != Context.State.READY) return;
             local_change_at = get_monotonic_time();
             val = val.clamp(0, max_volume);
@@ -303,13 +353,14 @@ namespace Singularity {
             update_icon();
             state_changed();
             CVolume cvol = CVolume();
-            cvol.channels = 2;
+            cvol.channels = output_channels;
             var v = (uint32)((val / 100.0) * 65536.0);
-            for (int i = 0; i < 2; i++) cvol.values[i] = v;
+            for (int i = 0; i < cvol.channels; i++) cvol.values[i] = v;
             context.set_sink_volume_by_index(default_sink_index, cvol, null);
         }
 
         public void toggle_mute() {
+             if (default_sink_index == PulseAudio.INVALID_INDEX) return;
              if (context.get_state() != Context.State.READY) return;
              local_change_at = get_monotonic_time();
              is_muted = !is_muted;
@@ -320,8 +371,9 @@ namespace Singularity {
 
         private void get_source_info(string name) {
             context.get_source_info_by_name(name, (c, info, eol) => {
-                if (eol != 0 || info == null) return;
+                if (c != context || eol != 0 || info == null) return;
                 default_source_index = info.index;
+                input_channels = info.volume.channels;
                 double vol = 0;
                 if (info.volume.channels > 0) {
                     long total = 0;
@@ -338,17 +390,19 @@ namespace Singularity {
         }
 
         public void update_input_volume(double val) {
+            if (default_source_index == PulseAudio.INVALID_INDEX) return;
             if (context.get_state() != Context.State.READY) return;
             input_volume = val;
             state_changed();
             CVolume cvol = CVolume();
-            cvol.channels = 2;
+            cvol.channels = input_channels;
             var v = (uint32)((val / 100.0) * 65536.0);
-            for (int i = 0; i < 2; i++) cvol.values[i] = v;
+            for (int i = 0; i < cvol.channels; i++) cvol.values[i] = v;
             context.set_source_volume_by_index(default_source_index, cvol, null);
         }
 
         public void toggle_input_mute() {
+            if (default_source_index == PulseAudio.INVALID_INDEX) return;
              if (context.get_state() != Context.State.READY) return;
              input_muted = !input_muted;
              state_changed();

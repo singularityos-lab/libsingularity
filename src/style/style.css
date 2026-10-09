@@ -1200,6 +1200,8 @@ popover.dock-window-previews > contents {
     min-width: 22px;
     min-height: 22px;
     padding: 4px;
+    background-color: alpha(black, 0.55);
+    color: white;
 }
 
 .emoji-grid > flowboxchild {
