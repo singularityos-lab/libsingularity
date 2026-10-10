@@ -40,7 +40,7 @@ libsingularity_deps += [cups_dep]
 lcms2_dep      = dependency('lcms2')
 lcms2_c_args   = ['-I' + lcms2_dep.get_variable(pkgconfig: 'includedir')]
 lcms2_link_args = ['-L' + lcms2_dep.get_variable(pkgconfig: 'libdir'), '-llcms2']
-libsingularity_requires = ['gtk4', 'gio-unix-2.0', 'gee-0.8', 'json-glib-1.0', 'libpeas-2', 'gtksourceview-5']
+libsingularity_requires = ['gtk4', 'gio-unix-2.0', 'gee-0.8', 'json-glib-1.0', 'libpeas-2', 'gtksourceview-5', 'libsoup-3.0']
 libsingularity_requires += ['gstreamer-1.0', 'gstreamer-video-1.0', 'gstreamer-app-1.0']
 
 if get_option('layer-shell')
@@ -164,7 +164,6 @@ libsingularity_sources = files(
   'src/calendar/recurrence.vala',
   'src/calendar/ics.vala',
   'src/calendar/local_provider.vala',
-  'src/calendar/tasks_provider.vala',
   'src/calendar/web_provider.vala',
   'src/accounts/types.vala',
   'src/accounts/service_bus.vala',
@@ -189,6 +188,10 @@ libsingularity_sources = files(
   'src/notes/note_store.vala',
   'src/notes/line_merge.vala',
   'src/notes/note_picker.vala',
+  'src/collab/client.vala',
+  'src/collab/document.vala',
+  'src/collab/text.vala',
+  'src/collab/session.vala',
   'src/util/qr_code.vala',
   'src/util/qr_decoder.vala',
   'src/share/share_content.vala',
@@ -244,6 +247,7 @@ libsingularity_sources = files(
   'src/assets/asset_library.vala',
   'src/calendar/account_provider.vala',
   'src/core/environment.vala',
+  'src/core/capabilities.vala',
   'src/core/settings_util.vala',
   'src/core/application.vala',
   'src/core/action_accels.vala',
@@ -831,7 +835,6 @@ calendar_test = executable(
     'src/calendar/recurrence.vala',
     'src/calendar/ics.vala',
     'src/calendar/local_provider.vala',
-    'src/calendar/tasks_provider.vala',
     'src/calendar/web_provider.vala',
   ),
   dependencies: [gee_dep, json_dep, soup_dep, dependency('gio-2.0')],
@@ -844,6 +847,13 @@ extension_api_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('extension-api', extension_api_test, env: ['TMPDIR=' + meson.current_build_dir(), 'GDK_BACKEND=wayland', 'WAYLAND_DISPLAY=singularity-test-no-display', 'DISPLAY='])
+
+collab_test = executable(
+  'collab-test',
+  files('tests/collab_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('collab', collab_test, env: ['GSETTINGS_BACKEND=memory'])
 
 widget_layout_test = executable(
   'widget-layout-test',

@@ -163,7 +163,13 @@ namespace Singularity.Widgets {
 
         public void set_result(RecognizedText? text) {
             result = text;
-            data = text != null ? text.detect_data() : new Gee.ArrayList<DetectedData>();
+            data = new Gee.ArrayList<DetectedData>();
+            if (text != null) {
+                bool calendar = Capabilities.available(Contracts.CALENDAR);
+                foreach (var item in text.detect_data()) {
+                    if (item.kind != DataKind.DATE || calendar) data.add(item);
+                }
+            }
             matches = new Gee.ArrayList<TextRange>();
             anchor = -1;
             focus_word = -1;
@@ -217,7 +223,7 @@ namespace Singularity.Widgets {
 
         public void activate_data(DetectedData item) {
             if (item.kind == DataKind.DATE) {
-                ShareTargets.activate_app_action.begin("dev.sinty.calendar", "new-event-at", new Variant("(xbs)", item.when, item.timed, ""));
+                Capabilities.call_and_forget(Contracts.CALENDAR, "NewEventAt", new Variant("(xbs)", item.when, item.timed, ""));
                 return;
             }
             var root = get_root() as Gtk.Window;
@@ -244,7 +250,7 @@ namespace Singularity.Widgets {
             if (item != null && item.kind == DataKind.DATE) {
                 menu.add_item(_("Create Event"), item.kind.icon_name(), () => activate_data(item));
                 menu.add_item(_("Show in Calendar"), "x-office-calendar-symbolic", () => {
-                    ShareTargets.activate_app_action.begin("dev.sinty.calendar", "show-day", new Variant.int64(item.when));
+                    Capabilities.call_and_forget(Contracts.CALENDAR, "ShowDay", new Variant("(x)", item.when));
                 });
                 menu.add_item(_("Copy Date"), "edit-copy-symbolic", () => copy_text(item.text));
                 menu.add_separator();
@@ -260,28 +266,38 @@ namespace Singularity.Widgets {
             string chosen = selected_text.strip();
             if (chosen != "") {
                 menu.add_separator();
-                menu.add_item(_("Translate"), "accessories-dictionary-symbolic", () => {
-                    ShareTargets.activate_app_action.begin("dev.sinty.translate", "translate-text", new Variant.string(chosen));
-                });
-                menu.add_item(_("Add to Tasks"), "object-select-symbolic", () => {
-                    ShareTargets.activate_app_action.begin("dev.sinty.tasks", "add-task", new Variant.string(chosen));
-                });
-                menu.add_item(_("Show on Map"), "mark-location-symbolic", () => {
-                    new UriLauncher("geo:0,0?q=" + Uri.escape_string(chosen.replace("\n", ", "), null, false)).launch.begin(get_root() as Gtk.Window, null);
-                });
-                menu.add_item(_("Add to a Note…"), "document-send-symbolic", () => {
-                    Idle.add(() => {
-                        Notes.NotePicker.popup(this, (id) => {
-                            try {
-                                var note = Notes.NotePicker.target(id, _("Text from an Image"));
-                                Notes.NotePicker.append(note, chosen + "\n");
-                            } catch (Error e) {
-                                warning("Live Text: %s", e.message);
-                            }
-                        });
-                        return Source.REMOVE;
+                if (Capabilities.available(Contracts.TRANSLATE)) {
+                    menu.add_item(_("Translate"), "accessories-dictionary-symbolic", () => {
+                        Capabilities.call_and_forget(Contracts.TRANSLATE, "Translate", new Variant("(s)", chosen));
                     });
-                });
+                }
+                if (Capabilities.available(Contracts.TASKS)) {
+                    menu.add_item(_("Add to Tasks"), "object-select-symbolic", () => {
+                        Capabilities.call_and_forget(Contracts.TASKS, "AddTask", new Variant("(s)", chosen));
+                    });
+                }
+                if (AppInfo.get_default_for_uri_scheme("geo") != null) {
+                    menu.add_item(_("Show on Map"), "mark-location-symbolic", () => {
+                        new UriLauncher("geo:0,0?q=" + Uri.escape_string(chosen.replace("\n", ", "), null, false)).launch.begin(get_root() as Gtk.Window, null);
+                    });
+                }
+                if (Notes.NotePicker.available()) {
+                    Gdk.Rectangle at = { (int) x, (int) y, 1, 1 };
+                    menu.add_item(_("Add to a Note…"), "document-send-symbolic", () => {
+                        Idle.add(() => {
+                            Notes.NotePicker.popup(this, (id) => {
+                                Notes.NotePicker.add.begin(id, _("Text from an Image"), chosen + "\n", (obj, res) => {
+                                    try {
+                                        Notes.NotePicker.add.end(res);
+                                    } catch (Error e) {
+                                        warning("Live Text: %s", e.message);
+                                    }
+                                });
+                            }, null, at);
+                            return Source.REMOVE;
+                        });
+                    });
+                }
             }
             Gdk.Rectangle rect = { (int) x, (int) y, 1, 1 };
             menu.set_pointing_to(rect);

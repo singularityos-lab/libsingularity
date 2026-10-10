@@ -10,10 +10,12 @@ namespace Singularity.Text {
      */
     public class SpellChecker : Object {
         private static SpellChecker? instance = null;
+        private static Gee.HashMap<string, SpellChecker>? languages;
 
         private Enchant.Broker broker;
         private (unowned Enchant.Dict)[] dicts = {};
         private GLib.Settings? settings;
+        private string? language;
 
         /** Emitted when the languages or the enabled state change. */
         public signal void changed();
@@ -33,15 +35,26 @@ namespace Singularity.Text {
             return instance;
         }
 
-        private SpellChecker() {
+        public static SpellChecker for_language(string language) {
+            string tag = language.strip().replace("-", "_");
+            if (tag == "") return get_default();
+            if (languages == null) languages = new Gee.HashMap<string, SpellChecker>();
+            if (!languages.has_key(tag)) languages[tag] = new SpellChecker(tag);
+            return languages[tag];
+        }
+
+        private SpellChecker(string? language = null) {
+            this.language = language;
             broker = new Enchant.Broker();
             settings = Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
             if (settings != null && settings.settings_schema.has_key("spell-check-enabled")) {
                 settings.changed["spell-check-enabled"].connect(() => changed());
-                settings.changed["spell-check-languages"].connect(() => {
-                    load_dictionaries();
-                    changed();
-                });
+                if (language == null) {
+                    settings.changed["spell-check-languages"].connect(() => {
+                        load_dictionaries();
+                        changed();
+                    });
+                }
             } else {
                 settings = null;
             }
@@ -51,6 +64,15 @@ namespace Singularity.Text {
         private void load_dictionaries() {
             foreach (unowned Enchant.Dict dict in dicts) broker.free_dict(dict);
             dicts = {};
+            if (language != null) {
+                string tag = language;
+                if (broker.dict_exists(tag) == 0) tag = tag.split("_")[0];
+                if (broker.dict_exists(tag) != 0) {
+                    unowned Enchant.Dict? dict = broker.request_dict(tag);
+                    if (dict != null) dicts += dict;
+                }
+                return;
+            }
             string[] languages = settings != null ? settings.get_strv("spell-check-languages") : new string[0];
             if (languages.length == 0) {
                 foreach (unowned string name in Intl.get_language_names()) {

@@ -14,7 +14,8 @@ namespace Singularity {
     public enum LiveMode {
         HOST,
         GUEST,
-        FOLDER
+        FOLDER,
+        COLLAB
     }
 
     public class LiveSession : Object {
@@ -46,6 +47,12 @@ namespace Singularity {
         private int seq = 0;
         private Gee.HashSet<string> processed = new Gee.HashSet<string> ();
         private Json.Object? my_presence = null;
+        public string collab_session { get; private set; default = ""; }
+        public bool collab_hosting { get; private set; default = false; }
+        private ulong collab_raw_id = 0;
+        private ulong collab_joined_id = 0;
+        private ulong collab_ended_id = 0;
+        private int collab_sent = 0;
 
         public LiveSession (string name, string scheme, string path) {
             this.name = name;
@@ -374,11 +381,71 @@ namespace Singularity {
             }
         }
 
+        private void collab_wire (string session) {
+            collab_session = session;
+            var client = Collab.Client.get_default ();
+            collab_raw_id = client.raw.connect ((sid, author, data) => {
+                if (sid != collab_session) return;
+                var o = decode_text (data);
+                if (o == null) return;
+                string t = o.has_member ("t") ? o.get_string_member ("t") : "";
+                if (t == "welcome") return;
+                handle (o);
+            });
+            collab_joined_id = client.joined.connect ((sid, who) => {
+                if (sid != collab_session || !collab_hosting) return;
+                state_requested ();
+                if (current_state != null) client.update_snapshot.begin (collab_session, encode (current_state));
+                if (my_presence != null) client.send_raw (collab_session, encode (my_presence));
+            });
+            collab_ended_id = client.ended.connect ((sid) => {
+                if (sid != collab_session) return;
+                collab_unwire ();
+                ended (_("The live session ended."));
+            });
+        }
+
+        private void collab_unwire () {
+            var client = Collab.Client.get_default ();
+            if (collab_raw_id != 0) client.disconnect (collab_raw_id);
+            if (collab_joined_id != 0) client.disconnect (collab_joined_id);
+            if (collab_ended_id != 0) client.disconnect (collab_ended_id);
+            collab_raw_id = collab_joined_id = collab_ended_id = 0;
+            collab_session = "";
+        }
+
+        public async void host_collab (Json.Object state, Collab.Person person, string kind, string title) throws Error {
+            current_state = state;
+            if (mode == LiveMode.COLLAB && collab_session != "") {
+                yield Collab.Client.get_default ().invite (collab_session, person.id);
+                return;
+            }
+            string sid = yield Collab.Client.get_default ().share (person.id, kind, title, encode (state));
+            mode = LiveMode.COLLAB;
+            collab_hosting = true;
+            link = "";
+            collab_wire (sid);
+        }
+
+        public void join_collab (string session, string snapshot) {
+            mode = LiveMode.COLLAB;
+            collab_hosting = false;
+            collab_wire (session);
+            var state = decode_text (snapshot);
+            if (state != null) welcome (state);
+            if (my_presence != null) Collab.Client.get_default ().send_raw (collab_session, encode (my_presence));
+        }
+
         public void send (Json.Object o) {
             if (!o.has_member ("t")) o.set_string_member ("t", "ops");
             o.set_string_member ("peer", my_id);
             o.set_string_member ("who", name);
             switch (mode) {
+                case LiveMode.COLLAB:
+                    if (collab_session == "") break;
+                    Collab.Client.get_default ().send_raw (collab_session, encode (o));
+                    if (collab_hosting && ++collab_sent % 200 == 0) state_requested ();
+                    break;
                 case LiveMode.HOST:
                     broadcast (o, null);
                     break;
@@ -396,6 +463,9 @@ namespace Singularity {
 
         public void publish_state (Json.Object state) {
             current_state = state;
+            if (mode == LiveMode.COLLAB && collab_hosting && collab_session != "") {
+                Collab.Client.get_default ().update_snapshot.begin (collab_session, encode (state));
+            }
             if (mode == LiveMode.FOLDER) {
                 string n = "state-%s-%s.json".printf (stamp (), my_id);
                 processed.add (n);
@@ -407,6 +477,9 @@ namespace Singularity {
             var o = presence_json (my_id, name, color, info);
             my_presence = o;
             switch (mode) {
+                case LiveMode.COLLAB:
+                    if (collab_session != "") Collab.Client.get_default ().send_raw (collab_session, encode (o));
+                    break;
                 case LiveMode.HOST:
                     broadcast (o, null);
                     break;
@@ -420,6 +493,16 @@ namespace Singularity {
         }
 
         public void leave () {
+            if (mode == LiveMode.COLLAB && collab_session != "") {
+                var bye = new Json.Object ();
+                bye.set_string_member ("t", "bye");
+                bye.set_string_member ("id", my_id);
+                var client = Collab.Client.get_default ();
+                client.send_raw (collab_session, encode (bye));
+                string sid = collab_session;
+                collab_unwire ();
+                client.leave.begin (sid);
+            }
             if (poll_id != 0) {
                 Source.remove (poll_id);
                 poll_id = 0;
