@@ -25,17 +25,33 @@ namespace Singularity {
          */
         public signal void session_ending();
 
+        private Subprocess? lockscreen_process = null;
+
+        public bool locked { get; private set; default = false; }
+
         public void lockdown() {
             if (!QuickUnlock.lockdown()) warning("SessionManager: quick unlock was not disarmed");
             lock_screen();
         }
 
         public void lock_screen() {
+            if (lockscreen_process != null) return;
+
             // 1. Native singularity-lockscreen (ext-session-lock-v1 + PAM)
             string? lockscreen = find_singularity_binary("singularity-lockscreen");
             if (lockscreen != null) {
                 try {
-                    Process.spawn_command_line_async(lockscreen);
+                    var process = new Subprocess(SubprocessFlags.NONE, lockscreen);
+                    lockscreen_process = process;
+                    locked = true;
+                    process.wait_async.begin(null, (obj, res) => {
+                        try {
+                            process.wait_async.end(res);
+                        } catch (Error e) { }
+                        if (lockscreen_process != process) return;
+                        lockscreen_process = null;
+                        locked = false;
+                    });
                     return;
                 } catch (Error e) {
                     warning("singularity-lockscreen failed: %s", e.message);
