@@ -36,7 +36,10 @@ gst_app_dep    = dependency('gstreamer-app-1.0')
 libsingularity_deps = [gtk4_dep, wayland_dep, gee_dep, json_dep, peas_dep, gmodule_dep, gio_unix_dep, soup_dep, gtksource_dep, enchant_dep, m_dep]
 libsingularity_deps += [gst_dep, gst_video_dep, gst_app_dep]
 cups_dep       = dependency('cups')
-libsingularity_deps += [cups_dep]
+ipp_transport_lib = static_library('ipp-transport', 'src/print/ipp_transport.c',
+  dependencies: [dependency('glib-2.0'), cups_dep],
+  pic: true,
+)
 lcms2_dep      = dependency('lcms2')
 lcms2_c_args   = ['-I' + lcms2_dep.get_variable(pkgconfig: 'includedir')]
 lcms2_link_args = ['-L' + lcms2_dep.get_variable(pkgconfig: 'libdir'), '-llcms2']
@@ -383,7 +386,6 @@ libsingularity = shared_library('singularity',
   libsingularity_sources + libsingularity_resources + [
     'src/wayland/surface_effect.c',
     'src/wayland/snap_button.c',
-    'src/print/ipp_transport.c',
     'src/share/live_tls.c',
     'src/util/qr_decode.c',
     effect_protocol_c,
@@ -395,6 +397,7 @@ libsingularity = shared_library('singularity',
   dependencies: libsingularity_deps + [dependency('gnutls')],
   c_args: parental_c_args + lcms2_c_args,
   link_args: lcms2_link_args,
+  link_whole: ipp_transport_lib,
   vala_args: libsingularity_vala_args,
   include_directories: include_directories('src'),
   vala_header: 'singularity.h',
