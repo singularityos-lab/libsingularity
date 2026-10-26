@@ -97,7 +97,7 @@ namespace Singularity.Animation {
             if (!use_icon || item.get_width() <= 0) return;
             var bin = build_icon(item);
             _icon_bin = bin;
-            var icon = Gtk.DragIcon.get_for_drag(drag) as Gtk.DragIcon;
+            var icon = GdkExtra.drag_icon_for_drag(drag) as Gtk.DragIcon;
             if (icon == null) return;
             icon.child = bin;
             double x = _press_x, y = _press_y;
