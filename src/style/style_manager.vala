@@ -1321,10 +1321,9 @@ namespace Singularity.Style {
          * Loads a user-provided Singularity theme by name.
          *
          * Searches standard theme directories for a directory named
-         * `theme_name` containing `singularity/style.css`.  The CSS is loaded
-         * at priority 605 (above the built-in base at 600).  If the theme also
-         * provides `singularity/style-light.css` it will be swapped in/out when
-         * apply_color_scheme is called.
+         * `theme_name` containing `singularity/style.css`, loaded at USER + 3
+         * (its `singularity/style-light.css` variant at USER + 4) above the
+         * built-in base at USER, so a theme can override base named colours.
          *
          * Pass an empty string to unload any previously loaded user theme and
          * revert to the built-in default look.
@@ -1362,7 +1361,7 @@ namespace Singularity.Style {
                 StyleContext.add_provider_for_display(
                     Gdk.Display.get_default(),
                     user_theme_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 5
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER + 3
                 );
             } catch (Error e) {
                 warning("StyleManager: failed to load user theme '%s': %s", theme_name, e.message);
@@ -1393,7 +1392,7 @@ namespace Singularity.Style {
                 StyleContext.add_provider_for_display(
                     Gdk.Display.get_default(),
                     user_theme_variant_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 6
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER + 4
                 );
             } catch (Error e) {
                 warning("StyleManager: failed to load user theme variant: %s", e.message);
