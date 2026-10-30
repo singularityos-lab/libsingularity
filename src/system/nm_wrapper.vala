@@ -581,6 +581,159 @@ namespace Singularity {
             }
         }
 
+        /**
+         * Returns every saved Wi-Fi profile, hotspots excluded.
+         */
+        public GenericArray<NM.RemoteConnection> saved_wifi_connections() {
+            var result = new GenericArray<NM.RemoteConnection>();
+            if (client == null) return result;
+            foreach (var conn in client.get_connections()) {
+                if (conn.get_connection_type() != "802-11-wireless") continue;
+                var wireless = conn.get_setting_wireless();
+                if (wireless == null || wireless.mode == "ap") continue;
+                result.add(conn);
+            }
+            return result;
+        }
+
+        /**
+         * Returns the saved profile of a Wi-Fi network, or null if there is none.
+         */
+        public NM.RemoteConnection? saved_wifi_connection(string ssid) {
+            var saved = saved_wifi_connections();
+            for (int i = 0; i < saved.length; i++) {
+                var wireless = saved.get(i).get_setting_wireless();
+                if (wireless.ssid == null) continue;
+                if (NM.Utils.ssid_to_utf8(wireless.ssid.get_data()) == ssid) return saved.get(i);
+            }
+            return null;
+        }
+
+        /**
+         * Returns the profile in use on a wired port, else the first one bound to it.
+         */
+        public NM.RemoteConnection? wired_connection(string iface) {
+            if (client == null) return null;
+            var device = client.get_device_by_iface(iface);
+            if (device != null && device.get_active_connection() != null) {
+                var active = device.get_active_connection().get_connection();
+                if (active != null) return active;
+            }
+            NM.RemoteConnection? fallback = null;
+            foreach (var conn in client.get_connections()) {
+                if (conn.get_connection_type() != "802-3-ethernet") continue;
+                string? bound = conn.get_interface_name();
+                if (bound == iface) return conn;
+                if (bound == null && fallback == null) fallback = conn;
+            }
+            return fallback;
+        }
+
+        /**
+         * Returns the device carrying a profile, or null while it is not active.
+         */
+        public NM.Device? active_device(NM.RemoteConnection conn) {
+            if (client == null) return null;
+            foreach (var active in client.get_active_connections()) {
+                if (active.get_connection() != conn) continue;
+                var devices = active.get_devices();
+                if (devices.length > 0) return devices.get(0);
+            }
+            return null;
+        }
+
+        /**
+         * Takes a profile down without forgetting it.
+         */
+        public async bool disconnect_connection(NM.RemoteConnection conn) {
+            if (client == null) return false;
+            foreach (var active in client.get_active_connections()) {
+                if (active.get_connection() != conn) continue;
+                try {
+                    yield client.deactivate_connection_async(active, null);
+                } catch (Error e) {
+                    warning("Disconnect failed: %s", e.message);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Forgets a saved profile, disconnecting it first.
+         */
+        public async bool forget_connection(NM.RemoteConnection conn) {
+            yield disconnect_connection(conn);
+            try {
+                yield conn.delete_async(null);
+            } catch (Error e) {
+                warning("Forget failed: %s", e.message);
+                return false;
+            }
+            wifi_connections_changed();
+            return true;
+        }
+
+        /**
+         * Stores the IPv4 choice of a profile and reconnects it if it was active.
+         *
+         * @param manual  Use address and gateway instead of DHCP.
+         * @param address Address in CIDR form, required when manual.
+         * @param gateway Default gateway, or an empty string.
+         * @param dns     Nameservers.
+         * @param only_dns Ignore the nameservers offered by DHCP.
+         * @param autoconnect Join this network automatically.
+         * @return null on success, otherwise the reason.
+         */
+        public async string? save_ipv4(NM.RemoteConnection conn, bool manual, string address,
+                                       string gateway, string[] dns, bool only_dns,
+                                       bool autoconnect) {
+            var s_ip4 = conn.get_setting_ip4_config();
+            if (s_ip4 == null) {
+                s_ip4 = (NM.SettingIP4Config) GLib.Object.new(typeof(NM.SettingIP4Config));
+                conn.add_setting(s_ip4);
+            }
+            s_ip4.clear_addresses();
+            s_ip4.clear_dns();
+            ((GLib.Object) s_ip4).set("gateway", null);
+            int family = (int) GLib.SocketFamily.IPV4;
+            if (manual) {
+                string[] parts = address.strip().split("/");
+                int prefix = parts.length > 1 ? int.parse(parts[1]) : 24;
+                if (!NM.Utils.ipaddr_valid(family, parts[0]) || prefix < 1 || prefix > 32)
+                    return _("The address is not valid");
+                try {
+                    s_ip4.add_address(new NM.IPAddress(family, parts[0], prefix));
+                } catch (Error e) {
+                    return e.message;
+                }
+                if (gateway.strip() != "") {
+                    if (!NM.Utils.ipaddr_valid(family, gateway.strip()))
+                        return _("The gateway is not valid");
+                    ((GLib.Object) s_ip4).set("gateway", gateway.strip());
+                }
+            }
+            foreach (var server in dns) {
+                if (!NM.Utils.ipaddr_valid(family, server))
+                    return _("The DNS server %s is not valid").printf(server);
+                s_ip4.add_dns(server);
+            }
+            s_ip4.method = manual ? "manual" : "auto";
+            ((GLib.Object) s_ip4).set("ignore-auto-dns", !manual && only_dns);
+            ((GLib.Object) conn.get_setting_connection()).set("autoconnect", autoconnect);
+            var device = active_device(conn);
+            try {
+                yield conn.commit_changes_async(true, null);
+                if (device != null) {
+                    yield disconnect_connection(conn);
+                    yield client.activate_connection_async(conn, device, null, null);
+                }
+            } catch (Error e) {
+                return e.message;
+            }
+            return null;
+        }
+
         public async void deactivate_connection(NM.RemoteConnection conn) {
             bool ok = yield deactivate_vpn(conn, true);
             if (ok) vpn_action_result(true, "VPN disconnected");
