@@ -53,6 +53,16 @@ namespace Singularity {
         /** Credits line shown in the About dialog. Hidden when null. */
         public string? about_credits { get; set; default = null; }
 
+        private AppAgent? _agent = null;
+
+        /** What this application offers to the system agent; see {@link AppAgent}. */
+        public AppAgent agent {
+            get {
+                if (_agent == null) _agent = new AppAgent(this);
+                return _agent;
+            }
+        }
+
         private bool _menubar_queued = false;
         private GLib.Menu? _auto_about_section = null;
         private AppInfo? _desktop_info_cache = null;
@@ -112,6 +122,11 @@ namespace Singularity {
             } catch (IOError e) {
                 warning("ActionAccels: cannot export %s: %s", object_path, e.message);
             }
+            try {
+                agent.export(connection, object_path);
+            } catch (Error e) {
+                warning("AppAgent: cannot export %s: %s", object_path, e.message);
+            }
             dbus_registered(connection, object_path);
             return true;
         }
@@ -119,6 +134,7 @@ namespace Singularity {
         public override void dbus_unregister(DBusConnection connection, string object_path) {
             dbus_unregistered(connection, object_path);
             ActionAccels.for_application(this).unexport();
+            agent.unexport();
             base.dbus_unregister(connection, object_path);
         }
 

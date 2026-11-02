@@ -258,6 +258,7 @@ libsingularity_sources = files(
   'src/core/capabilities.vala',
   'src/core/compute.vala',
   'src/core/settings_util.vala',
+  'src/core/app_agent.vala',
   'src/core/application.vala',
   'src/core/action_accels.vala',
   'src/core/shell_application.vala',
