@@ -18,6 +18,10 @@ namespace Singularity {
     public delegate Json.Node? AppIntentHandler(Json.Object args) throws Error;
     public delegate Json.Node? AppContextProvider();
 
+    /** Delivers the outcome of an intent that finishes later. Call it once, on the main thread. */
+    public delegate void AppIntentReply(Json.Node? result, Error? error);
+    public delegate void AppIntentAsyncHandler(Json.Object args, owned AppIntentReply reply);
+
     /**
      * What an application offers to the system agent, on dev.sinty.AppAgent1.
      *
@@ -34,14 +38,14 @@ namespace Singularity {
             public string description;
             public string schema;
             public AppIntentRisk risk;
-            public AppIntentHandler handler;
+            public AppIntentHandler? handler = null;
+            public AppIntentAsyncHandler? async_handler = null;
 
-            public Intent(string name, string description, string schema, AppIntentRisk risk, owned AppIntentHandler handler) {
+            public Intent(string name, string description, string schema, AppIntentRisk risk) {
                 this.name = name;
                 this.description = description;
                 this.schema = schema;
                 this.risk = risk;
-                this.handler = (owned) handler;
             }
         }
 
@@ -61,9 +65,22 @@ namespace Singularity {
          * the same name twice replaces the earlier one.
          */
         public void add_intent(string name, string description, string schema, AppIntentRisk risk, owned AppIntentHandler handler) {
-            unowned List<Intent>? old = intents.search<string>(name, (i, n) => strcmp(i.name, n));
+            var intent = new Intent(name, description, schema, risk);
+            intent.handler = (owned) handler;
+            put(intent);
+        }
+
+        /** Adds an intent whose result arrives later, such as a script run in a web page. */
+        public void add_async_intent(string name, string description, string schema, AppIntentRisk risk, owned AppIntentAsyncHandler handler) {
+            var intent = new Intent(name, description, schema, risk);
+            intent.async_handler = (owned) handler;
+            put(intent);
+        }
+
+        private void put(Intent intent) {
+            unowned List<Intent>? old = intents.search<string>(intent.name, (i, n) => strcmp(i.name, n));
             if (old != null) intents.delete_link(old);
-            intents.append(new Intent(name, description, schema, risk, (owned) handler));
+            intents.append(intent);
         }
 
         /** Sets what Context answers beside the active window: selection, open document, view. */
@@ -133,12 +150,25 @@ namespace Singularity {
             return Json.to_string(b.get_root(), false);
         }
 
-        internal string invoke(string name, string raw) throws Error {
+        internal async string invoke(string name, string raw) throws Error {
             foreach (var i in intents) {
                 if (i.name != name) continue;
                 var node = Json.from_string(raw);
                 var obj = node != null && node.get_node_type() == Json.NodeType.OBJECT ? node.get_object() : new Json.Object();
-                var result = i.handler(obj);
+                Json.Node? result = null;
+                if (i.handler != null) {
+                    result = i.handler(obj);
+                } else {
+                    Error? failure = null;
+                    SourceFunc resume = invoke.callback;
+                    i.async_handler(obj, (r, e) => {
+                        result = r;
+                        failure = e != null ? e.copy() : null;
+                        Idle.add((owned) resume);
+                    });
+                    yield;
+                    if (failure != null) throw failure;
+                }
                 return result != null ? Json.to_string(result, false) : "{}";
             }
             throw new DBusError.INVALID_ARGS("unknown intent %s", name);
@@ -169,11 +199,13 @@ namespace Singularity {
             return agent.context_json();
         }
 
-        public string invoke(string intent, string args, BusName sender) throws DBusError, IOError {
+        public async string invoke(string intent, string args, BusName sender) throws DBusError, IOError {
             check(sender);
             try {
-                return agent.invoke(intent, args);
+                return yield agent.invoke(intent, args);
             } catch (DBusError e) {
+                throw e;
+            } catch (IOError e) {
                 throw e;
             } catch (Error e) {
                 throw new DBusError.FAILED("%s", e.message);
