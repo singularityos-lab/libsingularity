@@ -151,6 +151,16 @@ namespace Singularity {
         }
 
         internal async string invoke(string name, string raw) throws Error {
+            app.hold();
+            try {
+                return yield run(name, raw);
+            } finally {
+                if (app.inactivity_timeout < 10000) app.inactivity_timeout = 10000;
+                app.release();
+            }
+        }
+
+        private async string run(string name, string raw) throws Error {
             foreach (var i in intents) {
                 if (i.name != name) continue;
                 var node = Json.from_string(raw);
@@ -160,7 +170,7 @@ namespace Singularity {
                     result = i.handler(obj);
                 } else {
                     Error? failure = null;
-                    SourceFunc resume = invoke.callback;
+                    SourceFunc resume = run.callback;
                     i.async_handler(obj, (r, e) => {
                         result = r;
                         failure = e != null ? e.copy() : null;
