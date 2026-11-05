@@ -17,6 +17,7 @@ namespace Singularity {
         public bool supports_sms { get; set; default = false; }
         public bool supports_find { get; set; default = false; }
         public bool supports_media { get; set; default = false; }
+        public bool supports_sinty_ai { get; set; default = false; }
         public bool has_conversations { get; set; default = false; }
         public int notification_count { get; set; default = 0; }
 
@@ -58,6 +59,7 @@ namespace Singularity {
             supports_sms = flag(dict, "supports-sms");
             supports_find = flag(dict, "supports-find");
             supports_media = flag(dict, "supports-media");
+            supports_sinty_ai = flag(dict, "supports-sinty-ai");
             has_conversations = flag(dict, "has-conversations");
             var nc = dict.lookup_value("notification-count", VariantType.INT32);
             notification_count = nc != null ? nc.get_int32() : 0;
@@ -95,7 +97,7 @@ namespace Singularity {
         public const string BUS_NAME = "dev.sinty.Nearby";
         public const string OBJECT_PATH = "/dev/sinty/Nearby";
         public const string INTERFACE = "dev.sinty.Nearby1";
-        public const string[] PLUGINS = { "share", "clipboard", "notifications", "battery", "findmyphone", "sms", "mpris", "runcommand", "ping" };
+        public const string[] PLUGINS = { "share", "clipboard", "notifications", "battery", "findmyphone", "sms", "mpris", "runcommand", "ping", "sinty-ai" };
 
         private static NearbyClient? instance;
         private DBusConnection? bus;
@@ -363,6 +365,7 @@ namespace Singularity {
                 case "mpris": return _("Media Controls");
                 case "ping": return _("Ping");
                 case "runcommand": return _("Run Commands");
+                case "sinty-ai": return _("Sinty AI");
                 default: return plugin;
             }
         }
@@ -378,14 +381,16 @@ namespace Singularity {
                 case "mpris": return _("Control music and videos on both devices");
                 case "ping": return _("Show a notification when the device pings");
                 case "runcommand": return _("Let the device run the commands you choose on this computer");
+                case "sinty-ai": return _("Ask Sinty AI from the device and answer its questions there");
                 default: return "";
             }
         }
 
-        public string[] features_for_settings() {
+        public string[] features_for_settings(NearbyDevice? device = null) {
             string[] result = {};
             foreach (string p in PLUGINS) {
                 if (p == "runcommand" && !run_commands_allowed) continue;
+                if (p == "sinty-ai" && (device == null || !device.supports_sinty_ai)) continue;
                 result += p;
             }
             return result;
