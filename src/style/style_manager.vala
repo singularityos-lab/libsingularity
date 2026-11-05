@@ -232,7 +232,7 @@ namespace Singularity.Style {
         private static bool is_plain_button(Gtk.Button button) {
             if (!has_only_neutral_classes(button)) return false;
             for (var parent = button.get_parent(); parent != null; parent = parent.get_parent()) {
-                if (parent is Gtk.MenuButton || parent is Gtk.DropDown) {
+                if (parent is Gtk.MenuButton || parent is Gtk.DropDown || parent is Singularity.Widgets.ChoiceButton) {
                     if (!has_only_neutral_classes(parent)) return false;
                     continue;
                 }

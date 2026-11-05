@@ -42,51 +42,51 @@ namespace Singularity.Print {
         private Button print_button;
         private Label summary;
         private Banner banner;
-        private DropDown preset_drop;
+        private ChoiceButton preset_drop;
         private string[] preset_names = {};
 
         private SpinRow copies_row;
         private SwitchRow collate_row;
-        private DropDown range_drop;
+        private ChoiceButton range_drop;
         private RangeMode[] range_modes = {};
         private EntryRow range_entry;
-        private DropDown pageset_drop;
+        private ChoiceButton pageset_drop;
         private SwitchRow reverse_row;
         private ToggleButton portrait_btn;
         private ToggleButton landscape_btn;
-        private DropDown paper_drop;
+        private ChoiceButton paper_drop;
         private string[] paper_keys = {};
-        private DropDown scale_drop;
+        private ChoiceButton scale_drop;
         private ActionRow scale_action_row;
         private ActionRow nup_action_row;
         private SpinRow scale_row;
-        private DropDown nup_drop;
+        private ChoiceButton nup_drop;
         private ActionRow order_row;
-        private DropDown order_drop;
+        private ChoiceButton order_drop;
         private SwitchRow borders_row;
         private SwitchRow booklet_row;
-        private DropDown margins_drop;
+        private ChoiceButton margins_drop;
         private SpinRow[] margin_rows = {};
         private PreferencesGroup device_group;
         private ActionRow duplex_row;
-        private DropDown duplex_drop;
+        private ChoiceButton duplex_drop;
         private ActionRow color_row;
-        private DropDown color_drop;
+        private ChoiceButton color_drop;
         private ActionRow quality_row;
-        private DropDown quality_drop;
+        private ChoiceButton quality_drop;
         private int[] quality_values = {};
         private ActionRow source_row;
-        private DropDown source_drop;
+        private ChoiceButton source_drop;
         private string[] source_keys = {};
         private ActionRow type_row;
-        private DropDown type_drop;
+        private ChoiceButton type_drop;
         private string[] type_keys = {};
-        private DropDown header_drop;
-        private DropDown footer_drop;
+        private ChoiceButton header_drop;
+        private ChoiceButton footer_drop;
         private EntryRow watermark_row;
         private SpinRow watermark_opacity;
         private PreferencesGroup output_group;
-        private DropDown format_drop;
+        private ChoiceButton format_drop;
         private ExpanderRow advanced_row;
         private Gee.ArrayList<Widget> advanced_rows = new Gee.ArrayList<Widget>();
         private ActionRow selection_hint;
@@ -197,8 +197,8 @@ namespace Singularity.Print {
             load_printers.begin();
         }
 
-        private DropDown drop(string[] labels, string accessible) {
-            var d = new DropDown.from_strings(labels);
+        private ChoiceButton drop(string[] labels, string accessible) {
+            var d = new ChoiceButton.from_strings(labels);
             d.valign = Align.CENTER;
             d.update_property(AccessibleProperty.LABEL, accessible, -1);
             d.notify["selected"].connect(() => on_changed(d == paper_drop || d == margins_drop));
@@ -214,7 +214,7 @@ namespace Singularity.Print {
 
         private Widget build_presets() {
             var g = new PreferencesGroup(_("Presets"));
-            preset_drop = new DropDown.from_strings({});
+            preset_drop = new ChoiceButton.from_strings({});
             preset_drop.valign = Align.CENTER;
             preset_drop.update_property(AccessibleProperty.LABEL, _("Preset"), -1);
             var row = new ActionRow(_("Preset"));
@@ -387,7 +387,7 @@ namespace Singularity.Print {
                         row = sw;
                         break;
                     case ExtraKind.CHOICE:
-                        var d = new DropDown.from_strings(o.choice_labels);
+                        var d = new ChoiceButton.from_strings(o.choice_labels);
                         d.valign = Align.CENTER;
                         d.update_property(AccessibleProperty.LABEL, o.title, -1);
                         d.selected = o.choice_index();
@@ -600,7 +600,7 @@ namespace Singularity.Print {
             foreach (var extra in caps.extras) {
                 string[] labels = {_("Printer Default")};
                 foreach (var v in extra.values) labels += Options.humanize(v);
-                var d = new DropDown.from_strings(labels);
+                var d = new ChoiceButton.from_strings(labels);
                 d.valign = Align.CENTER;
                 d.update_property(AccessibleProperty.LABEL, extra.label(), -1);
                 string current = options.extras.lookup(extra.name) ?? "";

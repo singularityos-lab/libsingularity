@@ -392,7 +392,7 @@ namespace Singularity.Widgets {
             Widget? target = pick(x, y, PickFlags.DEFAULT);
             while (target != null && target != this) {
                 if (target is Button || target is Switch || target is Entry ||
-                    target is SpinButton || target is DropDown || target is Scale)
+                    target is SpinButton || target is DropDown || target is Singularity.Widgets.ChoiceButton || target is Scale)
                     return true;
                 target = target.get_parent();
             }

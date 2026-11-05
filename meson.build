@@ -117,6 +117,7 @@ libsingularity_sources = files(
   'src/ui/controls/swipe_navigation.vala',
   'src/ui/controls/time_picker.vala',
   'src/ui/controls/color_picker_button.vala',
+  'src/ui/controls/choice_button.vala',
   'src/ui/controls/recent_colors.vala',
   'src/ui/editor/style_chooser.vala',
   'src/ui/editor/floating_format_bar.vala',
@@ -1082,6 +1083,14 @@ share_links_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('share-links', share_links_test, env: ['TMPDIR=' + meson.current_build_dir()], timeout: 120)
+
+choice_button_test = executable(
+  'choice-button-test',
+  files('tests/choice_button_test.vala'),
+  dependencies: [libsingularity_dep],
+  vala_args: ['--pkg', 'posix'],
+)
+test('choice-button', choice_button_test, env: ['TMPDIR=' + meson.current_build_dir()])
 
 print_test = executable(
   'print-test',

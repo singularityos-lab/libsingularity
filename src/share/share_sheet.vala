@@ -14,9 +14,9 @@ namespace Singularity.Widgets {
         private ActionRow account_row;
         private ActionRow access_row;
         private ActionRow expiry_row;
-        private DropDown account_drop;
-        private DropDown access_drop;
-        private DropDown expiry_drop;
+        private Singularity.Widgets.ChoiceButton account_drop;
+        private Singularity.Widgets.ChoiceButton access_drop;
+        private Singularity.Widgets.ChoiceButton expiry_drop;
         private Gee.ArrayList<Accounts.Account> accounts = new Gee.ArrayList<Accounts.Account>();
         private Box page_box;
         private Box page_holder;
@@ -171,7 +171,7 @@ namespace Singularity.Widgets {
 
             link_group = new PreferencesGroup(_("Link"));
             account_row = new ActionRow(_("Upload To"));
-            account_drop = new DropDown.from_strings({});
+            account_drop = new Singularity.Widgets.ChoiceButton.from_strings({});
             account_drop.valign = Align.CENTER;
             account_drop.update_property(AccessibleProperty.LABEL, _("Upload To"), -1);
             account_row.add_suffix(account_drop);
@@ -180,7 +180,7 @@ namespace Singularity.Widgets {
             });
             link_group.add_row(account_row);
             access_row = new ActionRow(_("Access"));
-            access_drop = new DropDown.from_strings({ Accounts.LinkAccess.VIEW.label(), Accounts.LinkAccess.EDIT.label() });
+            access_drop = new Singularity.Widgets.ChoiceButton.from_strings({ Accounts.LinkAccess.VIEW.label(), Accounts.LinkAccess.EDIT.label() });
             access_drop.valign = Align.CENTER;
             access_drop.update_property(AccessibleProperty.LABEL, _("Access"), -1);
             access_drop.selected = Accounts.CloudShare.last_access == Accounts.LinkAccess.EDIT ? 1 : 0;
@@ -190,7 +190,7 @@ namespace Singularity.Widgets {
             access_row.add_suffix(access_drop);
             link_group.add_row(access_row);
             expiry_row = new ActionRow(_("Expires"));
-            expiry_drop = new DropDown.from_strings({ _("Never"), _("In a Day"), _("In a Week"), _("In a Month") });
+            expiry_drop = new Singularity.Widgets.ChoiceButton.from_strings({ _("Never"), _("In a Day"), _("In a Week"), _("In a Month") });
             expiry_drop.valign = Align.CENTER;
             expiry_drop.update_property(AccessibleProperty.LABEL, _("Expires"), -1);
             expiry_row.add_suffix(expiry_drop);

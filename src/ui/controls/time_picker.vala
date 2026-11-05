@@ -33,6 +33,24 @@ namespace Singularity.Widgets {
             }
         }
 
+        public int hour {
+            get { return (int) hour_spin.value; }
+            set {
+                _updating = true;
+                hour_spin.value = value.clamp(0, 23);
+                _updating = false;
+            }
+        }
+
+        public int minute {
+            get { return (int) min_spin.value; }
+            set {
+                _updating = true;
+                min_spin.value = value.clamp(0, 59);
+                _updating = false;
+            }
+        }
+
         public TimePicker(string initial = "00:00") {
             Object(orientation: Gtk.Orientation.HORIZONTAL, spacing: 4);
             add_css_class("time-picker");

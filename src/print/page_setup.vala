@@ -13,10 +13,10 @@ namespace Singularity.Print {
 
         public signal void finished(bool applied);
 
-        private DropDown paper_drop;
+        private ChoiceButton paper_drop;
         private string[] paper_keys = {};
         private ToggleButton landscape_btn;
-        private DropDown margins_drop;
+        private ChoiceButton margins_drop;
         private SpinRow[] margin_rows = {};
 
         public PageSetupDialog(Gtk.Window? parent, JobOptions initial) {
@@ -47,7 +47,7 @@ namespace Singularity.Print {
                 string d = Media.default_keyword();
                 for (int i = 0; i < paper_keys.length; i++) if (paper_keys[i] == d) sel = i;
             }
-            paper_drop = new DropDown.from_strings(labels);
+            paper_drop = new ChoiceButton.from_strings(labels);
             paper_drop.valign = Align.CENTER;
             paper_drop.selected = sel;
             paper_drop.update_property(AccessibleProperty.LABEL, _("Paper Size"), -1);
@@ -86,7 +86,7 @@ namespace Singularity.Print {
             box.append(g);
 
             var mg = new PreferencesGroup(_("Margins"));
-            margins_drop = new DropDown.from_strings({_("Default"), _("None"), _("Minimum"), _("Custom")});
+            margins_drop = new ChoiceButton.from_strings({_("Default"), _("None"), _("Minimum"), _("Custom")});
             margins_drop.valign = Align.CENTER;
             margins_drop.selected = (uint) options.margins;
             margins_drop.update_property(AccessibleProperty.LABEL, _("Margins"), -1);

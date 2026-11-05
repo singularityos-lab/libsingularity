@@ -146,6 +146,7 @@ namespace Singularity.Widgets {
             bool claimed = context_requested (x, y);
             if (menu_model == null) return claimed;
             var pop = new PopoverMenu.from_model (menu_model);
+            pop.add_css_class ("singularity-app-menu");
             pop.has_arrow = false;
             pop.set_parent (this);
             Gdk.Rectangle rect = { (int) x, (int) y, 1, 1 };
