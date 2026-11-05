@@ -1,3 +1,5 @@
+using Singularity.Widgets;
+
 namespace Singularity {
 
     /** How far the effect of an intent reaches, which decides when the agent asks first. */
@@ -58,6 +60,269 @@ namespace Singularity {
 
         internal AppAgent(Gtk.Application app) {
             this.app = app;
+            add_builtin_intents();
+        }
+
+        private static Regex? risky_re = null;
+
+        private static bool risky(string action) {
+            if (risky_re == null) {
+                try {
+                    risky_re = new Regex("(^|[-_.])(send|delete|remove|erase|wipe|format|trash|discard|publish|post|forward|reply|uninstall|install|restore|revoke|reset|quit|purge|overwrite|empty|block|unfollow|sign-?out|log-?out|pay|buy|share|push|commit|flash)", RegexCompileFlags.CASELESS);
+                } catch (RegexError e) {
+                    return true;
+                }
+            }
+            return risky_re.match(action);
+        }
+
+        private ActionGroup? group_for(string prefix) {
+            if (prefix == "app") return app;
+            var w = app.get_active_window();
+            if (w == null && app.get_windows().length() > 0) w = app.get_windows().nth_data(0);
+            if (prefix == "win") return w as ActionGroup;
+            return null;
+        }
+
+        private void describe_group(Json.Builder b, string prefix, ActionGroup? g) {
+            if (g == null) return;
+            foreach (string name in g.list_actions()) {
+                string full = prefix + "." + name;
+                b.begin_object();
+                b.set_member_name("name").add_string_value(full);
+                b.set_member_name("enabled").add_boolean_value(g.get_action_enabled(name));
+                var pt = g.get_action_parameter_type(name);
+                b.set_member_name("parameter").add_string_value(pt != null ? pt.dup_string() : "");
+                var st = g.get_action_state(name);
+                if (st != null) b.set_member_name("state").add_string_value(st.print(false));
+                var accels = app.get_accels_for_action(full);
+                if (accels.length > 0) {
+                    b.set_member_name("keys");
+                    b.begin_array();
+                    foreach (string a in accels) b.add_string_value(a);
+                    b.end_array();
+                }
+                b.set_member_name("needs_confirmation").add_boolean_value(risky(name));
+                b.end_object();
+            }
+        }
+
+        private Json.Node? run_action(Json.Object args, bool confirmed) throws Error {
+            string full = args.has_member("name") ? args.get_string_member("name") : "";
+            int dot = full.index_of_char('.');
+            if (dot <= 0) throw new IOError.INVALID_ARGUMENT("name must look like win.bold or app.new-window");
+            string prefix = full.substring(0, dot);
+            string name = full.substring(dot + 1);
+            var g = group_for(prefix);
+            if (g == null || !g.has_action(name)) throw new IOError.NOT_FOUND("no action %s; list them with app_actions", full);
+            if (!confirmed && risky(name)) throw new IOError.PERMISSION_DENIED("%s changes things that cannot be undone: use app_action_confirmed", full);
+            if (!g.get_action_enabled(name)) throw new IOError.FAILED("%s is disabled right now", full);
+            Variant? param = null;
+            var pt = g.get_action_parameter_type(name);
+            if (pt != null) {
+                if (!args.has_member("value")) throw new IOError.INVALID_ARGUMENT("%s takes a value of type %s", full, pt.dup_string());
+                param = Json.gvariant_deserialize(args.get_member("value"), pt.dup_string());
+                if (param == null) throw new IOError.INVALID_ARGUMENT("value does not fit type %s", pt.dup_string());
+            }
+            var before = g.get_action_state(name);
+            g.activate_action(name, param);
+            var after = g.get_action_state(name);
+            var b = new Json.Builder();
+            b.begin_object();
+            b.set_member_name("action").add_string_value(full);
+            b.set_member_name("activated").add_boolean_value(true);
+            if (after != null) {
+                b.set_member_name("state").add_string_value(after.print(false));
+                b.set_member_name("state_changed").add_boolean_value(before == null || !before.equal(after));
+            }
+            var w = app.get_active_window();
+            b.set_member_name("window").add_string_value(w != null && w.title != null ? w.title : "");
+            b.end_object();
+            return b.get_root();
+        }
+
+        private Gee.ArrayList<ContextRibbon> ribbons() {
+            var list = new Gee.ArrayList<ContextRibbon>();
+            foreach (unowned ContextRibbon r in ContextRibbon.live) {
+                var w = r.get_root() as Gtk.Window;
+                if (w != null && w.application == app) list.add(r);
+            }
+            var active = app.get_active_window();
+            list.sort((a, b) => (a.get_root() == active ? 0 : 1) - (b.get_root() == active ? 0 : 1));
+            return list;
+        }
+
+        private static string clean(string? s) {
+            return s != null ? s.replace("_", "").replace("\u2026", "").strip() : "";
+        }
+
+        private void describe_menu(Json.Builder b, ContextMenu menu, int depth) {
+            b.begin_array();
+            foreach (var e in menu.entries) {
+                b.begin_object();
+                b.set_member_name("label").add_string_value(clean(e.label));
+                b.set_member_name("enabled").add_boolean_value(e.row.sensitive);
+                if (e.row.has_css_class("checked")) b.set_member_name("checked").add_boolean_value(true);
+                if (e.sub != null && depth < 3) {
+                    b.set_member_name("entries");
+                    describe_menu(b, e.sub, depth + 1);
+                }
+                b.end_object();
+            }
+            b.end_array();
+        }
+
+        private void describe_item(Json.Builder b, RibbonContext c, RibbonItem it) {
+            if (it is RibbonSeparator) return;
+            b.begin_object();
+            b.set_member_name("id").add_string_value(it.id);
+            b.set_member_name("tab").add_string_value(c.title);
+            b.set_member_name("label").add_string_value(clean(it.label != null && it.label != "" ? it.label : it.tooltip));
+            if (it.tooltip != null && it.tooltip != it.label) b.set_member_name("tip").add_string_value(clean(it.tooltip));
+            b.set_member_name("enabled").add_boolean_value(it.widget.sensitive);
+            if (it is RibbonToggle) {
+                b.set_member_name("kind").add_string_value("toggle");
+                b.set_member_name("active").add_boolean_value(((RibbonToggle) it).active);
+            } else if (it is RibbonSelector) {
+                var sel = (RibbonSelector) it;
+                b.set_member_name("kind").add_string_value("choice");
+                b.set_member_name("selected").add_string_value(sel.selected ?? sel.text);
+                b.set_member_name("options");
+                sel.describe_options(b);
+            } else if (it is RibbonMenu) {
+                b.set_member_name("kind").add_string_value("menu");
+                var m = ((RibbonMenu) it).build_detached();
+                if (m != null) {
+                    b.set_member_name("entries");
+                    describe_menu(b, m, 0);
+                    m.unparent();
+                }
+            } else if (it is RibbonWidget) {
+                b.set_member_name("kind").add_string_value((((RibbonWidget) it).child is Gtk.Button) ? "button" : "field");
+            } else {
+                b.set_member_name("kind").add_string_value("button");
+            }
+            b.end_object();
+        }
+
+        private RibbonItem? find_item(string id, out RibbonContext? owner) {
+            owner = null;
+            foreach (var r in ribbons()) {
+                foreach (var c in r.all_contexts()) {
+                    foreach (var it in c.items) {
+                        if (it.id == id) {
+                            owner = c;
+                            return it;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static bool press_entry(ContextMenu menu, string[] path, int at) {
+            foreach (var e in menu.entries) {
+                if (clean(e.label).down() != path[at].strip().down()) continue;
+                if (at + 1 < path.length) return e.sub != null && press_entry(e.sub, path, at + 1);
+                if (!e.row.sensitive || !(e.row is Gtk.Button)) return false;
+                ((Gtk.Button) e.row).clicked();
+                return true;
+            }
+            return false;
+        }
+
+        private Json.Node run_command(Json.Object args, bool confirmed) throws Error {
+            string id = args.has_member("id") ? args.get_string_member("id") : "";
+            RibbonContext? owner;
+            var it = find_item(id, out owner);
+            if (it == null) throw new IOError.NOT_FOUND("no command %s; list them with app_commands", id);
+            string label = clean(it.label != null && it.label != "" ? it.label : it.tooltip);
+            string entry = args.has_member("entry") ? args.get_string_member("entry") : "";
+            string what = (label + " " + entry).replace(" ", "-");
+            if (!confirmed && risky(what)) throw new IOError.PERMISSION_DENIED("%s changes things that cannot be undone: use app_command_confirmed", label);
+            if (!it.widget.sensitive) throw new IOError.FAILED("%s is disabled right now", label);
+            var b = new Json.Builder();
+            b.begin_object();
+            b.set_member_name("id").add_string_value(id);
+            b.set_member_name("label").add_string_value(label);
+            bool ok = true;
+            if (it is RibbonToggle) {
+                var t = (RibbonToggle) it;
+                bool want = args.has_member("on") ? args.get_boolean_member("on") : !t.active;
+                t.active = want;
+                ok = t.active == want;
+                b.set_member_name("active").add_boolean_value(t.active);
+            } else if (it is RibbonSelector) {
+                var sel = (RibbonSelector) it;
+                string opt = args.has_member("option") ? args.get_string_member("option") : "";
+                ok = sel.choose(opt);
+                if (!ok) throw new IOError.INVALID_ARGUMENT("%s has no option %s", label, opt);
+                b.set_member_name("selected").add_string_value(sel.selected ?? "");
+            } else if (it is RibbonMenu) {
+                var m = ((RibbonMenu) it).build_detached();
+                if (m == null) {
+                    ((RibbonMenu) it).popup();
+                } else {
+                    if (entry == "") {
+                        m.unparent();
+                        throw new IOError.INVALID_ARGUMENT("%s is a menu: give entry, with submenus as \"Parent > Item\"", label);
+                    }
+                    ok = press_entry(m, entry.split(">"), 0);
+                    m.unparent();
+                    if (!ok) throw new IOError.NOT_FOUND("%s has no enabled entry %s", label, entry);
+                }
+                b.set_member_name("entry").add_string_value(entry);
+            } else if (it is RibbonButton) {
+                ((RibbonButton) it).button.clicked();
+            } else if (it is RibbonWidget && ((RibbonWidget) it).child is Gtk.Button) {
+                ((Gtk.Button) ((RibbonWidget) it).child).clicked();
+            } else {
+                throw new IOError.NOT_SUPPORTED("%s is a field, not a command", label);
+            }
+            b.set_member_name("done").add_boolean_value(ok);
+            b.end_object();
+            var n = b.get_root();
+            n.get_object().set_boolean_member("verified", ok);
+            return n;
+        }
+
+        private void add_builtin_intents() {
+            add_intent("app_commands", "List every command of this app's ribbon, tab by tab: buttons, on and off toggles, choices with their options, and menus with their entries. Run one with app_command.",
+                "{\"type\":\"object\",\"properties\":{\"tab\":{\"type\":\"string\"}}}", AppIntentRisk.READ, (args) => {
+                    string tab = args.has_member("tab") ? args.get_string_member("tab").down() : "";
+                    var b = new Json.Builder();
+                    b.begin_array();
+                    foreach (var r in ribbons()) {
+                        foreach (var c in r.all_contexts()) {
+                            if (!c.shown) continue;
+                            if (tab != "" && c.title.down() != tab && c.id != tab) continue;
+                            foreach (var it in c.items) describe_item(b, c, it);
+                        }
+                    }
+                    b.end_array();
+                    return b.get_root();
+                });
+            add_intent("app_command", "Press one ribbon command by the id app_commands gives, exactly as a click does. For a toggle give on; for a choice give option; for a menu give entry, with submenus as \"Parent > Item\".",
+                "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"on\":{\"type\":\"boolean\"},\"option\":{\"type\":\"string\"},\"entry\":{\"type\":\"string\"}},\"required\":[\"id\"]}",
+                AppIntentRisk.UNDOABLE, (args) => run_command(args, false));
+            add_intent("app_command_confirmed", "Press a ribbon command that cannot be undone (send, delete, publish, share). The user confirms it first.",
+                "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"on\":{\"type\":\"boolean\"},\"option\":{\"type\":\"string\"},\"entry\":{\"type\":\"string\"}},\"required\":[\"id\"]}",
+                AppIntentRisk.IRREVERSIBLE, (args) => run_command(args, true));
+            add_intent("app_actions", "List every command this app offers (menu, ribbon, toolbar and keyboard actions) with whether it is enabled, the value it takes, its current state and its keys. Run them with app_action.",
+                "{\"type\":\"object\",\"properties\":{}}", AppIntentRisk.READ, (args) => {
+                    var b = new Json.Builder();
+                    b.begin_array();
+                    describe_group(b, "app", app);
+                    describe_group(b, "win", group_for("win"));
+                    b.end_array();
+                    return b.get_root();
+                });
+            add_intent("app_action", "Run one command of this app exactly as its menu, button or key does, by the name app_actions gives (win.bold, app.new-window). value is the parameter when the command takes one. Answers with the state read back after it ran.",
+                "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"value\":{}},\"required\":[\"name\"]}",
+                AppIntentRisk.UNDOABLE, (args) => run_action(args, false));
+            add_intent("app_action_confirmed", "Run a command that cannot be undone (send, delete, publish, share). The user confirms it first.",
+                "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"value\":{}},\"required\":[\"name\"]}",
+                AppIntentRisk.IRREVERSIBLE, (args) => run_action(args, true));
         }
 
         /**

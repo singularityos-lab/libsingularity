@@ -9,9 +9,22 @@ namespace Singularity.Widgets {
      * `add_item()` and visual separators via `add_separator()`.
      * The menu pops down automatically after an item is clicked.
      */
+    internal class ContextMenuEntry {
+        public string label;
+        public Widget row;
+        public ContextMenu? sub;
+
+        public ContextMenuEntry(string label, Widget row, ContextMenu? sub = null) {
+            this.label = label;
+            this.row = row;
+            this.sub = sub;
+        }
+    }
+
     public class ContextMenu : Popover {
         private Box content_box;
         private Widget parent_widget;
+        internal Gee.ArrayList<ContextMenuEntry> entries = new Gee.ArrayList<ContextMenuEntry>();
 
         /**
          * Creates a new context menu attached to the given widget.
@@ -50,6 +63,7 @@ namespace Singularity.Widgets {
                 callback();
             });
             content_box.append(item);
+            entries.add(new ContextMenuEntry(label, item));
         }
 
         public void add_check_item(string label, bool active, owned ClickedCallback callback) {
@@ -84,6 +98,7 @@ namespace Singularity.Widgets {
                 callback();
             });
             content_box.append(btn);
+            entries.add(new ContextMenuEntry(label, btn));
         }
 
         /** Appends a horizontal separator between groups of items. */
@@ -114,6 +129,7 @@ namespace Singularity.Widgets {
                 sub.popup();
             });
             content_box.append(item);
+            entries.add(new ContextMenuEntry(label, item, sub));
             return sub;
         }
         /** Callback type for context-menu item actions. */

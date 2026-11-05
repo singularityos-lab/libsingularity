@@ -357,6 +357,31 @@ namespace Singularity.Widgets {
             entries.clear ();
         }
 
+        internal void describe_options (Json.Builder b) {
+            b.begin_array ();
+            foreach (var e in entries) {
+                if (e.separator || e.extra != null || e.id == null) continue;
+                b.begin_object ();
+                b.set_member_name ("id").add_string_value (e.id);
+                b.set_member_name ("label").add_string_value (e.label);
+                b.end_object ();
+            }
+            b.end_array ();
+        }
+
+        internal bool choose (string option) {
+            foreach (var e in entries) {
+                if (e.separator || e.extra != null || e.id == null) continue;
+                if (e.id == option || e.label == option) {
+                    string oid = e.id;
+                    selected = oid;
+                    changed (oid);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private string? option_label (string? id) {
             if (id == null) return null;
             foreach (var e in entries) if (e.id == id) return e.label;
@@ -434,6 +459,13 @@ namespace Singularity.Widgets {
             custom_face = face;
             face_box.prepend (face);
             refresh ();
+        }
+
+        internal ContextMenu? build_detached () {
+            if (builder == null) return null;
+            var menu = new ContextMenu (button);
+            builder (menu);
+            return menu;
         }
 
         public void popup () {
@@ -716,6 +748,7 @@ namespace Singularity.Widgets {
     }
 
     public class ContextRibbon : Box {
+        internal static GLib.List<weak ContextRibbon> live = null;
         public Stack stack { get; private set; }
         public BubbleSwitcher tabs { get; private set; }
         public string? app_id { get; construct set; }
@@ -761,7 +794,17 @@ namespace Singularity.Widgets {
             Object (orientation: Orientation.VERTICAL, spacing: 0, app_id: app_id);
         }
 
+        public override void dispose () {
+            live.remove (this);
+            base.dispose ();
+        }
+
+        internal Gee.List<RibbonContext> all_contexts () {
+            return contexts;
+        }
+
         construct {
+            live.append (this);
             add_css_class ("context-ribbon");
             add_css_class ("compact");
             stack = new Stack ();

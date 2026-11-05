@@ -934,6 +934,16 @@ test('context-ribbon', context_ribbon_test, depends: [toolbar_test_schemas],
   env: ['TMPDIR=' + meson.current_build_dir(), 'GSETTINGS_BACKEND=memory', 'GSETTINGS_SCHEMA_DIR=' + meson.current_build_dir() / 'toolbar-schemas',
         'XDG_DATA_DIRS=' + meson.current_build_dir() / 'toolbar-schemas', 'XDG_DATA_HOME=' + meson.current_build_dir() / 'toolbar-schemas'])
 
+app_agent_test = executable(
+  'app-agent-test',
+  files('tests/app_agent_test.vala'),
+  dependencies: [libsingularity_dep],
+  vala_args: ['--pkg', 'posix'],
+)
+test('app-agent', find_program('dbus-run-session'), args: ['--', app_agent_test], depends: [toolbar_test_schemas],
+  env: ['TMPDIR=' + meson.current_build_dir(), 'GSETTINGS_BACKEND=memory', 'GSETTINGS_SCHEMA_DIR=' + meson.current_build_dir() / 'toolbar-schemas',
+        'XDG_DATA_DIRS=' + meson.current_build_dir() / 'toolbar-schemas', 'XDG_DATA_HOME=' + meson.current_build_dir() / 'toolbar-schemas'])
+
 spell_test_schemas = custom_target('spell-test-schemas',
   input: 'tests/fixtures/spell/dev.sinty.spelltest.gschema.xml',
   output: 'spell-schemas',
