@@ -471,13 +471,14 @@ namespace Singularity {
 
         public string context(BusName sender) throws DBusError, IOError {
             check(sender);
-            return agent.context_json();
+            return agent.context_json().make_valid();
         }
 
         public async string invoke(string intent, string args, BusName sender) throws DBusError, IOError {
             check(sender);
             try {
-                return yield agent.invoke(intent, args);
+                var result = yield agent.invoke(intent, args);
+                return result.make_valid();
             } catch (DBusError e) {
                 throw e;
             } catch (IOError e) {
