@@ -205,6 +205,16 @@ void test_video_host_filters() {
     assert(plugins.plugins().size == 0);
 }
 
+void test_system_dirs() {
+    bool lib = false;
+    bool lib64 = false;
+    foreach (var d in Singularity.AppPluginHost.search_dirs("music")) {
+        if (d == "/usr/lib/singularity/app-plugins/music") lib = true;
+        if (d == "/usr/lib64/singularity/app-plugins/music") lib64 = true;
+    }
+    assert(lib && lib64);
+}
+
 void test_catalog() {
     var list = Singularity.AppPluginHost.catalog();
     bool seen = false;
@@ -319,6 +329,7 @@ int main(string[] args) {
     Test.add_func("/media-sources/rules", test_rules);
     Test.add_func("/media-sources/lrc", test_lrc);
     Test.add_func("/media-sources/registry", test_registry_and_routes);
+    Test.add_func("/media-sources/system-dirs", test_system_dirs);
     Test.add_func("/media-sources/host-filter", test_video_host_filters);
     Test.add_func("/media-sources/catalog", test_catalog);
     Test.add_func("/media-sources/web", test_web);

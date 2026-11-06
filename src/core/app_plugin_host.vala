@@ -64,12 +64,18 @@ namespace Singularity {
             string[] dirs = {};
             string? env = Environment.get_variable("SINGULARITY_APP_PLUGIN_PATH");
             if (env != null) foreach (var p in env.split(":")) if (p != "") dirs += p;
+            string[] prefixes = {};
             try {
                 string exe = FileUtils.read_link("/proc/self/exe");
-                string prefix = Path.get_dirname(Path.get_dirname(exe));
-                foreach (string libdir in new string[] { "lib", "lib64", "lib/x86_64-linux-gnu", "lib/aarch64-linux-gnu" })
-                    dirs += Path.build_filename(prefix, libdir, "singularity", DIR_NAME);
+                prefixes += Path.get_dirname(Path.get_dirname(exe));
             } catch (FileError e) {
+            }
+            if (!("/usr" in prefixes)) prefixes += "/usr";
+            foreach (string prefix in prefixes) {
+                foreach (string libdir in new string[] { "lib", "lib64", "lib/x86_64-linux-gnu", "lib/aarch64-linux-gnu" }) {
+                    string dir = Path.build_filename(prefix, libdir, "singularity", DIR_NAME);
+                    if (!(dir in dirs)) dirs += dir;
+                }
             }
             if (!("/opt/local/lib/singularity/" + DIR_NAME in dirs)) dirs += "/opt/local/lib/singularity/" + DIR_NAME;
             dirs += Path.build_filename(Environment.get_user_data_dir(), "singularity", DIR_NAME);
