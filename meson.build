@@ -257,6 +257,7 @@ libsingularity_sources = files(
   'src/calendar/account_provider.vala',
   'src/core/environment.vala',
   'src/core/capabilities.vala',
+  'src/core/async.vala',
   'src/core/compute.vala',
   'src/core/settings_util.vala',
   'src/core/app_agent.vala',
@@ -387,6 +388,7 @@ endif
 
 libsingularity = shared_library('singularity',
   libsingularity_sources + libsingularity_resources + [
+    'src/core/async_engine.c',
     'src/wayland/surface_effect.c',
     'src/wayland/snap_button.c',
     'src/print/ipp_transport.c',
@@ -934,6 +936,13 @@ context_ribbon_test = executable(
 test('context-ribbon', context_ribbon_test, depends: [toolbar_test_schemas],
   env: ['TMPDIR=' + meson.current_build_dir(), 'GSETTINGS_BACKEND=memory', 'GSETTINGS_SCHEMA_DIR=' + meson.current_build_dir() / 'toolbar-schemas',
         'XDG_DATA_DIRS=' + meson.current_build_dir() / 'toolbar-schemas', 'XDG_DATA_HOME=' + meson.current_build_dir() / 'toolbar-schemas'])
+
+async_test = executable(
+  'async-test',
+  files('tests/async_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('async', async_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory'])
 
 app_agent_test = executable(
   'app-agent-test',
