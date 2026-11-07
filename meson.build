@@ -99,6 +99,7 @@ libsingularity_sources = files(
   'src/ui/navigation/tab_container.vala',
   'src/ui/windowing/window.vala',
   'src/ui/controls/icon_button.vala',
+  'src/ui/controls/read_aloud_button.vala',
   'src/ui/controls/circular_button.vala',
   'src/ui/controls/close_button.vala',
   'src/ui/dialogs/about_dialog.vala',
@@ -311,6 +312,7 @@ libsingularity_sources = files(
   'src/style/glass.vala',
   'src/accessibility/accessibility_manager.vala',
   'src/accessibility/screen_reader_settings.vala',
+  'src/accessibility/speech_synthesis.vala',
   'src/ui/visual/chart_widgets.vala',
   'src/ui/visual/circular_progress.vala',
   'src/ui/visual/media_player_card.vala',
@@ -696,6 +698,16 @@ if get_option('system')
     dependencies: [gio_dep, gee_dep],
   )
   test('dynamic-internet', dynamic_internet_test)
+
+  speech_test = executable(
+    'speech-test',
+    files(
+      'tests/speech_test.vala',
+      'src/accessibility/speech_synthesis.vala',
+    ),
+    dependencies: [gio_dep],
+  )
+  test('speech', speech_test)
 
   screen_reader_test = executable(
     'screen-reader-test',
