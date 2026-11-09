@@ -15,6 +15,9 @@ typedef void (*NativeStreamClose)(gpointer stream, const GError *error);
 typedef void (*NativeStreamNext)(gpointer stream, GCancellable *cancellable,
 	GAsyncReadyCallback callback, gpointer user_data);
 typedef GPtrArray *(*NativeStreamNextFinish)(gpointer stream, GAsyncResult *result, GError **error);
+typedef void (*NativeFileLoad)(GFile *file, int qos, GCancellable *cancellable,
+	GAsyncReadyCallback callback, gpointer user_data);
+typedef GBytes *(*NativeFileLoadFinish)(GFile *file, GAsyncResult *result, GError **error);
 
 static NativeRun native_run;
 static NativeRunFinish native_run_finish;
@@ -25,6 +28,8 @@ static NativeStreamPush native_stream_push;
 static NativeStreamClose native_stream_close;
 static NativeStreamNext native_stream_next;
 static NativeStreamNextFinish native_stream_next_finish;
+static NativeFileLoad native_file_load;
+static NativeFileLoadFinish native_file_load_finish;
 static gboolean native_enabled;
 
 static void
@@ -46,6 +51,8 @@ load_native(void)
 			g_module_symbol(module, "sit_stream_close", (gpointer *)&native_stream_close);
 			g_module_symbol(module, "sit_stream_next", (gpointer *)&native_stream_next);
 			g_module_symbol(module, "sit_stream_next_finish", (gpointer *)&native_stream_next_finish);
+			g_module_symbol(module, "sit_file_load_async", (gpointer *)&native_file_load);
+			g_module_symbol(module, "sit_file_load_finish", (gpointer *)&native_file_load_finish);
 			g_module_close(module);
 		}
 		native_enabled = native_run && native_run_finish && native_widget_scope &&
@@ -412,4 +419,55 @@ singularity_async_stream_next_finish(GAsyncResult *result, GError **error)
 	batch = native_stream_next_finish(source, result, error);
 	g_clear_object(&source);
 	return batch;
+}
+
+static void
+bytes_loaded(GObject *source, GAsyncResult *result, gpointer data)
+{
+	GTask *task = data;
+	GError *error = NULL;
+	GBytes *bytes = g_file_load_bytes_finish(G_FILE(source), result, NULL, &error);
+
+	if (error)
+		g_task_return_error(task, error);
+	else
+		g_task_return_pointer(task, bytes, (GDestroyNotify)g_bytes_unref);
+	g_object_unref(task);
+}
+
+void
+singularity_async_load(GFile *file, int qos, GCancellable *cancellable,
+	GAsyncReadyCallback callback, gpointer user_data)
+{
+	GTask *task;
+
+	qos = CLAMP(qos, 0, 3);
+	if (singularity_async_native() && native_file_load && native_file_load_finish) {
+		native_file_load(file, qos, cancellable, callback, user_data);
+		return;
+	}
+
+	task = g_task_new(file, cancellable, callback, user_data);
+	g_task_set_source_tag(task, singularity_async_load);
+	g_file_load_bytes_async(file, cancellable, bytes_loaded, task);
+}
+
+GBytes *
+singularity_async_load_finish(GAsyncResult *result, GError **error)
+{
+	GObject *file;
+	GBytes *bytes;
+
+	if (G_IS_TASK(result) && g_task_get_source_tag(G_TASK(result)) == singularity_async_load)
+		return g_task_propagate_pointer(G_TASK(result), error);
+	file = g_async_result_get_source_object(result);
+	bytes = native_file_load_finish(G_FILE(file), result, error);
+	g_object_unref(file);
+	return bytes;
+}
+
+gboolean
+singularity_async_native_io(void)
+{
+	return singularity_async_native() && native_file_load && native_file_load_finish;
 }

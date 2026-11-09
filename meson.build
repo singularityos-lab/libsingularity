@@ -260,6 +260,8 @@ libsingularity_sources = files(
   'src/core/capabilities.vala',
   'src/core/async.vala',
   'src/core/background_work.vala',
+  'src/core/async_loads.vala',
+  'src/core/async_tile_cache.vala',
   'src/core/compute.vala',
   'src/core/settings_util.vala',
   'src/core/app_agent.vala',
@@ -969,6 +971,13 @@ background_work_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('background-work', background_work_test)
+
+async_loads_test = executable(
+  'async-loads-test',
+  files('tests/async_loads_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('async-loads', async_loads_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory', 'TMPDIR=' + meson.current_build_dir()])
 
 profiles_test = executable(
   'profiles-test',

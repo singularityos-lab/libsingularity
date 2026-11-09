@@ -22,4 +22,9 @@ void singularity_async_stream_next(gpointer stream, GCancellable *cancellable,
 	GAsyncReadyCallback callback, gpointer user_data);
 GPtrArray *singularity_async_stream_next_finish(GAsyncResult *result, GError **error);
 
+void singularity_async_load(GFile *file, int qos, GCancellable *cancellable,
+	GAsyncReadyCallback callback, gpointer user_data);
+GBytes *singularity_async_load_finish(GAsyncResult *result, GError **error);
+gboolean singularity_async_native_io(void);
+
 #endif
