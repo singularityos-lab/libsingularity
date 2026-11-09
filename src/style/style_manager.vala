@@ -492,7 +492,13 @@ namespace Singularity.Style {
             if (accent.has_prefix("#") && accent.length >= 7) {
                 hex_color = accent;
             } else if (accent == "wallpaper" && wall != null) {
-                hex_color = extract_primary_color(wall);
+                string? known = primary_by_path.lookup(wall);
+                if (known != null) {
+                    hex_color = known;
+                } else {
+                    if (accent_hex != null && accent_hex != "") hex_color = accent_hex;
+                    resolve_wallpaper_accent(wall);
+                }
             } else {
                 for (int i = 0; i < ACCENT_NAMES.length; i++) {
                     if (ACCENT_NAMES[i] == accent) hex_color = ACCENT_HEXES[i];
@@ -800,7 +806,27 @@ namespace Singularity.Style {
         // Writes @define-color accent_color to ~/.config/gtk-{3,4}.0/gtk.css
         // so GTK3/4 apps using themes that reference @accent_color pick up the
         // Singularity accent setting.
+        private static Mutex accent_value_lock;
+        private static Mutex accent_file_lock;
+        private static string? accent_file_hex = null;
+
         private void _write_gtk_accent(string hex_color) {
+            accent_value_lock.lock();
+            accent_file_hex = hex_color;
+            accent_value_lock.unlock();
+            Async.dispatch(null, Async.Qos.UTILITY, (c) => {
+                accent_file_lock.lock();
+                accent_value_lock.lock();
+                string? hex = accent_file_hex;
+                accent_file_hex = null;
+                accent_value_lock.unlock();
+                if (hex != null) _write_gtk_accent_files(hex);
+                accent_file_lock.unlock();
+                return null;
+            });
+        }
+
+        private static void _write_gtk_accent_files(string hex_color) {
             // Sentinel markers for reliable block replacement.
             const string START_SENTINEL = "/* Singularity accent";
             const string END_SENTINEL   = "/* end Singularity accent */";
@@ -832,6 +858,7 @@ namespace Singularity.Style {
                     existing = "";
                 }
                 if (existing == null) existing = "";
+                string original = existing;
                 // Strip any previous auto-generated block.
                 int block_start = existing.index_of(START_SENTINEL);
                 if (block_start >= 0) {
@@ -858,6 +885,7 @@ namespace Singularity.Style {
                     }
                     existing = existing.substring(0, block_start) + existing.substring(block_end);
                 }
+                if (block + existing == original) continue;
                 try {
                     GLib.FileUtils.set_contents(path, block + existing);
                 } catch (Error e) {
@@ -895,8 +923,30 @@ namespace Singularity.Style {
         }
 
         private HashTable<string, string> primary_colors = new HashTable<string, string>(str_hash, str_equal);
+        private HashTable<string, string> primary_by_path = new HashTable<string, string>(str_hash, str_equal);
+        private string? resolving_wallpaper = null;
 
-        private string? primary_color_key(string path) {
+        private void resolve_wallpaper_accent(string wall) {
+            if (resolving_wallpaper == wall) return;
+            resolving_wallpaper = wall;
+            Async.dispatch(null, Async.Qos.USER, (c) => {
+                string? key = primary_color_key(wall);
+                string? hex = key != null ? read_primary_color(key) : null;
+                if (hex == null) {
+                    hex = compute_primary_color(wall);
+                    if (key != null) write_primary_color(key, hex);
+                }
+                string found = hex;
+                return () => {
+                    if (resolving_wallpaper == wall) resolving_wallpaper = null;
+                    primary_by_path.insert(wall, found);
+                    if (key != null) primary_colors.insert(key, found);
+                    if (current_accent == "wallpaper" && current_accent_wallpaper == wall) apply_accent_color("wallpaper", wall);
+                };
+            });
+        }
+
+        private static string? primary_color_key(string path) {
             try {
                 var info = File.new_for_path(path).query_info(
                     FileAttribute.TIME_MODIFIED + "," + FileAttribute.STANDARD_SIZE,
@@ -907,11 +957,11 @@ namespace Singularity.Style {
             }
         }
 
-        private string primary_colors_path() {
+        private static string primary_colors_path() {
             return Path.build_filename(Environment.get_user_cache_dir(), "singularity", "accent-colors");
         }
 
-        private string? read_primary_color(string key) {
+        private static string? read_primary_color(string key) {
             var kf = new KeyFile();
             try {
                 kf.load_from_file(primary_colors_path(), KeyFileFlags.NONE);
@@ -922,7 +972,7 @@ namespace Singularity.Style {
             return null;
         }
 
-        private void write_primary_color(string key, string hex) {
+        private static void write_primary_color(string key, string hex) {
             var kf = new KeyFile();
             string file = primary_colors_path();
             try {
@@ -942,7 +992,7 @@ namespace Singularity.Style {
             }
         }
 
-        private string compute_primary_color(string path) {
+        private static string compute_primary_color(string path) {
             try {
                 // Sample at 32×32: enough to find dominant colors without being slow.
                 var pixbuf = Compute.load_scaled(path, 32, 32, false);
