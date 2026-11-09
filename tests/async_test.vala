@@ -186,6 +186,61 @@ static void test_feed_cancel() {
     feed.close();
 }
 
+static void test_dispatch() {
+    bool applied = false;
+    bool on_worker = false;
+    unowned Thread<void*> main_thread = Thread.self<void*>();
+    var label = new Gtk.Label("");
+    Async.dispatch(label, Async.Qos.USER, (c) => {
+        on_worker = Thread.self<void*>() != main_thread;
+        string text = "ready";
+        return () => {
+            assert(Thread.self<void*>() == main_thread);
+            label.label = text;
+            applied = true;
+        };
+    });
+    wait_for(ref applied);
+    assert(on_worker);
+    assert(label.label == "ready");
+}
+
+static void test_dispatch_dropped() {
+    bool ran = false;
+    bool applied = false;
+    bool finished = false;
+    var gate = new Cancellable();
+    Gtk.Window? window = new Gtk.Window();
+    Gtk.Label? label = new Gtk.Label("");
+    window.set_child(label);
+    int started = 0;
+    Async.dispatch(label, Async.Qos.USER, (c) => {
+        AtomicInt.set(ref started, 1);
+        while (!gate.is_cancelled()) Thread.usleep(1000);
+        ran = true;
+        return () => {
+            applied = true;
+        };
+    });
+    Async.dispatch(null, Async.Qos.USER, (c) => {
+        while (!gate.is_cancelled()) Thread.usleep(1000);
+        return () => {
+            finished = true;
+        };
+    });
+    while (AtomicInt.get(ref started) == 0) Thread.usleep(1000);
+    label = null;
+    window.destroy();
+    window = null;
+    gate.cancel();
+    wait_for(ref finished);
+    var context = MainContext.default();
+    int64 end = get_monotonic_time() + 200000;
+    while (get_monotonic_time() < end) context.iteration(false);
+    assert(ran);
+    assert(!applied);
+}
+
 static void test_many() {
     const int total = 20000;
     int delivered = 0;
@@ -218,6 +273,8 @@ int main(string[] args) {
     Test.add_func("/async/feed", test_feed);
     Test.add_func("/async/feed-error", test_feed_error);
     Test.add_func("/async/feed-cancel", test_feed_cancel);
+    Test.add_func("/async/dispatch", test_dispatch);
+    Test.add_func("/async/dispatch-dropped", test_dispatch_dropped);
     Test.add_func("/async/many", test_many);
     return Test.run();
 }

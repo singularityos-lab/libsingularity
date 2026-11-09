@@ -73,6 +73,40 @@ namespace Singularity.Async {
         return slot.value;
     }
 
+    public delegate void Apply();
+
+    public delegate Apply? Job(Cancellable? cancellable) throws Error;
+
+    private class Continuation {
+        public Apply? apply;
+    }
+
+    /**
+     * Runs a job on a worker thread, then runs the function it returns on
+     * the main thread. When `owner` is a widget, the job is cancelled and
+     * its function dropped once the widget is destroyed; pass null for work
+     * that must finish anyway, such as writing files. Errors other than
+     * cancellation are logged.
+     */
+    public void dispatch(Object? owner, Qos qos, owned Job job) {
+        Cancellable? cancellable = null;
+        var widget = owner as Gtk.Widget;
+        if (widget != null) cancellable = scope_of(widget);
+        run.begin<Continuation>((c) => {
+            var continuation = new Continuation();
+            continuation.apply = job(c);
+            return continuation;
+        }, qos, cancellable, (o, r) => {
+            try {
+                var continuation = run.end<Continuation>(r);
+                if (continuation.apply != null) continuation.apply();
+            } catch (IOError.CANCELLED e) {
+            } catch (Error e) {
+                warning("%s", e.message);
+            }
+        });
+    }
+
     /**
      * A cancellable that is cancelled when the widget is destroyed, so work
      * started for it never delivers to a disposed widget.
