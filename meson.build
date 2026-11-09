@@ -284,6 +284,10 @@ libsingularity_sources = files(
   'src/core/vpn_provider.vala',
   'src/core/wallpaper_provider.vala',
   'src/core/app_settings_loader.vala',
+  'src/profiles/profile.vala',
+  'src/profiles/profile_area.vala',
+  'src/profiles/profile_apps.vala',
+  'src/profiles/profile_text.vala',
   'src/core/webkit_sockets.vala',
   'src/animation/animation.vala',
   'src/animation/timed_animation.vala',
@@ -955,6 +959,13 @@ async_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('async', async_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory'])
+
+profiles_test = executable(
+  'profiles-test',
+  files('tests/profiles_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('profiles', profiles_test)
 
 app_agent_test = executable(
   'app-agent-test',

@@ -78,6 +78,8 @@ namespace Singularity.Core {
 
         public string? path { get; set; }
 
+        public bool profile { get; set; default = false; }
+
         public AppSettingItem() {
             options = new ArrayList<AppSettingOption>();
         }
@@ -96,7 +98,7 @@ namespace Singularity.Core {
      * {
      *   "schema-id": "org.example.MyApp",
      *   "settings": [
-     *     { "key": "enable-feature", "label": "Enable feature", "subtitle": "Optional hint", "type": "boolean", "widget": "toggle" },
+     *     { "key": "enable-feature", "label": "Enable feature", "subtitle": "Optional hint", "type": "boolean", "widget": "toggle", "profile": true },
      *     { "key": "font-size", "label": "Font size", "type": "int", "widget": "slider", "min": 8, "max": 32 },
      *     { "key": "mode", "label": "Mode", "type": "string", "widget": "combo",
      *       "options": [ { "id": "a", "label": "A", "subtitle": "Optional hint" } ] }
@@ -217,6 +219,7 @@ namespace Singularity.Core {
                             if (obj.has_member("max")) item.max = obj.get_double_member("max");
                             if (obj.has_member("schema-id")) item.schema_id = obj.get_string_member("schema-id");
                             if (obj.has_member("path")) item.path = obj.get_string_member("path");
+                            if (obj.has_member("profile")) item.profile = obj.get_boolean_member("profile");
                             if (obj.has_member("options")) {
                                 var options_array = obj.get_array_member("options");
                                 if (options_array != null) {
