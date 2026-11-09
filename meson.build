@@ -262,6 +262,7 @@ libsingularity_sources = files(
   'src/core/background_work.vala',
   'src/core/async_loads.vala',
   'src/core/async_tile_cache.vala',
+  'src/core/one_time_codes.vala',
   'src/core/compute.vala',
   'src/core/settings_util.vala',
   'src/core/app_agent.vala',
@@ -978,6 +979,13 @@ async_loads_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('async-loads', async_loads_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory', 'TMPDIR=' + meson.current_build_dir()])
+
+one_time_codes_test = executable(
+  'one-time-codes-test',
+  files('tests/one_time_codes_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('one-time-codes', one_time_codes_test)
 
 profiles_test = executable(
   'profiles-test',
