@@ -4,6 +4,7 @@ src/animation/animation.vala
 src/animation/timed_animation.vala
 src/calendar/calendar_contract.vala
 src/core/application.vala
+src/core/drive_health.vala
 src/core/app_settings_contract.vala
 src/core/app_settings_loader.vala
 src/core/environment.vala

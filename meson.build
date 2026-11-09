@@ -263,6 +263,7 @@ libsingularity_sources = files(
   'src/core/async_loads.vala',
   'src/core/async_tile_cache.vala',
   'src/core/one_time_codes.vala',
+  'src/core/drive_health.vala',
   'src/core/compute.vala',
   'src/core/settings_util.vala',
   'src/core/app_agent.vala',
@@ -986,6 +987,13 @@ one_time_codes_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('one-time-codes', one_time_codes_test)
+
+drive_health_test = executable(
+  'drive-health-test',
+  files('tests/drive_health_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('drive-health', drive_health_test)
 
 profiles_test = executable(
   'profiles-test',
