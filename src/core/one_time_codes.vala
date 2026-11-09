@@ -1,8 +1,5 @@
 namespace Singularity.OneTimeCodes {
 
-    /**
-     * A one-time code found in a message, with the service it belongs to.
-     */
     public class Match : Object {
         public string code { get; construct; }
         public string service { get; construct; }
@@ -13,9 +10,6 @@ namespace Singularity.OneTimeCodes {
             Object(code: code, service: service, domain: domain, token: token ?? code);
         }
 
-        /**
-         * `text` with every occurrence of the code replaced by dots.
-         */
         public string mask(string text) {
             string dots = string.nfill(code.length, '*').replace("*", "•");
             string result = text.replace(token, dots);
@@ -153,11 +147,6 @@ namespace Singularity.OneTimeCodes {
         return null;
     }
 
-    /**
-     * Looks for a one-time code in a message. `title` is usually the sender
-     * or subject and `sender` the app or address the message came from.
-     * Returns null when the message does not carry a code.
-     */
     public Match? find(string? title, string body, string? sender = null) {
         prepare();
         if (candidate_re == null) return null;
@@ -214,9 +203,6 @@ namespace Singularity.OneTimeCodes {
         return new Match(best, service, null, best_token);
     }
 
-    /**
-     * Whether `host` belongs to `domain`, either equal or a subdomain.
-     */
     public bool domain_matches(string host, string domain) {
         string h = host.down().strip();
         string d = domain.down().strip();

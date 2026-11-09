@@ -1,12 +1,7 @@
 namespace Singularity {
 
-    /**
-     * Facts read from a display's EDID that brightness control needs.
-     */
     public class EdidFacts : Object {
-        /** Stable identity of the panel, the same in every session and in the compositor. */
         public string id { get; private set; default = ""; }
-        /** Whether the panel emits its own light, so dimming pixels saves energy. */
         public bool emissive { get; private set; default = false; }
 
         public static EdidFacts parse(uint8[] edid) {
@@ -77,7 +72,6 @@ namespace Singularity {
         }
     }
 
-    /** Sets the software dimming of a connector, 0.0 to 1.0. Provided by the desktop shell. */
     public delegate void SoftwareBrightnessFunc(string connector, double fraction);
 
     /**
@@ -96,7 +90,6 @@ namespace Singularity {
         public BrightnessMethod method { get; internal set; default = BrightnessMethod.SOFTWARE; }
         public string edid_id { get; internal set; default = ""; }
         public bool emissive { get; internal set; default = false; }
-        /** Whether lowering the level lowers power use: always with hardware control, only on emissive panels in software. */
         public bool saves_energy { get { return method != BrightnessMethod.SOFTWARE || emissive; } }
         public signal void changed();
 
@@ -148,7 +141,6 @@ namespace Singularity {
             BrightnessManager.get_default().remember(this, hardware);
         }
 
-        /** Maps a 0-100 hardware level onto the software range, never below the floor. */
         public static double software_fraction(double hardware) {
             return SOFTWARE_FLOOR + (1.0 - SOFTWARE_FLOOR) * hardware.clamp(0.0, 100.0) / 100.0;
         }
@@ -217,12 +209,10 @@ namespace Singularity {
             owned get { return _displays.read_only_view; }
         }
 
-        /** The display the brightness keys act on: the internal panel, or else the first other display. */
         public DisplayBrightness? primary {
             get { return panel ?? (_displays.size > 0 ? _displays[0] : null); }
         }
 
-        /** Installs the function that dims connectors in software. */
         public void set_software_backend(owned SoftwareBrightnessFunc func) {
             software_func = (owned) func;
             foreach (var entry in pending_dim.entries) software_func(entry.key, entry.value);
@@ -234,7 +224,6 @@ namespace Singularity {
             else pending_dim[connector] = fraction;
         }
 
-        /** Brings every software-dimmed display back to full level, after the reset shortcut. */
         public void reset_software() {
             foreach (var display in _displays) {
                 if (display.method != BrightnessMethod.SOFTWARE) continue;
