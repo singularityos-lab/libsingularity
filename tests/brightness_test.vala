@@ -39,7 +39,7 @@ private uint8[] base_edid(string? name, int hdr_min_code) {
 private void test_edid_identity() {
     var a = Singularity.EdidFacts.parse(base_edid(null, -1));
     var b = Singularity.EdidFacts.parse(base_edid("Other Name", -1));
-    assert(a.id.length == 16);
+    assert(a.id == "7a8f58b1ea549f22");
     assert(a.id == b.id);
     assert(Singularity.EdidFacts.parse(new uint8[4]).id == "");
 }
