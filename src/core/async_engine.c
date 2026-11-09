@@ -1,4 +1,5 @@
 #include "async_engine.h"
+#include "background_work.h"
 
 #include <gmodule.h>
 
@@ -66,6 +67,7 @@ typedef struct {
 	SingularityAsyncWork work;
 	gpointer target;
 	GDestroyNotify target_destroy;
+	int qos;
 } Work;
 
 static void
@@ -87,7 +89,14 @@ run_in_thread(GTask *task, gpointer source, gpointer data, GCancellable *cancell
 
 	if (g_task_return_error_if_cancelled(task))
 		return;
+	int tid = singularity_background_current_tid();
+	int normal_nice = singularity_background_nice_of(tid);
+	gboolean background = work->qos == 3;
+	if (background)
+		singularity_background_apply(tid, TRUE, TRUE, normal_nice);
 	result = work->work(cancellable, work->target, &error);
+	if (background)
+		singularity_background_apply(tid, TRUE, FALSE, normal_nice);
 	if (error)
 		g_task_return_error(task, error);
 	else
@@ -120,6 +129,7 @@ singularity_async_submit(int qos, SingularityAsyncWork work, gpointer work_targe
 	data->work = work;
 	data->target = work_target;
 	data->target_destroy = work_target_destroy;
+	data->qos = qos;
 	task = g_task_new(NULL, cancellable, callback, user_data);
 	g_task_set_source_tag(task, singularity_async_submit);
 	g_task_set_priority(task, fallback_priority[qos]);

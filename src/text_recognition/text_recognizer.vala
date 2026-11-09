@@ -11,8 +11,13 @@ namespace Singularity.TextRecognition {
         public abstract async string[] list_languages(Cancellable? cancellable = null) throws Error;
         public abstract async string recognize_tsv(string image_path, string[] languages, Cancellable? cancellable = null) throws Error;
 
-        protected static async string run(string[] argv, string[]? env, Cancellable? cancellable) throws Error {
+        public virtual async string recognize_tsv_at(string image_path, string[] languages, Cancellable? cancellable, bool background) throws Error {
+            return yield recognize_tsv(image_path, languages, cancellable);
+        }
+
+        protected static async string run(string[] argv, string[]? env, Cancellable? cancellable, bool background = false) throws Error {
             var launcher = new SubprocessLauncher(SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE);
+            if (background) launcher.set_child_setup(BackgroundWork.lower);
             if (env != null) {
                 foreach (var pair in env) {
                     int eq = pair.index_of_char('=');
@@ -70,6 +75,10 @@ namespace Singularity.TextRecognition {
         }
 
         public override async string recognize_tsv(string image_path, string[] languages, Cancellable? cancellable = null) throws Error {
+            return yield recognize_tsv_at(image_path, languages, cancellable, false);
+        }
+
+        public override async string recognize_tsv_at(string image_path, string[] languages, Cancellable? cancellable, bool background) throws Error {
             if (resolved == null) throw new RecognitionError.UNAVAILABLE(_("Tesseract is not installed"));
             string[] argv = { resolved, image_path, "stdout" };
             if (data_dir != null && data_dir != "") {
@@ -83,7 +92,7 @@ namespace Singularity.TextRecognition {
             argv += "--psm";
             argv += "3";
             argv += "tsv";
-            return yield run(argv, env(), cancellable);
+            return yield run(argv, env(), cancellable, background);
         }
     }
 
@@ -130,7 +139,11 @@ namespace Singularity.TextRecognition {
         }
 
         public override async string recognize_tsv(string image_path, string[] languages, Cancellable? cancellable = null) throws Error {
-            return yield run(expand(command, image_path, languages), null, cancellable);
+            return yield recognize_tsv_at(image_path, languages, cancellable, false);
+        }
+
+        public override async string recognize_tsv_at(string image_path, string[] languages, Cancellable? cancellable, bool background) throws Error {
+            return yield run(expand(command, image_path, languages), null, cancellable, background);
         }
     }
 
@@ -279,6 +292,10 @@ namespace Singularity.TextRecognition {
         }
 
         public async RecognizedText recognize_texture(Gdk.Texture texture, Cancellable? cancellable = null) throws Error {
+            return yield recognize_texture_at(texture, cancellable, false);
+        }
+
+        private async RecognizedText recognize_texture_at(Gdk.Texture texture, Cancellable? cancellable, bool background) throws Error {
             if (!available) throw new RecognitionError.UNAVAILABLE(install_hint);
             string[] langs = yield active_languages(cancellable);
             int w = texture.get_width();
@@ -289,7 +306,7 @@ namespace Singularity.TextRecognition {
             FileUtils.close(fd);
             try {
                 yield write_scaled(texture, path, scale);
-                string tsv = yield engine.recognize_tsv(path, langs, cancellable);
+                string tsv = yield engine.recognize_tsv_at(path, langs, cancellable, background);
                 var result = RecognizedText.from_tsv(tsv, scale, 20);
                 result.image_width = w;
                 result.image_height = h;
@@ -302,7 +319,12 @@ namespace Singularity.TextRecognition {
 
         public async RecognizedText recognize_file(File file, Cancellable? cancellable = null) throws Error {
             var texture = Gdk.Texture.from_file(file);
-            return yield recognize_texture(texture, cancellable);
+            return yield recognize_texture_at(texture, cancellable, false);
+        }
+
+        public async RecognizedText recognize_file_in_background(File file, Cancellable? cancellable = null) throws Error {
+            var texture = Gdk.Texture.from_file(file);
+            return yield recognize_texture_at(texture, cancellable, true);
         }
 
         private static async void write_scaled(Gdk.Texture texture, string path, double scale) throws Error {

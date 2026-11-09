@@ -259,6 +259,7 @@ libsingularity_sources = files(
   'src/core/environment.vala',
   'src/core/capabilities.vala',
   'src/core/async.vala',
+  'src/core/background_work.vala',
   'src/core/compute.vala',
   'src/core/settings_util.vala',
   'src/core/app_agent.vala',
@@ -395,6 +396,7 @@ endif
 libsingularity = shared_library('singularity',
   libsingularity_sources + libsingularity_resources + [
     'src/core/async_engine.c',
+    'src/core/background_work.c',
     'src/wayland/surface_effect.c',
     'src/wayland/snap_button.c',
     'src/print/ipp_transport.c',
@@ -959,6 +961,14 @@ async_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('async', async_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory'])
+
+background_work_test = executable(
+  'background-work-test',
+  files('tests/background_work_test.vala'),
+  vala_args: ['--pkg', 'posix'],
+  dependencies: [libsingularity_dep],
+)
+test('background-work', background_work_test)
 
 profiles_test = executable(
   'profiles-test',
