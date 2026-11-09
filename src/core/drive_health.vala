@@ -91,6 +91,7 @@ namespace Singularity {
                 case DriveCondition.WATCH: return _("A few errors, nothing to worry about yet");
                 case DriveCondition.WORN: return _("Worn, copy your files to another drive");
                 case DriveCondition.FAILING: return _("Failing, copy your files now");
+                default: break;
             }
             return _("Not checked yet");
         }
@@ -99,6 +100,7 @@ namespace Singularity {
             switch (condition) {
                 case DriveCondition.WORN: return "dialog-warning-symbolic";
                 case DriveCondition.FAILING: return "dialog-error-symbolic";
+                default: break;
             }
             return "emblem-ok-symbolic";
         }
