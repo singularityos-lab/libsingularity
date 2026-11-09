@@ -107,6 +107,54 @@ namespace Singularity.Async {
         });
     }
 
+    private class Posted : Object {
+        public Apply apply;
+        public Cancellable? scope;
+    }
+
+    private Feed? posted_feed;
+    private Mutex posted_lock;
+
+    private async void drain_posted(Feed feed) {
+        while (true) {
+            GenericArray<Object>? items = null;
+            try {
+                items = yield feed.next();
+            } catch (Error e) {
+            }
+            if (items == null) return;
+            foreach (unowned Object item in items.data) {
+                var posted = (Posted) item;
+                if (posted.scope == null || !posted.scope.is_cancelled()) posted.apply();
+            }
+        }
+    }
+
+    /**
+     * Runs a function on the main thread from any thread, for example to
+     * report progress from a job. Calls arrive in the order they were
+     * posted, batched once per frame on the SIT engine. When `owner` is a
+     * widget, calls posted after it is destroyed are dropped.
+     */
+    public void post(Object? owner, owned Apply apply) {
+        var posted = new Posted();
+        posted.apply = (owned) apply;
+        var widget = owner as Gtk.Widget;
+        if (widget != null) posted.scope = scope_of(widget);
+        posted_lock.lock();
+        if (posted_feed == null) {
+            posted_feed = new Feed();
+            var feed = posted_feed;
+            MainContext.default().invoke(() => {
+                drain_posted.begin(feed);
+                return Source.REMOVE;
+            });
+        }
+        var target = posted_feed;
+        posted_lock.unlock();
+        target.push(posted);
+    }
+
     /**
      * A cancellable that is cancelled when the widget is destroyed, so work
      * started for it never delivers to a disposed widget.

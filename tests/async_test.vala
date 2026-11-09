@@ -241,6 +241,52 @@ static void test_dispatch_dropped() {
     assert(!applied);
 }
 
+static void test_post() {
+    int seen = 0;
+    bool ordered = true;
+    bool finished = false;
+    unowned Thread<void*> main_thread = Thread.self<void*>();
+    Async.dispatch(null, Async.Qos.USER, (c) => {
+        for (int i = 1; i <= 500; i++) {
+            int value = i;
+            Async.post(null, () => {
+                assert(Thread.self<void*>() == main_thread);
+                if (value != seen + 1) ordered = false;
+                seen = value;
+            });
+        }
+        return () => {
+            finished = true;
+        };
+    });
+    wait_for(ref finished);
+    var context = MainContext.default();
+    int64 end = get_monotonic_time() + 2000000;
+    while (seen < 500 && get_monotonic_time() < end) context.iteration(true);
+    assert(seen == 500);
+    assert(ordered);
+}
+
+[CCode (cname = "g_object_run_dispose")]
+extern void object_run_dispose(Object object);
+
+static void test_post_dropped() {
+    var label = new Gtk.Label("");
+    var scope = Async.scope_of(label);
+    object_run_dispose(label);
+    assert(scope.is_cancelled());
+    bool applied = false;
+    bool done = false;
+    Async.post(label, () => {
+        applied = true;
+    });
+    Async.post(null, () => {
+        done = true;
+    });
+    wait_for(ref done);
+    assert(!applied);
+}
+
 static void test_many() {
     const int total = 20000;
     int delivered = 0;
@@ -275,6 +321,8 @@ int main(string[] args) {
     Test.add_func("/async/feed-cancel", test_feed_cancel);
     Test.add_func("/async/dispatch", test_dispatch);
     Test.add_func("/async/dispatch-dropped", test_dispatch_dropped);
+    Test.add_func("/async/post", test_post);
+    Test.add_func("/async/post-dropped", test_post_dropped);
     Test.add_func("/async/many", test_many);
     return Test.run();
 }
