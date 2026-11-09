@@ -1,6 +1,86 @@
 namespace Singularity {
 
     /**
+     * Facts read from a display's EDID that brightness control needs.
+     */
+    public class EdidFacts : Object {
+        /** Stable identity of the panel, the same in every session and in the compositor. */
+        public string id { get; private set; default = ""; }
+        /** Whether the panel emits its own light, so dimming pixels saves energy. */
+        public bool emissive { get; private set; default = false; }
+
+        public static EdidFacts parse(uint8[] edid) {
+            var facts = new EdidFacts();
+            if (edid.length < 18) return facts;
+            uint64 hash = 0xcbf29ce484222325ULL;
+            for (int i = 8; i < 18; i++) {
+                hash ^= edid[i];
+                hash *= 0x100000001b3ULL;
+            }
+            facts.id = "%016llx".printf(hash);
+            facts.emissive = name_says_oled(edid) || hdr_black_level_is_emissive(edid);
+            return facts;
+        }
+
+        public static EdidFacts for_connector(string drm_name) {
+            uint8[] data;
+            try {
+                FileUtils.get_data("/sys/class/drm/%s/edid".printf(drm_name), out data);
+            } catch (Error e) {
+                data = {};
+            }
+            return parse(data);
+        }
+
+        private static bool name_says_oled(uint8[] edid) {
+            if (edid.length < 128) return false;
+            for (int d = 54; d + 18 <= 126; d += 18) {
+                if (edid[d] != 0 || edid[d + 1] != 0 || (edid[d + 3] != 0xFC && edid[d + 3] != 0xFE)) continue;
+                var text = new StringBuilder();
+                for (int i = d + 5; i < d + 18 && edid[i] != 0x0A; i++) text.append_c((char) edid[i]);
+                if (text.str.up().contains("OLED")) return true;
+            }
+            return false;
+        }
+
+        private static bool hdr_black_level_is_emissive(uint8[] edid) {
+            for (int block = 128; block + 128 <= edid.length; block += 128) {
+                if (edid[block] != 0x02) continue;
+                int end = block + edid[block + 2];
+                int at = block + 4;
+                while (at < end && at < block + 127) {
+                    int tag = edid[at] >> 5;
+                    int len = edid[at] & 0x1f;
+                    if (tag == 7 && len >= 6 && edid[at + 1] == 0x06) {
+                        double max_nits = 50.0 * Math.pow(2.0, edid[at + 4] / 32.0);
+                        double min_nits = max_nits * Math.pow(edid[at + 6] / 255.0, 2.0) / 100.0;
+                        return edid[at + 4] != 0 && min_nits < 0.01;
+                    }
+                    at += len + 1;
+                }
+            }
+            return false;
+        }
+    }
+
+    public enum BrightnessMethod {
+        BACKLIGHT,
+        DDC,
+        SOFTWARE;
+
+        public string to_label() {
+            switch (this) {
+                case BACKLIGHT: return _("Backlight");
+                case DDC: return _("Monitor Control (DDC/CI)");
+                default: return _("Dimming in Software");
+            }
+        }
+    }
+
+    /** Sets the software dimming of a connector, 0.0 to 1.0. Provided by the desktop shell. */
+    public delegate void SoftwareBrightnessFunc(string connector, double fraction);
+
+    /**
      * Brightness of one connected display: the internal panel through its
      * backlight, or an external monitor through DDC/CI.
      *
@@ -13,7 +93,14 @@ namespace Singularity {
         public double percent { get; private set; default = 50.0; }
         public double min_percent { get; private set; default = 0.0; }
         public double max_percent { get; private set; default = 100.0; }
+        public BrightnessMethod method { get; internal set; default = BrightnessMethod.SOFTWARE; }
+        public string edid_id { get; internal set; default = ""; }
+        public bool emissive { get; internal set; default = false; }
+        /** Whether lowering the level lowers power use: always with hardware control, only on emissive panels in software. */
+        public bool saves_energy { get { return method != BrightnessMethod.SOFTWARE || emissive; } }
         public signal void changed();
+
+        public const double SOFTWARE_FLOOR = 0.15;
 
         internal string? backlight_name = null;
         internal int backlight_max = 100;
@@ -55,7 +142,15 @@ namespace Singularity {
                 uint16 raw = (uint16) (hardware * ddc_max / 100.0 + 0.5);
                 var bus = ddc;
                 new Thread<bool>("ddc-set", () => bus.set_vcp(Ddc.VCP_BRIGHTNESS, raw));
+            } else {
+                BrightnessManager.get_default().dim(connector, software_fraction(hardware));
             }
+            BrightnessManager.get_default().remember(this, hardware);
+        }
+
+        /** Maps a 0-100 hardware level onto the software range, never below the floor. */
+        public static double software_fraction(double hardware) {
+            return SOFTWARE_FLOOR + (1.0 - SOFTWARE_FLOOR) * hardware.clamp(0.0, 100.0) / 100.0;
         }
 
         /** Stores new minimum and maximum brightness percentages for this display. */
@@ -91,6 +186,10 @@ namespace Singularity {
 
         private Gee.ArrayList<DisplayBrightness> _displays = new Gee.ArrayList<DisplayBrightness>();
         private DisplayBrightness? panel = null;
+        private Gee.HashMap<string, double?> remembered = new Gee.HashMap<string, double?>();
+        private Gee.HashMap<string, double?> pending_dim = new Gee.HashMap<string, double?>();
+        private SoftwareBrightnessFunc? software_func = null;
+        private uint save_source = 0;
         private GUdev.Client? udev_client = null;
         private GLib.Settings? settings = null;
 
@@ -106,6 +205,7 @@ namespace Singularity {
                 settings = new GLib.Settings("dev.sinty.desktop");
                 settings.changed[LIMITS_KEY].connect(reload_limits);
             }
+            load_remembered();
             detect_backlight();
             read_current();
             watch_for_external_changes();
@@ -115,6 +215,102 @@ namespace Singularity {
         /** Every display whose brightness can be controlled, internal panel first. */
         public Gee.List<DisplayBrightness> displays {
             owned get { return _displays.read_only_view; }
+        }
+
+        /** The display the brightness keys act on: the internal panel, or else the first other display. */
+        public DisplayBrightness? primary {
+            get { return panel ?? (_displays.size > 0 ? _displays[0] : null); }
+        }
+
+        /** Installs the function that dims connectors in software. */
+        public void set_software_backend(owned SoftwareBrightnessFunc func) {
+            software_func = (owned) func;
+            foreach (var entry in pending_dim.entries) software_func(entry.key, entry.value);
+            pending_dim.clear();
+        }
+
+        internal void dim(string connector, double fraction) {
+            if (software_func != null) software_func(connector, fraction);
+            else pending_dim[connector] = fraction;
+        }
+
+        /** Brings every software-dimmed display back to full level, after the reset shortcut. */
+        public void reset_software() {
+            foreach (var display in _displays) {
+                if (display.method != BrightnessMethod.SOFTWARE) continue;
+                display.update_from_hardware(100.0);
+                remember(display, 100.0);
+            }
+            changed();
+        }
+
+        private static string store_path() {
+            return Path.build_filename(Environment.get_user_state_dir(), "singularity", "brightness");
+        }
+
+        private void load_remembered() {
+            string text;
+            try {
+                FileUtils.get_contents(store_path(), out text);
+            } catch (Error e) {
+                return;
+            }
+            foreach (string line in text.split("\n")) {
+                string[] f = line.split(" ");
+                if (f.length >= 2) remembered[f[0]] = double.parse(f[1]) / 10.0;
+            }
+        }
+
+        internal void remember(DisplayBrightness display, double hardware) {
+            string key = display.edid_id != "" ? display.edid_id : display.connector;
+            remembered[key] = hardware;
+            var system = new StringBuilder();
+            foreach (var d in _displays) {
+                string k = d.edid_id != "" ? d.edid_id : d.connector;
+                if (!remembered.has_key(k)) continue;
+                string m = d.method == BrightnessMethod.BACKLIGHT ? "backlight" : d.method == BrightnessMethod.DDC ? "ddc" : "software";
+                uint value = d.method == BrightnessMethod.SOFTWARE
+                    ? (uint) (DisplayBrightness.software_fraction(remembered[k]) * 1000.0 + 0.5)
+                    : (uint) (remembered[k] * 10.0 + 0.5);
+                system.append("%s %u %s\n".printf(k, value, m));
+            }
+            string snapshot = system.str;
+            if (save_source != 0) Source.remove(save_source);
+            save_source = Timeout.add(600, () => {
+                save_source = 0;
+                save(snapshot);
+                return Source.REMOVE;
+            });
+        }
+
+        private void save(string system_lines) {
+            var local = new StringBuilder();
+            foreach (var entry in remembered.entries)
+                local.append("%s %u\n".printf(entry.key, (uint) (entry.value * 10.0 + 0.5)));
+            try {
+                DirUtils.create_with_parents(Path.get_dirname(store_path()), 0700);
+                FileUtils.set_contents(store_path(), local.str);
+            } catch (Error e) {
+                debug("BrightnessManager: cannot save levels: %s", e.message);
+            }
+            Bus.get.begin(BusType.SYSTEM, null, (o, r) => {
+                try {
+                    var bus = Bus.get.end(r);
+                    bus.call.begin("dev.sinty.Brightness", "/dev/sinty/Brightness", "dev.sinty.Brightness1", "Store",
+                        new Variant("(s)", system_lines), null, DBusCallFlags.NO_AUTO_START, 3000, null);
+                } catch (Error e) {
+                }
+            });
+        }
+
+        private void restore(DisplayBrightness display) {
+            string key = display.edid_id != "" ? display.edid_id : display.connector;
+            if (!remembered.has_key(key)) {
+                if (display.method == BrightnessMethod.SOFTWARE) display.update_from_hardware(100.0);
+                return;
+            }
+            double hardware = remembered[key];
+            display.set_level(DisplayBrightness.hardware_to_level(hardware, display.min_percent, display.max_percent));
         }
 
         public DisplayBrightness? for_connector(string connector) {
@@ -169,6 +365,10 @@ namespace Singularity {
             }
             panel = new DisplayBrightness(connector, true);
             panel.backlight_name = backlight_name;
+            panel.method = BrightnessMethod.BACKLIGHT;
+            var facts = EdidFacts.for_connector(drm_name_for(connector));
+            panel.edid_id = facts.id;
+            panel.emissive = facts.emissive;
             try {
                 string max_str;
                 FileUtils.get_contents("/sys/class/backlight/%s/max_brightness".printf(backlight_name), out max_str);
@@ -178,11 +378,8 @@ namespace Singularity {
                 warning("BrightnessManager: cannot read max_brightness for %s: %s", backlight_name, e.message);
             }
             apply_stored_limits(panel);
-            panel.changed.connect(() => {
-                brightness = panel.percent;
-                changed();
-            });
             _displays.add(panel);
+            connect_primary();
         }
 
         private void read_current() {
@@ -198,8 +395,39 @@ namespace Singularity {
             }
         }
 
+        private static string drm_name_for(string connector) {
+            try {
+                var dir = Dir.open("/sys/class/drm", 0);
+                string? name;
+                while ((name = dir.read_name()) != null) {
+                    if (name.has_prefix("card") && name.has_suffix("-" + connector)) return name;
+                }
+            } catch (Error e) {
+            }
+            return "";
+        }
+
+        private ulong primary_handler = 0;
+        private DisplayBrightness? primary_bound = null;
+
+        private void connect_primary() {
+            var p = primary;
+            if (p == primary_bound) return;
+            if (primary_bound != null && primary_handler != 0) primary_bound.disconnect(primary_handler);
+            primary_bound = p;
+            primary_handler = 0;
+            if (p == null) return;
+            primary_handler = p.changed.connect(() => {
+                brightness = p.percent;
+                changed();
+            });
+            brightness = p.percent;
+            changed();
+        }
+
         private void probe_external_displays() {
             var candidates = new Gee.HashMap<string, string>();
+            var connected = new Gee.HashMap<string, string>();
             try {
                 var dir = Dir.open("/sys/class/drm", 0);
                 string? name;
@@ -209,10 +437,18 @@ namespace Singularity {
                     string connector = name.substring(dash + 1);
                     if (panel != null && connector == panel.connector) continue;
                     string status;
-                    FileUtils.get_contents("/sys/class/drm/%s/status".printf(name), out status);
+                    try {
+                        FileUtils.get_contents("/sys/class/drm/%s/status".printf(name), out status);
+                    } catch (Error e) {
+                        continue;
+                    }
                     if (status.strip() != "connected") continue;
-                    string bus = Path.get_basename(FileUtils.read_link("/sys/class/drm/%s/ddc".printf(name)));
-                    candidates[connector] = "/dev/" + bus;
+                    connected[connector] = name;
+                    try {
+                        string bus = Path.get_basename(FileUtils.read_link("/sys/class/drm/%s/ddc".printf(name)));
+                        candidates[connector] = "/dev/" + bus;
+                    } catch (Error e) {
+                    }
                 }
             } catch (Error e) {
                 debug("BrightnessManager: drm scan stopped: %s", e.message);
@@ -231,36 +467,55 @@ namespace Singularity {
                     }
                 }
                 Idle.add(() => {
-                    update_external_displays(devices, maxima, currents);
+                    update_external_displays(connected, devices, maxima, currents);
                     return Source.REMOVE;
                 });
                 return true;
             });
         }
 
-        private void update_external_displays(Gee.HashMap<string, string> devices,
+        private void update_external_displays(Gee.HashMap<string, string> connected,
+                                              Gee.HashMap<string, string> devices,
                                               Gee.HashMap<string, uint> maxima,
                                               Gee.HashMap<string, uint> currents) {
             bool changed_any = false;
             foreach (var display in _displays.to_array()) {
-                if (!display.internal_panel && !devices.has_key(display.connector)) {
+                if (display.internal_panel) continue;
+                bool gone = !connected.has_key(display.connector);
+                bool method_changed = (display.method == BrightnessMethod.DDC) != devices.has_key(display.connector);
+                if (gone || method_changed) {
                     _displays.remove(display);
                     changed_any = true;
                 }
             }
-            foreach (var entry in devices.entries) {
+            foreach (var entry in connected.entries) {
                 var display = for_connector(entry.key);
-                if (display == null) {
+                bool fresh = display == null;
+                if (fresh) {
                     display = new DisplayBrightness(entry.key, false);
-                    display.ddc = new Ddc(entry.value);
+                    var facts = EdidFacts.for_connector(entry.value);
+                    display.edid_id = facts.id;
+                    display.emissive = facts.emissive;
+                    if (devices.has_key(entry.key)) {
+                        display.ddc = new Ddc(devices[entry.key]);
+                        display.method = BrightnessMethod.DDC;
+                    } else {
+                        display.method = BrightnessMethod.SOFTWARE;
+                    }
                     apply_stored_limits(display);
                     _displays.add(display);
                     changed_any = true;
                 }
-                display.ddc_max = (uint16) maxima[entry.key];
-                display.update_from_hardware(currents[entry.key] * 100.0 / display.ddc_max);
+                if (display.method == BrightnessMethod.DDC) {
+                    display.ddc_max = (uint16) maxima[entry.key];
+                    display.update_from_hardware(currents[entry.key] * 100.0 / display.ddc_max);
+                }
+                if (fresh) restore(display);
             }
-            if (changed_any) displays_changed();
+            if (changed_any) {
+                connect_primary();
+                displays_changed();
+            }
         }
 
         private void apply_stored_limits(DisplayBrightness display) {
@@ -295,18 +550,19 @@ namespace Singularity {
             settings.set_value(LIMITS_KEY, builder.end());
         }
 
-        /** Sets the 0-100 level of the internal panel, within its brightness limits. */
+        /** Sets the 0-100 level of the primary display, within its brightness limits. */
         public void set_level(double percent) {
-            if (panel == null) return;
-            panel.set_level(percent.clamp(1.0, 100.0));
+            var p = primary;
+            if (p == null) return;
+            p.set_level(percent.clamp(p.method == BrightnessMethod.BACKLIGHT ? 1.0 : 0.0, 100.0));
         }
 
         public void step_up() {
-            set_level((brightness + 10.0).clamp(1.0, 100.0));
+            set_level(brightness + 10.0);
         }
 
         public void step_down() {
-            set_level((brightness - 10.0).clamp(1.0, 100.0));
+            set_level(brightness - 10.0);
         }
     }
 }

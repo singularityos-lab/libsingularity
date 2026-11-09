@@ -662,7 +662,7 @@ if get_option('system')
       'src/system/brightness_manager.vala',
       'src/system/ddc.vala',
     ),
-    dependencies: [gio_dep, gee_dep, gudev_dep],
+    dependencies: [gio_dep, gee_dep, gudev_dep, m_dep],
     vala_args: ['--pkg', 'posix'],
   )
   test('brightness', brightness_test)
