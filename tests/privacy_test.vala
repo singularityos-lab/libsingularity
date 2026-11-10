@@ -66,6 +66,37 @@ void test_microphone_dump() {
     assert(MicrophoneClients.parse_dump("{}").length == 0);
 }
 
+void test_live_graph() {
+    if (!PipeWireGraph.available()) {
+        Test.skip("libsinty-system-core is not loadable");
+        return;
+    }
+    string? runtime = Environment.get_variable("XDG_RUNTIME_DIR");
+    if (runtime == null || !FileUtils.test(Path.build_filename(runtime, "pipewire-0"), FileTest.EXISTS)) {
+        Test.skip("no PipeWire server");
+        return;
+    }
+    string? json = PipeWireGraph.dump_sync();
+    assert(json != null);
+    var parser = new Json.Parser();
+    try {
+        parser.load_from_data(json);
+    } catch (Error e) {
+        assert_not_reached();
+    }
+    var objects = parser.get_root().get_array();
+    assert(objects.get_length() > 0);
+    bool self_seen = false;
+    foreach (var node in objects.get_elements()) {
+        var props = node.get_object().get_object_member("info").get_object_member("props");
+        if (props.has_member("application.name") && props.get_string_member("application.name") == "sinty-system")
+            self_seen = true;
+    }
+    assert(self_seen);
+    MicrophoneClients.parse_dump(json);
+    CameraClients.parse_dump(json);
+}
+
 void test_microphone_local_users() {
     var usage = MicrophoneClients.get_default();
     int changes = 0;
@@ -104,6 +135,7 @@ int main(string[] args) {
     Test.add_func("/privacy/background-apps/stop-argv", test_stop_argv);
     Test.add_func("/privacy/microphone/dump", test_microphone_dump);
     Test.add_func("/privacy/microphone/local-users", test_microphone_local_users);
+    Test.add_func("/privacy/pipewire/live-graph", test_live_graph);
     Test.add_func("/privacy/microphone/merge", test_microphone_merge);
     return Test.run();
 }

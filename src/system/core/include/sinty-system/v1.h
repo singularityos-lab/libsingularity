@@ -289,6 +289,30 @@ typedef struct {
 int sinty_firewall_apply(bool enabled, bool public_profile, const char *const *port_specs, const char *const *comments, size_t count);
 int sinty_firewall_summary(SintyFirewallSummary *out);
 
+typedef enum {
+    SINTY_AUDIO_NODE = 1,
+    SINTY_AUDIO_CLIENT = 2,
+    SINTY_AUDIO_LINK = 3,
+} SintyAudioKind;
+
+typedef struct {
+    uint32_t id;
+    int32_t kind;
+    uint32_t output_node;
+    uint32_t input_node;
+    size_t n_props;
+    char **keys;
+    char **values;
+} SintyAudioObject;
+
+typedef struct SintyAudioGraph SintyAudioGraph;
+
+int sinty_audio_graph(SintyAudioGraph **out);
+size_t sinty_audio_graph_count(const SintyAudioGraph *graph);
+const SintyAudioObject *sinty_audio_graph_at(const SintyAudioGraph *graph, size_t index);
+void sinty_audio_graph_free(SintyAudioGraph *graph);
+const char *sinty_audio_object_prop(const SintyAudioObject *object, const char *key);
+
 #ifdef __cplusplus
 }
 #endif

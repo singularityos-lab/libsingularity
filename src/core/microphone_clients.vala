@@ -58,13 +58,8 @@ namespace Singularity {
 
         public static async MicrophoneClient[] query(Cancellable? cancellable = null) {
             MicrophoneClient[] graph = {};
-            try {
-                var process = new Subprocess(SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_SILENCE, "pw-dump");
-                string? output = null;
-                yield process.communicate_utf8_async(null, cancellable, out output, null);
-                if (output != null) graph = parse_dump(output);
-            } catch (Error e) {
-            }
+            string? output = yield PipeWireGraph.dump(cancellable);
+            if (output != null) graph = parse_dump(output);
             var local = get_default();
             return merge(local.local_clients(), local.order.data, graph);
         }

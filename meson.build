@@ -286,6 +286,7 @@ libsingularity_sources = files(
   'src/core/app_plugin_host.vala',
   'src/core/camera_clients.vala',
   'src/core/microphone_clients.vala',
+  'src/core/pipewire_graph.vala',
   'src/core/vpn_provider.vala',
   'src/core/wallpaper_provider.vala',
   'src/core/app_settings_loader.vala',
@@ -798,10 +799,11 @@ if get_option('system')
       'src/system/background_apps.vala',
       'src/core/camera_clients.vala',
       'src/core/microphone_clients.vala',
+      'src/core/pipewire_graph.vala',
     ),
-    dependencies: [gio_dep, giounix_dep, json_dep],
+    dependencies: [gio_dep, giounix_dep, json_dep, gmodule_dep],
   )
-  test('privacy', privacy_test)
+  test('privacy', privacy_test, env: ['LD_LIBRARY_PATH=' + meson.current_build_dir()])
 
   sandbox_test = executable(
     'sandbox-test',

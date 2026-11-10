@@ -22,19 +22,13 @@ namespace Singularity {
      */
     public class CameraClients : Object {
         /**
-         * Reads the running PipeWire graph with `pw-dump` and returns the
+         * Reads the running PipeWire graph and returns the
          * streams linked to a camera source.
          */
         public static async CameraClient[] query(Cancellable? cancellable = null) {
-            try {
-                var process = new Subprocess(SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_SILENCE, "pw-dump");
-                string? output = null;
-                yield process.communicate_utf8_async(null, cancellable, out output, null);
-                if (output == null) return {};
-                return parse_dump(output);
-            } catch (Error e) {
-                return {};
-            }
+            string? output = yield PipeWireGraph.dump(cancellable);
+            if (output == null) return {};
+            return parse_dump(output);
         }
 
         /**

@@ -9,6 +9,7 @@ pub const net = @import("v1/net.zig");
 pub const i18n = @import("v1/i18n.zig");
 pub const gpu = @import("v1/gpu.zig");
 pub const firewall = @import("v1/firewall.zig");
+pub const audio = @import("v1/audio.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -313,6 +314,30 @@ export fn sinty_firewall_summary(out: *firewall.Summary) c_int {
     return 0;
 }
 
+export fn sinty_audio_graph(out: *?*audio.Graph) c_int {
+    out.* = audio.snapshot() catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_audio_graph_count(g: *const audio.Graph) usize {
+    return g.count();
+}
+
+export fn sinty_audio_graph_at(g: *const audio.Graph, i: usize) ?*const audio.Object {
+    return g.at(i);
+}
+
+export fn sinty_audio_graph_free(g: ?*audio.Graph) void {
+    if (g) |p| p.destroy();
+}
+
+export fn sinty_audio_object_prop(o: *const audio.Object, key: [*:0]const u8) ?[*:0]const u8 {
+    const k = o.keys orelse return null;
+    const v = o.values orelse return null;
+    for (0..o.n_props) |i| if (std.mem.eql(u8, std.mem.span(k[i]), span(key))) return v[i];
+    return null;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -324,6 +349,7 @@ test {
     _ = i18n;
     _ = gpu;
     _ = firewall;
+    _ = audio;
 }
 
 test "a tcp connection shows up with its owner and counters" {

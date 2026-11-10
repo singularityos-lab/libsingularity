@@ -21,4 +21,5 @@ test "header layouts match the exported structs" {
     try same(core.net.LinkInfo, c.SintyLinkInfo);
     try same(core.gpu.NvidiaGpu, c.SintyNvidiaGpu);
     try same(core.firewall.Summary, c.SintyFirewallSummary);
+    try same(core.audio.Object, c.SintyAudioObject);
 }
