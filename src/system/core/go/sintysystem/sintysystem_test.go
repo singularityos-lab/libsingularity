@@ -600,3 +600,21 @@ func TestMakeF2fs(t *testing.T) {
 		t.Fatalf("tiny device: %v", err)
 	}
 }
+
+func TestMakeSwapFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "swap")
+	if err := MakeSwapFile(path, 8<<20, "memoria"); err != nil {
+		t.Fatal(err)
+	}
+	st, err := os.Stat(path)
+	if err != nil || st.Size() != 8<<20 || st.Mode().Perm() != 0o600 {
+		t.Fatalf("%v %v", st, err)
+	}
+	info, err := ProbeFilesystem(path)
+	if err != nil || info.Type != "swap" || info.Label != "memoria" {
+		t.Fatalf("%+v %v", info, err)
+	}
+	if err := MakeSwapFile(path, 8<<20, ""); !errors.Is(err, syscall.EEXIST) {
+		t.Fatalf("existing file: %v", err)
+	}
+}

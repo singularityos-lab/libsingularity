@@ -578,6 +578,11 @@ export fn sinty_fs_mkfs_ext4(path: [*:0]const u8, label: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_fs_swapfile(path: [*:0]const u8, bytes: u64, label: [*:0]const u8) c_int {
+    fs.swapfile(span(path), bytes, span(label)) catch |e| return sys.code(e);
+    return 0;
+}
+
 export fn sinty_fs_mkfs_f2fs(path: [*:0]const u8, label: [*:0]const u8) c_int {
     var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
     defer d.close();

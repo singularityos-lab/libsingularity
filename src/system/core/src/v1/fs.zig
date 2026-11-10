@@ -763,6 +763,50 @@ pub fn mkswap(d: Dev, label: []const u8) !void {
     try d.sync();
 }
 
+pub fn swapfile(path: []const u8, bytes: u64, label: []const u8) !void {
+    const page: u64 = @intCast(std.c.sysconf(@intFromEnum(std.c._SC.PAGESIZE)));
+    const size = bytes / page * page;
+    if (size < 10 * page) return error.TooBig;
+    if (label.len > 16) return error.TooBig;
+    var rnd: [6]u8 = undefined;
+    _ = linux.getrandom(&rnd, rnd.len, 0);
+    var tb: [4200]u8 = undefined;
+    const tmp = try sys.pathZ(&tb, "{s}.{x}.part", .{ path, rnd });
+    var fb: [4200]u8 = undefined;
+    const final = try sys.pathZ(&fb, "{s}", .{path});
+    const fd = try sys.open(tmp, .{ .ACCMODE = .RDWR, .CREAT = true, .EXCL = true, .CLOEXEC = true }, 0o600);
+    var placed = false;
+    defer if (!placed) {
+        _ = linux.unlink(tmp);
+    };
+    {
+        defer sys.close(fd);
+        var flags: c_int = 0;
+        if (sys.ioctl(fd, 0x80086601, @intFromPtr(&flags))) |_| {
+            flags |= 0x00800000;
+            _ = sys.ioctl(fd, 0x40086602, @intFromPtr(&flags)) catch {};
+        } else |_| {}
+        _ = try sys.check(linux.fchmod(fd, 0o600));
+        while (true) {
+            const rc = linux.fallocate(fd, 0, 0, @intCast(size));
+            if (linux.errno(rc) == .INTR) continue;
+            _ = try sys.check(rc);
+            break;
+        }
+        const d = Dev{ .fd = fd, .size = size, .sector = 512 };
+        try mkswap(d, label);
+        _ = try sys.check(linux.fsync(fd));
+    }
+    _ = try sys.check(linux.renameat2(linux.AT.FDCWD, tmp, linux.AT.FDCWD, final, .{ .NOREPLACE = true }));
+    placed = true;
+    const dir = std.fs.path.dirname(path) orelse ".";
+    var db: [4200]u8 = undefined;
+    const dz = try sys.pathZ(&db, "{s}", .{dir});
+    const dfd = sys.open(dz, .{ .ACCMODE = .RDONLY, .DIRECTORY = true, .CLOEXEC = true }, 0) catch return;
+    defer sys.close(dfd);
+    _ = linux.fsync(dfd);
+}
+
 fn f2fsProbe(d: Dev, out: *FsInfo) !bool {
     var sb: [1024 + 124]u8 = undefined;
     d.readAt(1024, &sb) catch return false;
@@ -1159,4 +1203,33 @@ test "filesystems made by the standard tools probe and relabel" {
         try setLabel(d, c.label);
         try std.testing.expectEqualStrings(c.label, sys.cstr(&(try probe(d)).label));
     }
+}
+
+test "swap files appear whole or not at all" {
+    var rb: [512]u8 = undefined;
+    const root = try sys.testRoot(&rb, "swapfile");
+    var pb: [600]u8 = undefined;
+    const path = try std.fmt.bufPrint(&pb, "{s}/swap.img", .{root});
+    var zb: [600]u8 = undefined;
+    const pz = try sys.pathZ(&zb, "{s}", .{path});
+    _ = linux.unlink(pz);
+    try swapfile(path, (8 << 20) + 123, "memoria");
+    var st: linux.Statx = undefined;
+    _ = try sys.check(linux.statx(linux.AT.FDCWD, pz, 0, .{ .MODE = true, .SIZE = true }, &st));
+    try std.testing.expectEqual(@as(u16, 0o600), st.mode & 0o777);
+    try std.testing.expectEqual(@as(u64, 8 << 20), st.size);
+    var d = try Dev.open(pz, false);
+    defer d.close();
+    const p = try probe(d);
+    try std.testing.expectEqualStrings("swap", sys.cstr(&p.type));
+    try std.testing.expectEqualStrings("memoria", sys.cstr(&p.label));
+    try std.testing.expectError(error.Exists, swapfile(path, 8 << 20, ""));
+    try std.testing.expectError(error.TooBig, swapfile(path, 4096, ""));
+    var dir = try sys.Dir.open(try sys.pathZ(&zb, "{s}", .{root}));
+    defer dir.close();
+    var n: usize = 0;
+    while (try dir.next()) |e| {
+        if (std.mem.endsWith(u8, e.name, ".part")) n += 1;
+    }
+    try std.testing.expectEqual(@as(usize, 0), n);
 }
