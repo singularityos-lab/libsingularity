@@ -310,6 +310,92 @@ namespace Singularity {
         }
     }
 
+    public class SintyFirewallBackend : Object, FirewallBackend {
+        public const string BUS_NAME = "dev.sinty.Firewall1";
+        public const string PATH = "/dev/sinty/Firewall1";
+        public const string IFACE = "dev.sinty.Firewall1";
+
+        public string name { get { return "sinty-firewalld"; } }
+
+        private async Variant call(string method, Variant? args, string? reply) throws Error {
+            var conn = yield Bus.get(BusType.SYSTEM);
+            try {
+                return yield conn.call(BUS_NAME, PATH, IFACE, method, args,
+                    reply != null ? new VariantType(reply) : null, DBusCallFlags.NONE, 15000, null);
+            } catch (Error e) {
+                string? remote = DBusError.get_remote_error(e);
+                DBusError.strip_remote_error(e);
+                if (remote == IFACE + ".Error.Invalid") throw new FirewallError.INVALID(e.message);
+                if (remote == "org.freedesktop.DBus.Error.AccessDenied")
+                    throw new FirewallError.FAILED(_("Permission was not given."));
+                throw new FirewallError.FAILED(e.message);
+            }
+        }
+
+        public async bool is_available() {
+            try {
+                var conn = yield Bus.get(BusType.SYSTEM);
+                var ret = yield conn.call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                    "NameHasOwner", new Variant("(s)", BUS_NAME), new VariantType("(b)"), DBusCallFlags.NONE, 2000,
+                    null);
+                bool owned;
+                ret.get("(b)", out owned);
+                if (owned) return true;
+                var names = yield conn.call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                    "ListActivatableNames", null, new VariantType("(as)"), DBusCallFlags.NONE, 2000, null);
+                foreach (string n in names.get_child_value(0).get_strv()) if (n == BUS_NAME) return true;
+            } catch (Error e) {
+            }
+            return false;
+        }
+
+        public static FirewallStatus parse_status(Variant reply) {
+            var st = new FirewallStatus();
+            st.enabled = reply.get_child_value(0).get_boolean();
+            st.zone = reply.get_child_value(1).get_string();
+            st.profile = st.zone == "public" ? FirewallProfile.PUBLIC : FirewallProfile.HOME;
+            var iter = reply.get_child_value(2).iterator();
+            string id, ports, label;
+            bool public_too;
+            while (iter.next("(sbss)", out id, out public_too, out ports, out label))
+                st.rules.add(new FirewallRule(id, label, ports.split(","), public_too));
+            return st;
+        }
+
+        public async FirewallStatus status() throws Error {
+            return parse_status(yield call("Status", null, "(bsa(sbss))"));
+        }
+
+        public async void set_enabled(bool enabled) throws Error {
+            yield call("SetEnabled", new Variant("(b)", enabled), null);
+        }
+
+        public async void set_profile(FirewallProfile profile) throws Error {
+            yield call("SetProfile", new Variant("(s)", profile == FirewallProfile.PUBLIC ? "public" : "home"), null);
+        }
+
+        public static string port_spec(string[] ports) {
+            string[] out_ports = {};
+            foreach (unowned string p in ports) {
+                int a, z;
+                string proto;
+                if (!FirewallPorts.parse(p, out a, out z, out proto)) continue;
+                out_ports += a == z ? "%d/%s".printf(a, proto) : "%d-%d/%s".printf(a, z, proto);
+            }
+            return string.joinv(",", out_ports);
+        }
+
+        public async void allow(FirewallRule rule) throws Error {
+            yield call("Allow", new Variant("(sbss)", rule.id, rule.public_too, port_spec(rule.ports),
+                FirewallPorts.clean_label(rule.label)), null);
+        }
+
+        public async void revoke(string id) throws Error {
+            yield call("Revoke", new Variant("(s)", id), null);
+        }
+    }
+
+    [Version (deprecated = true, replacement = "SintyFirewallBackend")]
     public class NftablesBackend : Object, FirewallBackend {
         private string[] command;
         private string state_file;
@@ -419,11 +505,15 @@ namespace Singularity {
             string choice = config.get_string("Backend", "auto").down();
             var firewalld = new FirewalldBackend(config.get_string("HomeZone", "home"),
                 config.get_string("PublicZone", "public"));
+            var sinty = new SintyFirewallBackend();
             var nft = new NftablesBackend(config.get_string("HelperCommand", FIREWALL_DEFAULT_HELPER),
                 config.get_string("StateFile", FIREWALL_DEFAULT_STATE));
             switch (choice) {
                 case "none":
                     backend = null;
+                    break;
+                case "sinty":
+                    backend = (yield sinty.is_available()) ? sinty : null;
                     break;
                 case "firewalld":
                     backend = (yield firewalld.is_available()) ? firewalld : null;
@@ -432,7 +522,8 @@ namespace Singularity {
                     backend = (yield nft.is_available()) ? nft : null;
                     break;
                 default:
-                    if (yield firewalld.is_available()) backend = firewalld;
+                    if (yield sinty.is_available()) backend = sinty;
+                    else if (yield firewalld.is_available()) backend = firewalld;
                     else if (yield nft.is_available()) backend = nft;
                     break;
             }

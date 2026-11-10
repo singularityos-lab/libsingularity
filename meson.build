@@ -603,9 +603,6 @@ if get_option('system')
   power_libexecdir = get_option('prefix') / get_option('libexecdir')
   power_charge_command = get_option('charge-limit-command')
   firewall_helper_command = get_option('firewall-helper-command')
-  if firewall_helper_command == ''
-    firewall_helper_command = 'pkexec ' + power_libexecdir / 'singularity-firewall-helper'
-  endif
   power_c_args = [
     '-DSINGULARITY_SYSCONFDIR="@0@"'.format(get_option('prefix') / get_option('sysconfdir')),
     '-DSINGULARITY_SUSPEND_COMMAND="@0@"'.format(get_option('suspend-command')),
