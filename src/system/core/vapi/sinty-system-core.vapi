@@ -379,4 +379,14 @@ namespace SintySystem {
     public bool logs_journal_available (string? dir);
     [CCode (cname = "sinty_logs_sealed")]
     public int logs_sealed (string key, string? ring, string? cold, string? dictionary, uint32 boots, out LogEntries list);
+
+    [Compact]
+    [CCode (cname = "SintyClipboardHolder", free_function = "sinty_clipboard_holder_free")]
+    public class ClipboardHolder {
+        [CCode (cname = "sinty_clipboard_holder_active")]
+        public bool active ();
+    }
+
+    [CCode (cname = "sinty_clipboard_set")]
+    public int clipboard_set ([CCode (array_length_type = "size_t")] uint8[]? data, [CCode (array_length_type = "size_t")] string[] mimes, bool primary, out ClipboardHolder holder);
 }

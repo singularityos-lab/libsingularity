@@ -611,6 +611,7 @@ if get_option('system')
     'src/system/sensor.vala',
     'src/system/process_usage.vala',
     'src/system/system_journal.vala',
+    'src/system/system_clipboard.vala',
     'src/system/utilization.vala',
     'src/system/fan_control_manager.vala',
     'src/system/permission_store.vala',
@@ -720,6 +721,17 @@ if get_option('system')
     vala_args: ['--pkg', 'posix'] + system_core_vala_args,
   )
   test('system-journal', system_journal_test)
+
+  system_clipboard_test = executable(
+    'system-clipboard-test',
+    files(
+      'tests/system_clipboard_test.vala',
+      'src/system/system_clipboard.vala',
+    ),
+    dependencies: [gio_dep, system_core_dep],
+    vala_args: ['--pkg', 'posix'] + system_core_vala_args,
+  )
+  test('system-clipboard', system_clipboard_test)
 
   sensor_test = executable(
     'sensor-test',
