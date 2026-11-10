@@ -507,6 +507,9 @@ if get_option('system')
     'src/system/core/src/v1/print.zig',
     'src/system/core/src/v1/wayland.zig',
     'src/system/core/src/v1/clipboard.zig',
+    'src/system/core/src/v1/gvariant.zig',
+    'src/system/core/src/v1/gvdb.zig',
+    'src/system/core/src/v1/settings.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''

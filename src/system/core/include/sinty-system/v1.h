@@ -618,6 +618,19 @@ int sinty_clipboard_set(const uint8_t *data, size_t len, const char *const *mime
 bool sinty_clipboard_holder_active(const SintyClipboardHolder *h);
 void sinty_clipboard_holder_free(SintyClipboardHolder *h);
 
+int sinty_settings_get_bool(const char *schema, const char *path, const char *key, bool *out);
+int sinty_settings_get_int(const char *schema, const char *path, const char *key, int64_t *out);
+int sinty_settings_get_double(const char *schema, const char *path, const char *key, double *out);
+int sinty_settings_get_string(const char *schema, const char *path, const char *key, char **out);
+int sinty_settings_get_strv(const char *schema, const char *path, const char *key, SintyTextList **out);
+int sinty_settings_set_bool(const char *schema, const char *path, const char *key, bool value);
+int sinty_settings_set_int(const char *schema, const char *path, const char *key, int64_t value);
+int sinty_settings_set_double(const char *schema, const char *path, const char *key, double value);
+int sinty_settings_set_string(const char *schema, const char *path, const char *key, const char *value);
+int sinty_settings_set_strv(const char *schema, const char *path, const char *key, const char *const *values, size_t n);
+int sinty_settings_reset(const char *schema, const char *path, const char *key);
+int sinty_settings_writable(const char *schema, const char *path, const char *key, bool *out);
+
 #ifdef __cplusplus
 }
 #endif

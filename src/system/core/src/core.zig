@@ -24,6 +24,9 @@ pub const accounts = @import("v1/accounts.zig");
 pub const print = @import("v1/print.zig");
 pub const wayland = @import("v1/wayland.zig");
 pub const clipboard = @import("v1/clipboard.zig");
+pub const gvariant = @import("v1/gvariant.zig");
+pub const gvdb = @import("v1/gvdb.zig");
+pub const settings = @import("v1/settings.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -874,6 +877,9 @@ test {
     _ = print;
     _ = wayland;
     _ = clipboard;
+    _ = gvariant;
+    _ = gvdb;
+    _ = settings;
 }
 
 test "a tcp connection shows up with its owner and counters" {
@@ -1020,4 +1026,159 @@ export fn sinty_clipboard_holder_active(h: *const clipboard.Holder) bool {
 
 export fn sinty_clipboard_holder_free(h: ?*clipboard.Holder) void {
     if (h) |p| p.destroy();
+}
+
+fn settingsKey(store: *const settings.Store, schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8) !settings.Key {
+    return store.key(span(schema), if (path) |p| span(p) else null, span(key));
+}
+
+fn settingsGet(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, comptime T: type, comptime read: fn (gvariant.Value) anyerror!T) !T {
+    var store = try settings.Store.load();
+    defer store.deinit();
+    const k = try settingsKey(&store, schema, path, key);
+    return read(try store.get(&k));
+}
+
+fn settingsSet(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, value: ?[]const u8, want: []const u8) !void {
+    var store = try settings.Store.load();
+    defer store.deinit();
+    const k = try settingsKey(&store, schema, path, key);
+    if (value != null) {
+        const ok = if (std.mem.eql(u8, want, "as")) std.mem.eql(u8, k.sig, "as") else k.sig.len == 1 and std.mem.indexOfScalar(u8, want, k.sig[0]) != null;
+        if (!ok) return error.Invalid;
+    }
+    try store.validate(&k, value);
+    var c = try dbus.Conn.session();
+    defer c.close();
+    try store.set(&c, &k, value);
+}
+
+fn readBool(v: gvariant.Value) anyerror!bool {
+    return v.boolean();
+}
+
+fn readInt(v: gvariant.Value) anyerror!i64 {
+    return v.int();
+}
+
+fn readDouble(v: gvariant.Value) anyerror!f64 {
+    return v.double();
+}
+
+export fn sinty_settings_get_bool(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, out: *bool) c_int {
+    out.* = settingsGet(schema, path, key, bool, readBool) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_get_int(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, out: *i64) c_int {
+    out.* = settingsGet(schema, path, key, i64, readInt) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_get_double(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, out: *f64) c_int {
+    out.* = settingsGet(schema, path, key, f64, readDouble) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_get_string(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, out: *?[*:0]u8) c_int {
+    var store = settings.Store.load() catch |e| return sys.code(e);
+    defer store.deinit();
+    const k = settingsKey(&store, schema, path, key) catch |e| return sys.code(e);
+    const v = store.get(&k) catch |e| return sys.code(e);
+    const s = v.string() catch |e| return sys.code(e);
+    out.* = sys.dupZ(sys.gpa, s) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_get_strv(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, out: *?*i18n.TextList) c_int {
+    var store = settings.Store.load() catch |e| return sys.code(e);
+    defer store.deinit();
+    const k = settingsKey(&store, schema, path, key) catch |e| return sys.code(e);
+    if (!std.mem.eql(u8, k.sig, "as")) return sys.code(error.Invalid);
+    const v = store.get(&k) catch |e| return sys.code(e);
+    const list = i18n.TextList.create() catch |e| return sys.code(e);
+    const n = v.len() catch |e| {
+        list.destroy();
+        return sys.code(e);
+    };
+    for (0..n) |i| {
+        const item = (v.at(i) catch |e| {
+            list.destroy();
+            return sys.code(e);
+        }).string() catch |e| {
+            list.destroy();
+            return sys.code(e);
+        };
+        const copy = sys.dupZ(sys.gpa, item) catch |e| {
+            list.destroy();
+            return sys.code(e);
+        };
+        list.append(.{ .ptr = copy }) catch |e| {
+            sys.gpa.free(std.mem.span(copy));
+            list.destroy();
+            return sys.code(e);
+        };
+    }
+    out.* = list;
+    return 0;
+}
+
+export fn sinty_settings_set_bool(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, value: bool) c_int {
+    const b = gvariant.boolean(value) catch |e| return sys.code(e);
+    defer sys.gpa.free(b);
+    settingsSet(schema, path, key, b, "b") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_set_int(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, value: i64) c_int {
+    var store = settings.Store.load() catch |e| return sys.code(e);
+    defer store.deinit();
+    const k = settingsKey(&store, schema, path, key) catch |e| return sys.code(e);
+    const b = settings.encodeInt(k.sig, value) catch |e| return sys.code(e);
+    defer sys.gpa.free(b);
+    store.validate(&k, b) catch |e| return sys.code(e);
+    var c = dbus.Conn.session() catch |e| return sys.code(e);
+    defer c.close();
+    store.set(&c, &k, b) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_set_double(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, value: f64) c_int {
+    const b = gvariant.double(value) catch |e| return sys.code(e);
+    defer sys.gpa.free(b);
+    settingsSet(schema, path, key, b, "d") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_set_string(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, value: [*:0]const u8) c_int {
+    const b = gvariant.string(span(value)) catch |e| return sys.code(e);
+    defer sys.gpa.free(b);
+    settingsSet(schema, path, key, b, "sog") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_set_strv(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, values: ?[*]const ?[*:0]const u8, n: usize) c_int {
+    var items: std.ArrayList([]const u8) = .empty;
+    defer items.deinit(sys.gpa);
+    if (n > 0) {
+        const list = values orelse return sys.code(error.Invalid);
+        for (0..n) |i| items.append(sys.gpa, span(list[i] orelse return sys.code(error.Invalid))) catch |e| return sys.code(e);
+    }
+    const b = settings.encodeStrv(items.items) catch |e| return sys.code(e);
+    defer sys.gpa.free(b);
+    settingsSet(schema, path, key, b, "as") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_reset(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8) c_int {
+    settingsSet(schema, path, key, null, "") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_settings_writable(schema: [*:0]const u8, path: ?[*:0]const u8, key: [*:0]const u8, out: *bool) c_int {
+    var store = settings.Store.load() catch |e| return sys.code(e);
+    defer store.deinit();
+    const k = settingsKey(&store, schema, path, key) catch |e| return sys.code(e);
+    out.* = store.writable(&k) catch |e| return sys.code(e);
+    return 0;
 }

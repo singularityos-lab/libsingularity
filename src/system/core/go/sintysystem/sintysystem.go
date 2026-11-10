@@ -1176,3 +1176,128 @@ func (c *ClipboardHolder) Close() {
 		c.h = nil
 	}
 }
+
+type SettingsKey struct {
+	Schema, Path, Key string
+}
+
+func (k SettingsKey) c() (*C.char, *C.char, *C.char) {
+	var p *C.char
+	if k.Path != "" {
+		p = C.CString(k.Path)
+	}
+	return C.CString(k.Schema), p, C.CString(k.Key)
+}
+
+func freeKey(s, p, k *C.char) {
+	C.free(unsafe.Pointer(s))
+	C.free(unsafe.Pointer(p))
+	C.free(unsafe.Pointer(k))
+}
+
+func (k SettingsKey) Bool() (bool, error) {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	var v C.bool
+	err := check(C.sinty_settings_get_bool(s, p, n, &v))
+	return bool(v), err
+}
+
+func (k SettingsKey) Int() (int64, error) {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	var v C.int64_t
+	err := check(C.sinty_settings_get_int(s, p, n, &v))
+	return int64(v), err
+}
+
+func (k SettingsKey) Double() (float64, error) {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	var v C.double
+	err := check(C.sinty_settings_get_double(s, p, n, &v))
+	return float64(v), err
+}
+
+func (k SettingsKey) String() (string, error) {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	var v *C.char
+	if err := check(C.sinty_settings_get_string(s, p, n, &v)); err != nil {
+		return "", err
+	}
+	defer C.sinty_string_free(v)
+	return C.GoString(v), nil
+}
+
+func (k SettingsKey) Strv() ([]string, error) {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	var list *C.SintyTextList
+	if err := check(C.sinty_settings_get_strv(s, p, n, &list)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_text_list_free(list)
+	count := int(C.sinty_text_list_count(list))
+	out := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		out = append(out, C.GoString(C.sinty_text_list_at(list, C.size_t(i))))
+	}
+	return out, nil
+}
+
+func (k SettingsKey) Writable() (bool, error) {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	var v C.bool
+	err := check(C.sinty_settings_writable(s, p, n, &v))
+	return bool(v), err
+}
+
+func (k SettingsKey) SetBool(v bool) error {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	return check(C.sinty_settings_set_bool(s, p, n, C.bool(v)))
+}
+
+func (k SettingsKey) SetInt(v int64) error {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	return check(C.sinty_settings_set_int(s, p, n, C.int64_t(v)))
+}
+
+func (k SettingsKey) SetDouble(v float64) error {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	return check(C.sinty_settings_set_double(s, p, n, C.double(v)))
+}
+
+func (k SettingsKey) SetString(v string) error {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	cv := C.CString(v)
+	defer C.free(unsafe.Pointer(cv))
+	return check(C.sinty_settings_set_string(s, p, n, cv))
+}
+
+func (k SettingsKey) SetStrv(v []string) error {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	var arr unsafe.Pointer
+	if len(v) > 0 {
+		arr = C.malloc(C.size_t(len(v)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+		defer C.free(arr)
+		list := unsafe.Slice((**C.char)(arr), len(v))
+		for i, item := range v {
+			list[i] = C.CString(item)
+			defer C.free(unsafe.Pointer(list[i]))
+		}
+	}
+	return check(C.sinty_settings_set_strv(s, p, n, (**C.char)(arr), C.size_t(len(v))))
+}
+
+func (k SettingsKey) Reset() error {
+	s, p, n := k.c()
+	defer freeKey(s, p, n)
+	return check(C.sinty_settings_reset(s, p, n))
+}

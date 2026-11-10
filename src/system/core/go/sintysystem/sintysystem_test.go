@@ -355,3 +355,58 @@ func TestClipboardCompositor(t *testing.T) {
 		t.Error("holder lost the selection")
 	}
 }
+
+func TestSettingsDefaults(t *testing.T) {
+	dir := os.Getenv("SINTY_SCHEMA_DIR")
+	if dir == "" {
+		t.Skip("SINTY_SCHEMA_DIR is not set")
+	}
+	conf := t.TempDir()
+	profile := filepath.Join(conf, "profile")
+	if err := os.WriteFile(profile, []byte("user-db:user\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GSETTINGS_SCHEMA_DIR", dir)
+	t.Setenv("XDG_DATA_DIRS", "/nonexistent")
+	t.Setenv("XDG_CONFIG_HOME", conf)
+	t.Setenv("DCONF_PROFILE", profile)
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/nonexistent-sinty/bus")
+	k := func(name string) SettingsKey { return SettingsKey{Schema: "dev.sinty.Test", Key: name} }
+	if v, err := k("enabled").Bool(); err != nil || !v {
+		t.Errorf("enabled %v %v", v, err)
+	}
+	if v, err := k("count").Int(); err != nil || v != -42 {
+		t.Errorf("count %v %v", v, err)
+	}
+	if v, err := k("ratio").Double(); err != nil || v != 0.75 {
+		t.Errorf("ratio %v %v", v, err)
+	}
+	if v, err := k("mode").String(); err != nil || v != "dark" {
+		t.Errorf("mode %q %v", v, err)
+	}
+	if v, err := k("apps").Strv(); err != nil || len(v) != 3 || v[1] != "edit" {
+		t.Errorf("apps %v %v", v, err)
+	}
+	if v, err := k("enabled").Writable(); err != nil || !v {
+		t.Errorf("writable %v %v", v, err)
+	}
+	if _, err := k("enabled").Int(); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("wrong type read gave %v", err)
+	}
+	if err := k("count").SetInt(500); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("out of range gave %v", err)
+	}
+	if err := k("enabled").SetString("x"); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("wrong type write gave %v", err)
+	}
+	if err := k("enabled").SetBool(false); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("write without a session bus gave %v", err)
+	}
+	child := SettingsKey{Schema: "dev.sinty.Test.Child", Path: "/dev/sinty/child/", Key: "size"}
+	if v, err := child.Int(); err != nil || v != 7 {
+		t.Errorf("relocatable %v %v", v, err)
+	}
+	if _, err := (SettingsKey{Schema: "no.such.Schema", Key: "x"}).Bool(); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("missing schema gave %v", err)
+	}
+}
