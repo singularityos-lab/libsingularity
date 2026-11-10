@@ -618,3 +618,46 @@ func TestMakeSwapFile(t *testing.T) {
 		t.Fatalf("existing file: %v", err)
 	}
 }
+
+func TestNetLinksAndWireguardKeys(t *testing.T) {
+	links, err := NetLinks()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, l := range links {
+		if l.Name == "lo" && l.Flags&NetFlagLoopback != 0 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("lo missing in %+v", links)
+	}
+	lo, err := NetLinkByName("lo")
+	if err != nil || lo.Index != 1 {
+		t.Fatalf("%+v %v", lo, err)
+	}
+	if _, err := NetLinkByName("nonesiste0"); !errors.Is(err, syscall.ENOENT) {
+		t.Fatalf("missing link: %v", err)
+	}
+	if _, err := NetAddresses(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NetRoutes(); err != nil {
+		t.Fatal(err)
+	}
+	priv, err := WgGenerateKey()
+	if err != nil || len(priv) != 44 {
+		t.Fatalf("%q %v", priv, err)
+	}
+	pub, err := WgPublicKey("dwdtCnMYpX08FsFyUbJmRQ8ML4BJmFV4dH5OzxkEjmg=")
+	if err != nil || pub != "XXdiHLHmLJB8JTBL4XrxxseidpQllzP43uhdKHH5zFQ=" {
+		t.Fatalf("%q %v", pub, err)
+	}
+	if _, err := WgPublicKey("corta"); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("bad key: %v", err)
+	}
+	if _, err := WifiInterfaces(); err != nil && !errors.Is(err, syscall.EOPNOTSUPP) {
+		t.Fatal(err)
+	}
+}

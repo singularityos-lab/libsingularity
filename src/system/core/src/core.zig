@@ -6,6 +6,9 @@ pub const power = @import("v1/power.zig");
 pub const display = @import("v1/display.zig");
 pub const device = @import("v1/device.zig");
 pub const net = @import("v1/net.zig");
+pub const nl = @import("v1/nl.zig");
+pub const wireguard = @import("v1/wireguard.zig");
+pub const wifi = @import("v1/wifi.zig");
 pub const i18n = @import("v1/i18n.zig");
 pub const gpu = @import("v1/gpu.zig");
 pub const firewall = @import("v1/firewall.zig");
@@ -278,6 +281,105 @@ export fn sinty_device_uevent_get(syspath: [*:0]const u8, key: [*:0]const u8, ou
     const p = sys.pathZ(&buf, "{s}/uevent", .{span(syspath)}) catch |e| return sys.code(e);
     const n = device.ueventGet(p, span(key), out[0..len]) catch |e| return sys.code(e);
     return @intCast(n);
+}
+
+fn counted(n: anyerror!usize) c_int {
+    const v = n catch |e| return sys.code(e);
+    return @intCast(v);
+}
+
+export fn sinty_net_links(out: [*]net.Link, max: usize) c_int {
+    return counted(net.links(out[0..max]));
+}
+
+export fn sinty_net_link(name: [*:0]const u8, out: *net.Link) c_int {
+    net.link(span(name), out) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_addresses(out: [*]net.Address, max: usize) c_int {
+    return counted(net.addresses(out[0..max]));
+}
+
+export fn sinty_net_routes(out: [*]net.Route, max: usize) c_int {
+    return counted(net.routes(out[0..max]));
+}
+
+export fn sinty_net_set_up(name: [*:0]const u8, up: bool) c_int {
+    net.setUp(span(name), up) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_set_mtu(name: [*:0]const u8, mtu: u32) c_int {
+    net.setMtu(span(name), mtu) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_link_create(name: [*:0]const u8, kind: [*:0]const u8) c_int {
+    net.createLink(span(name), span(kind)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_link_delete(name: [*:0]const u8) c_int {
+    net.deleteLink(span(name)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_address_add(name: [*:0]const u8, cidr: [*:0]const u8) c_int {
+    net.addAddress(span(name), span(cidr)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_address_delete(name: [*:0]const u8, cidr: [*:0]const u8) c_int {
+    net.deleteAddress(span(name), span(cidr)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_route_add(dst: [*:0]const u8, gateway: [*:0]const u8, dev: [*:0]const u8, metric: u32) c_int {
+    net.addRoute(span(dst), span(gateway), span(dev), metric) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_net_route_delete(dst: [*:0]const u8, gateway: [*:0]const u8, dev: [*:0]const u8, metric: u32) c_int {
+    net.deleteRoute(span(dst), span(gateway), span(dev), metric) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_wg_generate_key(out: *[wireguard.key_text]u8) c_int {
+    wireguard.encodeKey(out, wireguard.generateKey() catch |e| return sys.code(e));
+    return 0;
+}
+
+export fn sinty_wg_public_key(private: [*:0]const u8, out: *[wireguard.key_text]u8) c_int {
+    const k = wireguard.decodeKey(span(private)) catch |e| return sys.code(e);
+    wireguard.encodeKey(out, wireguard.publicKey(k) catch |e| return sys.code(e));
+    return 0;
+}
+
+export fn sinty_wg_configure(ifname: [*:0]const u8, text: [*:0]const u8) c_int {
+    wireguard.configure(span(ifname), span(text)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_wg_get(ifname: [*:0]const u8, dev: *wireguard.Device, peers: [*]wireguard.Peer, max: usize) c_int {
+    return counted(wireguard.get(span(ifname), dev, peers[0..max]));
+}
+
+export fn sinty_wifi_interfaces(out: [*]wifi.Interface, max: usize) c_int {
+    return counted(wifi.interfaces(out[0..max]));
+}
+
+export fn sinty_wifi_scan_results(ifname: [*:0]const u8, out: [*]wifi.Bss, max: usize) c_int {
+    return counted(wifi.scanResults(span(ifname), out[0..max]));
+}
+
+export fn sinty_wifi_stations(ifname: [*:0]const u8, out: [*]wifi.Station, max: usize) c_int {
+    return counted(wifi.stations(span(ifname), out[0..max]));
+}
+
+export fn sinty_wifi_scan(ifname: [*:0]const u8, ssid: [*:0]const u8, timeout_ms: i32) c_int {
+    wifi.scan(span(ifname), span(ssid), timeout_ms) catch |e| return sys.code(e);
+    return 0;
 }
 
 export fn sinty_net_link_info(iface: [*:0]const u8, out: *net.LinkInfo) c_int {
@@ -976,6 +1078,9 @@ test {
     _ = display;
     _ = device;
     _ = net;
+    _ = nl;
+    _ = wireguard;
+    _ = wifi;
     _ = i18n;
     _ = gpu;
     _ = firewall;

@@ -252,6 +252,124 @@ typedef struct {
 
 int sinty_net_link_info(const char *iface, SintyLinkInfo *out);
 
+typedef struct {
+    int32_t index;
+    uint32_t flags;
+    uint32_t mtu;
+    uint8_t operstate;
+    uint8_t wireless;
+    uint8_t pad[2];
+    char name[16];
+    char kind[16];
+    char mac[24];
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
+} SintyNetLink;
+
+typedef struct {
+    int32_t index;
+    uint8_t family;
+    uint8_t prefix;
+    uint8_t scope;
+    uint8_t flags;
+    char address[48];
+} SintyNetAddress;
+
+typedef struct {
+    int32_t oif;
+    uint8_t family;
+    uint8_t prefix;
+    uint8_t table;
+    uint8_t protocol;
+    uint8_t scope;
+    uint8_t kind;
+    uint8_t pad[2];
+    uint32_t priority;
+    char destination[48];
+    char gateway[48];
+} SintyNetRoute;
+
+int sinty_net_links(SintyNetLink *out, size_t max);
+int sinty_net_link(const char *name, SintyNetLink *out);
+int sinty_net_addresses(SintyNetAddress *out, size_t max);
+int sinty_net_routes(SintyNetRoute *out, size_t max);
+int sinty_net_set_up(const char *name, bool up);
+int sinty_net_set_mtu(const char *name, uint32_t mtu);
+int sinty_net_link_create(const char *name, const char *kind);
+int sinty_net_link_delete(const char *name);
+int sinty_net_address_add(const char *name, const char *cidr);
+int sinty_net_address_delete(const char *name, const char *cidr);
+int sinty_net_route_add(const char *dst, const char *gateway, const char *dev, uint32_t metric);
+int sinty_net_route_delete(const char *dst, const char *gateway, const char *dev, uint32_t metric);
+
+typedef struct {
+    int32_t ifindex;
+    uint16_t listen_port;
+    uint8_t has_private_key;
+    uint8_t pad;
+    uint32_t fwmark;
+    uint32_t peers;
+    char public_key[45];
+    uint8_t pad2[3];
+} SintyWgDevice;
+
+typedef struct {
+    char public_key[45];
+    uint8_t has_preshared_key;
+    uint16_t keepalive;
+    char endpoint[64];
+    char allowed_ips[512];
+    uint32_t allowed_count;
+    uint32_t pad;
+    int64_t last_handshake;
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
+} SintyWgPeer;
+
+int sinty_wg_generate_key(char out[45]);
+int sinty_wg_public_key(const char *private_key, char out[45]);
+int sinty_wg_configure(const char *ifname, const char *conf);
+int sinty_wg_get(const char *ifname, SintyWgDevice *dev, SintyWgPeer *peers, size_t max);
+
+typedef struct {
+    int32_t index;
+    uint32_t wiphy;
+    uint32_t iftype;
+    uint32_t frequency;
+    char name[16];
+    char mac[24];
+    char ssid[33];
+    uint8_t pad[3];
+} SintyWifiInterface;
+
+typedef struct {
+    char bssid[24];
+    char ssid[33];
+    uint8_t pad[3];
+    uint32_t frequency;
+    int32_t signal_mbm;
+    uint32_t seen_ms_ago;
+    uint32_t security;
+    int32_t status;
+} SintyWifiBss;
+
+typedef struct {
+    char mac[24];
+    int32_t signal_dbm;
+    uint32_t tx_bitrate_100k;
+    uint32_t rx_bitrate_100k;
+    uint32_t connected_s;
+    uint32_t inactive_ms;
+    uint32_t pad;
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
+} SintyWifiStation;
+
+int sinty_wifi_interfaces(SintyWifiInterface *out, size_t max);
+int sinty_wifi_scan_results(const char *ifname, SintyWifiBss *out, size_t max);
+int sinty_wifi_stations(const char *ifname, SintyWifiStation *out, size_t max);
+int sinty_wifi_scan(const char *ifname, const char *ssid, int32_t timeout_ms);
+
 typedef struct SintyTextList SintyTextList;
 
 size_t sinty_text_list_count(const SintyTextList *list);

@@ -19,6 +19,14 @@ test "header layouts match the exported structs" {
     try same(core.display.DdcDisplay, c.SintyDdcDisplay);
     try same(core.device.DeviceNames, c.SintyDeviceNames);
     try same(core.net.LinkInfo, c.SintyLinkInfo);
+    try same(core.net.Link, c.SintyNetLink);
+    try same(core.net.Address, c.SintyNetAddress);
+    try same(core.net.Route, c.SintyNetRoute);
+    try same(core.wireguard.Device, c.SintyWgDevice);
+    try same(core.wireguard.Peer, c.SintyWgPeer);
+    try same(core.wifi.Interface, c.SintyWifiInterface);
+    try same(core.wifi.Bss, c.SintyWifiBss);
+    try same(core.wifi.Station, c.SintyWifiStation);
     try same(core.gpu.NvidiaGpu, c.SintyNvidiaGpu);
     try same(core.firewall.Summary, c.SintyFirewallSummary);
     try same(core.audio.Object, c.SintyAudioObject);

@@ -1781,3 +1781,344 @@ func (f *Conf) Save(path string) error {
 	defer C.free(unsafe.Pointer(p))
 	return check(C.sinty_conf_save(f.c, p))
 }
+
+type NetLink struct {
+	Index     int32
+	Name      string
+	Kind      string
+	MAC       string
+	Flags     uint32
+	MTU       uint32
+	OperState uint8
+	Wireless  bool
+	RxBytes   uint64
+	TxBytes   uint64
+}
+
+type NetAddress struct {
+	Index   int32
+	Family  uint8
+	Prefix  uint8
+	Scope   uint8
+	Address string
+}
+
+type NetRoute struct {
+	Oif         int32
+	Family      uint8
+	Prefix      uint8
+	Table       uint8
+	Protocol    uint8
+	Scope       uint8
+	Priority    uint32
+	Destination string
+	Gateway     string
+}
+
+const (
+	NetFlagUp       = 0x1
+	NetFlagLoopback = 0x8
+	NetFlagRunning  = 0x40
+	NetFlagLowerUp  = 0x10000
+)
+
+func listed(rc C.int) (int, error) {
+	if rc < 0 {
+		return 0, syscall.Errno(-rc)
+	}
+	return int(rc), nil
+}
+
+func grow[T any](call func([]T) (int, error)) ([]T, error) {
+	for size := 64; ; size *= 4 {
+		buf := make([]T, size)
+		n, err := call(buf)
+		if errors.Is(err, syscall.EFBIG) && size < 1<<16 {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		return buf[:n], nil
+	}
+}
+
+func netLink(l *C.SintyNetLink) NetLink {
+	return NetLink{
+		Index:     int32(l.index),
+		Name:      text(l.name[:]),
+		Kind:      text(l.kind[:]),
+		MAC:       text(l.mac[:]),
+		Flags:     uint32(l.flags),
+		MTU:       uint32(l.mtu),
+		OperState: uint8(l.operstate),
+		Wireless:  l.wireless != 0,
+		RxBytes:   uint64(l.rx_bytes),
+		TxBytes:   uint64(l.tx_bytes),
+	}
+}
+
+func NetLinks() ([]NetLink, error) {
+	raw, err := grow(func(b []C.SintyNetLink) (int, error) {
+		return listed(C.sinty_net_links(&b[0], C.size_t(len(b))))
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NetLink, len(raw))
+	for i := range raw {
+		out[i] = netLink(&raw[i])
+	}
+	return out, nil
+}
+
+func NetLinkByName(name string) (NetLink, error) {
+	c := C.CString(name)
+	defer C.free(unsafe.Pointer(c))
+	var l C.SintyNetLink
+	if err := check(C.sinty_net_link(c, &l)); err != nil {
+		return NetLink{}, err
+	}
+	return netLink(&l), nil
+}
+
+func NetAddresses() ([]NetAddress, error) {
+	raw, err := grow(func(b []C.SintyNetAddress) (int, error) {
+		return listed(C.sinty_net_addresses(&b[0], C.size_t(len(b))))
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NetAddress, len(raw))
+	for i, a := range raw {
+		out[i] = NetAddress{int32(a.index), uint8(a.family), uint8(a.prefix), uint8(a.scope), text(a.address[:])}
+	}
+	return out, nil
+}
+
+func NetRoutes() ([]NetRoute, error) {
+	raw, err := grow(func(b []C.SintyNetRoute) (int, error) {
+		return listed(C.sinty_net_routes(&b[0], C.size_t(len(b))))
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NetRoute, len(raw))
+	for i, r := range raw {
+		out[i] = NetRoute{int32(r.oif), uint8(r.family), uint8(r.prefix), uint8(r.table), uint8(r.protocol), uint8(r.scope), uint32(r.priority), text(r.destination[:]), text(r.gateway[:])}
+	}
+	return out, nil
+}
+
+func strings2(a, b string, f func(*C.char, *C.char) C.int) error {
+	ca, cb := C.CString(a), C.CString(b)
+	defer C.free(unsafe.Pointer(ca))
+	defer C.free(unsafe.Pointer(cb))
+	return check(f(ca, cb))
+}
+
+func NetSetUp(name string, up bool) error {
+	c := C.CString(name)
+	defer C.free(unsafe.Pointer(c))
+	return check(C.sinty_net_set_up(c, C.bool(up)))
+}
+
+func NetSetMTU(name string, mtu uint32) error {
+	c := C.CString(name)
+	defer C.free(unsafe.Pointer(c))
+	return check(C.sinty_net_set_mtu(c, C.uint32_t(mtu)))
+}
+
+func NetCreateLink(name, kind string) error {
+	return strings2(name, kind, func(a, b *C.char) C.int { return C.sinty_net_link_create(a, b) })
+}
+
+func NetDeleteLink(name string) error {
+	c := C.CString(name)
+	defer C.free(unsafe.Pointer(c))
+	return check(C.sinty_net_link_delete(c))
+}
+
+func NetAddAddress(name, cidr string) error {
+	return strings2(name, cidr, func(a, b *C.char) C.int { return C.sinty_net_address_add(a, b) })
+}
+
+func NetDeleteAddress(name, cidr string) error {
+	return strings2(name, cidr, func(a, b *C.char) C.int { return C.sinty_net_address_delete(a, b) })
+}
+
+func netRoute(dst, gateway, dev string, metric uint32, add bool) error {
+	cd, cg, cv := C.CString(dst), C.CString(gateway), C.CString(dev)
+	defer C.free(unsafe.Pointer(cd))
+	defer C.free(unsafe.Pointer(cg))
+	defer C.free(unsafe.Pointer(cv))
+	if add {
+		return check(C.sinty_net_route_add(cd, cg, cv, C.uint32_t(metric)))
+	}
+	return check(C.sinty_net_route_delete(cd, cg, cv, C.uint32_t(metric)))
+}
+
+func NetAddRoute(dst, gateway, dev string, metric uint32) error {
+	return netRoute(dst, gateway, dev, metric, true)
+}
+
+func NetDeleteRoute(dst, gateway, dev string, metric uint32) error {
+	return netRoute(dst, gateway, dev, metric, false)
+}
+
+type WgDevice struct {
+	IfIndex       int32
+	ListenPort    uint16
+	FwMark        uint32
+	PublicKey     string
+	HasPrivateKey bool
+	Peers         int
+}
+
+type WgPeer struct {
+	PublicKey        string
+	HasPresharedKey  bool
+	Keepalive        uint16
+	Endpoint         string
+	AllowedIPs       string
+	AllowedCount     int
+	LastHandshake    int64
+	RxBytes, TxBytes uint64
+}
+
+func WgGenerateKey() (string, error) {
+	var out [45]C.char
+	if err := check(C.sinty_wg_generate_key(&out[0])); err != nil {
+		return "", err
+	}
+	return text(out[:]), nil
+}
+
+func WgPublicKey(private string) (string, error) {
+	c := C.CString(private)
+	defer C.free(unsafe.Pointer(c))
+	var out [45]C.char
+	if err := check(C.sinty_wg_public_key(c, &out[0])); err != nil {
+		return "", err
+	}
+	return text(out[:]), nil
+}
+
+func WgConfigure(ifname, conf string) error {
+	return strings2(ifname, conf, func(a, b *C.char) C.int { return C.sinty_wg_configure(a, b) })
+}
+
+func WgGet(ifname string) (WgDevice, []WgPeer, error) {
+	c := C.CString(ifname)
+	defer C.free(unsafe.Pointer(c))
+	var dev C.SintyWgDevice
+	raw, err := grow(func(b []C.SintyWgPeer) (int, error) {
+		n, err := listed(C.sinty_wg_get(c, &dev, &b[0], C.size_t(len(b))))
+		if err == nil && int(dev.peers) > n {
+			return 0, syscall.EFBIG
+		}
+		return n, err
+	})
+	if err != nil {
+		return WgDevice{}, nil, err
+	}
+	d := WgDevice{int32(dev.ifindex), uint16(dev.listen_port), uint32(dev.fwmark), text(dev.public_key[:]), dev.has_private_key != 0, int(dev.peers)}
+	peers := make([]WgPeer, len(raw))
+	for i, p := range raw {
+		peers[i] = WgPeer{text(p.public_key[:]), p.has_preshared_key != 0, uint16(p.keepalive), text(p.endpoint[:]), text(p.allowed_ips[:]), int(p.allowed_count), int64(p.last_handshake), uint64(p.rx_bytes), uint64(p.tx_bytes)}
+	}
+	return d, peers, nil
+}
+
+const (
+	WifiSecPrivacy = 1
+	WifiSecWPA     = 2
+	WifiSecPSK     = 4
+	WifiSecSAE     = 8
+	WifiSec8021X   = 16
+	WifiSecOWE     = 32
+)
+
+type WifiInterface struct {
+	Index     int32
+	Wiphy     uint32
+	Type      uint32
+	Frequency uint32
+	Name      string
+	MAC       string
+	SSID      string
+}
+
+type WifiBss struct {
+	BSSID      string
+	SSID       string
+	Frequency  uint32
+	SignalMBm  int32
+	SeenMsAgo  uint32
+	Security   uint32
+	Associated bool
+}
+
+type WifiStation struct {
+	MAC           string
+	SignalDBm     int32
+	TxBitrate100k uint32
+	RxBitrate100k uint32
+	ConnectedS    uint32
+	InactiveMs    uint32
+	RxBytes       uint64
+	TxBytes       uint64
+}
+
+func WifiInterfaces() ([]WifiInterface, error) {
+	raw, err := grow(func(b []C.SintyWifiInterface) (int, error) {
+		return listed(C.sinty_wifi_interfaces(&b[0], C.size_t(len(b))))
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WifiInterface, len(raw))
+	for i, w := range raw {
+		out[i] = WifiInterface{int32(w.index), uint32(w.wiphy), uint32(w.iftype), uint32(w.frequency), text(w.name[:]), text(w.mac[:]), text(w.ssid[:])}
+	}
+	return out, nil
+}
+
+func WifiScanResults(ifname string) ([]WifiBss, error) {
+	c := C.CString(ifname)
+	defer C.free(unsafe.Pointer(c))
+	raw, err := grow(func(b []C.SintyWifiBss) (int, error) {
+		return listed(C.sinty_wifi_scan_results(c, &b[0], C.size_t(len(b))))
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WifiBss, len(raw))
+	for i, b := range raw {
+		out[i] = WifiBss{text(b.bssid[:]), text(b.ssid[:]), uint32(b.frequency), int32(b.signal_mbm), uint32(b.seen_ms_ago), uint32(b.security), b.status == 1}
+	}
+	return out, nil
+}
+
+func WifiStations(ifname string) ([]WifiStation, error) {
+	c := C.CString(ifname)
+	defer C.free(unsafe.Pointer(c))
+	raw, err := grow(func(b []C.SintyWifiStation) (int, error) {
+		return listed(C.sinty_wifi_stations(c, &b[0], C.size_t(len(b))))
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WifiStation, len(raw))
+	for i, s := range raw {
+		out[i] = WifiStation{text(s.mac[:]), int32(s.signal_dbm), uint32(s.tx_bitrate_100k), uint32(s.rx_bitrate_100k), uint32(s.connected_s), uint32(s.inactive_ms), uint64(s.rx_bytes), uint64(s.tx_bytes)}
+	}
+	return out, nil
+}
+
+func WifiScan(ifname, ssid string, timeoutMs int32) error {
+	ci, cs := C.CString(ifname), C.CString(ssid)
+	defer C.free(unsafe.Pointer(ci))
+	defer C.free(unsafe.Pointer(cs))
+	return check(C.sinty_wifi_scan(ci, cs, C.int32_t(timeoutMs)))
+}
