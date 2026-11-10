@@ -136,8 +136,50 @@ namespace Singularity.Parental {
             }
         }
 
+        public const string SERVICE = "dev.sinty.Parental1";
+        public const string SERVICE_PATH = "/dev/sinty/Parental1";
+
+        public static async bool service_available() {
+            try {
+                var bus = yield Bus.get(BusType.SYSTEM);
+                var names = yield bus.call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                    "ListActivatableNames", null, new VariantType("(as)"), DBusCallFlags.NONE, 2000, null);
+                foreach (string n in names.get_child_value(0).get_strv()) if (n == SERVICE) return true;
+                var owned = yield bus.call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                    "NameHasOwner", new Variant("(s)", SERVICE), new VariantType("(b)"), DBusCallFlags.NONE, 2000, null);
+                return owned.get_child_value(0).get_boolean();
+            } catch (Error e) {
+                return false;
+            }
+        }
+
+        private async void save_through_service(Policy policy) throws Error {
+            var bus = yield Bus.get(BusType.SYSTEM);
+            try {
+                if (policy.is_active) {
+                    yield bus.call(SERVICE, SERVICE_PATH, SERVICE, "SetPolicy",
+                        new Variant("(ss)", policy.user_name, policy.to_data()), null, DBusCallFlags.NONE, 15000, null);
+                } else {
+                    yield bus.call(SERVICE, SERVICE_PATH, SERVICE, "ClearPolicy",
+                        new Variant("(s)", policy.user_name), null, DBusCallFlags.NONE, 15000, null);
+                }
+            } catch (Error e) {
+                string? remote = DBusError.get_remote_error(e);
+                DBusError.strip_remote_error(e);
+                if (remote == "org.freedesktop.DBus.Error.AccessDenied") throw new IOError.PERMISSION_DENIED(e.message);
+                if (remote == SERVICE + ".Error.Invalid") throw new IOError.INVALID_ARGUMENT(e.message);
+                throw new IOError.FAILED(e.message);
+            }
+        }
+
         public async void save(Policy policy) throws Error {
             if (!valid_user_name(policy.user_name)) throw new IOError.INVALID_ARGUMENT("Invalid user name");
+            if (command.strip() == "" || yield service_available()) {
+                if (!(yield service_available()))
+                    throw new IOError.NOT_SUPPORTED("No parental controls service is available");
+                yield save_through_service(policy);
+                return;
+            }
             string[] argv;
             GLib.Shell.parse_argv(command, out argv);
             argv += policy.is_active ? "set" : "clear";

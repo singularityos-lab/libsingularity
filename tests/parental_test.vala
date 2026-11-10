@@ -232,6 +232,77 @@ static void test_config() {
     assert(empty.usage_directory_for("sam", "/home/sam") == "/home/sam/.local/share/singularity/screen-time");
 }
 
+[DBus (name = "dev.sinty.Parental1")]
+public class MockParental : Object {
+    public string dir;
+    public string? refuse = null;
+
+    public MockParental (string dir) {
+        this.dir = dir;
+    }
+
+    public void set_policy (string user, string data) throws Error {
+        if (user == refuse) throw new DBusError.ACCESS_DENIED ("only an administrator other than %s may change their limits", user);
+        FileUtils.set_contents (Path.build_filename (dir, user + ".conf"), data);
+    }
+
+    public void clear_policy (string user) throws Error {
+        FileUtils.unlink (Path.build_filename (dir, user + ".conf"));
+    }
+}
+
+void save_and_wait (FilePolicyStore store, Policy p, out Error? failure) {
+    var loop = new MainLoop ();
+    Error? got = null;
+    store.save.begin (p, (obj, res) => {
+        try {
+            store.save.end (res);
+        } catch (Error e) {
+            got = e;
+        }
+        loop.quit ();
+    });
+    loop.run ();
+    failure = got;
+}
+
+void test_service_store () {
+    string policies;
+    try {
+        policies = DirUtils.make_tmp ("parental-service-XXXXXX");
+    } catch (Error e) {
+        error (e.message);
+    }
+    var bus = new TestDBus (TestDBusFlags.NONE);
+    bus.up ();
+    Environment.set_variable ("DBUS_SYSTEM_BUS_ADDRESS", bus.get_bus_address (), true);
+    var mock = new MockParental (policies);
+    var store = new FilePolicyStore (policies, "");
+    Error? failure;
+    var p = new Policy ("sam");
+    p.daily_limit_minutes = 45;
+    save_and_wait (store, p, out failure);
+    assert (failure is IOError.NOT_SUPPORTED);
+    try {
+        var conn = Bus.get_sync (BusType.SYSTEM);
+        conn.register_object ("/dev/sinty/Parental1", mock);
+        conn.call_sync ("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName",
+            new Variant ("(su)", "dev.sinty.Parental1", 0), null, DBusCallFlags.NONE, -1);
+    } catch (Error e) {
+        error ("mock: %s", e.message);
+    }
+    save_and_wait (store, p, out failure);
+    assert (failure == null);
+    assert (store.load ("sam").daily_limit_minutes == 45);
+    save_and_wait (store, new Policy ("sam"), out failure);
+    assert (failure == null);
+    assert (!FileUtils.test (Path.build_filename (policies, "sam.conf"), FileTest.EXISTS));
+    mock.refuse = "sam";
+    save_and_wait (store, p, out failure);
+    assert (failure is IOError.PERMISSION_DENIED);
+    bus.down ();
+}
+
 int main(string[] args) {
     Test.init(ref args);
     Test.add_func("/parental/bedtime", test_bedtime);
@@ -239,6 +310,7 @@ int main(string[] args) {
     Test.add_func("/parental/apps-web", test_apps_and_web);
     Test.add_func("/parental/roundtrip", test_roundtrip);
     Test.add_func("/parental/file-store", test_file_store);
+    Test.add_func("/parental/service-store", test_service_store);
     Test.add_func("/parental/usage-store", test_usage_store);
     Test.add_func("/parental/format", test_format);
     Test.add_func("/parental/config", test_config);
