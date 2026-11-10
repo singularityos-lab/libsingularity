@@ -15,6 +15,7 @@ pub const session = @import("v1/session.zig");
 pub const firmware = @import("v1/firmware.zig");
 pub const disk = @import("v1/disk.zig");
 pub const fs = @import("v1/fs.zig");
+pub const crypt = @import("v1/crypt.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -559,6 +560,43 @@ export fn sinty_fs_mkfs_ext4(path: [*:0]const u8, label: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_crypt_info(path: [*:0]const u8, out: *crypt.Info) c_int {
+    var d = fs.Dev.open(path, false) catch |e| return sys.code(e);
+    defer d.close();
+    out.* = crypt.info(d) catch |e| return cryptCode(e);
+    return 0;
+}
+
+fn cryptCode(e: anyerror) c_int {
+    return if (e == error.WrongPassphrase) -@as(c_int, @intFromEnum(std.os.linux.E.KEYREJECTED)) else sys.code(e);
+}
+
+export fn sinty_crypt_format(path: [*:0]const u8, pass: [*]const u8, len: usize, label: [*:0]const u8) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    var o = crypt.defaults();
+    o.label = span(label);
+    crypt.format(d, pass[0..len], o) catch |e| return cryptCode(e);
+    return 0;
+}
+
+export fn sinty_crypt_change_passphrase(path: [*:0]const u8, old: [*]const u8, old_len: usize, new: [*]const u8, new_len: usize) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    crypt.changePassphrase(d, old[0..old_len], new[0..new_len], crypt.defaults()) catch |e| return cryptCode(e);
+    return 0;
+}
+
+export fn sinty_crypt_open(path: [*:0]const u8, pass: [*]const u8, len: usize, name: [*:0]const u8, read_only: bool) c_int {
+    crypt.open(path, pass[0..len], span(name), read_only) catch |e| return cryptCode(e);
+    return 0;
+}
+
+export fn sinty_crypt_close(name: [*:0]const u8) c_int {
+    crypt.close(span(name)) catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -576,6 +614,7 @@ test {
     _ = firmware;
     _ = disk;
     _ = fs;
+    _ = crypt;
 }
 
 test "a tcp connection shows up with its owner and counters" {

@@ -630,3 +630,75 @@ func MakeExt4(path, label string) error {
 	defer C.free(unsafe.Pointer(l))
 	return check(C.sinty_fs_mkfs_ext4(p, l))
 }
+
+var ErrWrongPassphrase = syscall.EKEYREJECTED
+
+type LuksInfo struct {
+	Version       uint32
+	Keyslots      uint32
+	SectorSize    uint32
+	PayloadOffset uint64
+	UUID          string
+	Label         string
+	Cipher        string
+}
+
+func secret(s string) (*C.char, C.size_t, func()) {
+	n := len(s)
+	if n == 0 {
+		n = 1
+	}
+	p := (*C.char)(C.malloc(C.size_t(n)))
+	b := unsafe.Slice((*byte)(unsafe.Pointer(p)), n)
+	copy(b, s)
+	return p, C.size_t(len(s)), func() {
+		for i := range b {
+			b[i] = 0
+		}
+		C.free(unsafe.Pointer(p))
+	}
+}
+
+func LuksInfoOf(path string) (LuksInfo, error) {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	var i C.SintyLuksInfo
+	if err := check(C.sinty_crypt_info(p, &i)); err != nil {
+		return LuksInfo{}, err
+	}
+	return LuksInfo{uint32(i.version), uint32(i.keyslots), uint32(i.sector_size), uint64(i.payload_offset), text(i.uuid[:]), text(i.label[:]), text(i.cipher[:])}, nil
+}
+
+func LuksFormat(path, passphrase, label string) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	s, n, done := secret(passphrase)
+	defer done()
+	return check(C.sinty_crypt_format(p, s, n, l))
+}
+
+func LuksChangePassphrase(path, old, new string) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	o, on, doneOld := secret(old)
+	defer doneOld()
+	s, sn, doneNew := secret(new)
+	defer doneNew()
+	return check(C.sinty_crypt_change_passphrase(p, o, on, s, sn))
+}
+
+func LuksOpen(path, passphrase, name string, readOnly bool) error {
+	p, m := C.CString(path), C.CString(name)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(m))
+	s, n, done := secret(passphrase)
+	defer done()
+	return check(C.sinty_crypt_open(p, s, n, m, C.bool(readOnly)))
+}
+
+func LuksClose(name string) error {
+	m := C.CString(name)
+	defer C.free(unsafe.Pointer(m))
+	return check(C.sinty_crypt_close(m))
+}

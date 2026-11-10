@@ -160,3 +160,29 @@ func TestFilesystemOnImage(t *testing.T) {
 		t.Fatalf("swap: %+v %v", info, err)
 	}
 }
+
+func TestLuksOnImage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "luks.img")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, 24<<20); err != nil {
+		t.Fatal(err)
+	}
+	if err := LuksFormat(path, "first pass", "vault"); err != nil {
+		t.Fatal(err)
+	}
+	info, err := LuksInfoOf(path)
+	if err != nil || info.Version != 2 || info.Label != "vault" || info.PayloadOffset != 16<<20 {
+		t.Fatalf("info: %+v %v", info, err)
+	}
+	if err := LuksChangePassphrase(path, "wrong", "x"); !errors.Is(err, ErrWrongPassphrase) {
+		t.Fatalf("wrong passphrase: %v", err)
+	}
+	if err := LuksChangePassphrase(path, "first pass", "second pass"); err != nil {
+		t.Fatal(err)
+	}
+	if err := LuksOpen(path, "second pass", "sinty-test", true); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("open on a regular file: %v", err)
+	}
+}

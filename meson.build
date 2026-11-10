@@ -491,6 +491,14 @@ if get_option('system')
     'src/system/core/src/v1/gpu.zig',
     'src/system/core/src/v1/firewall.zig',
     'src/system/core/src/v1/audio.zig',
+    'src/system/core/src/v1/time.zig',
+    'src/system/core/src/v1/session.zig',
+    'src/system/core/src/v1/firmware.zig',
+    'src/system/core/src/v1/disk.zig',
+    'src/system/core/src/v1/fs.zig',
+    'src/system/core/src/v1/ext4.zig',
+    'src/system/core/src/v1/upcase.zig',
+    'src/system/core/src/v1/crypt.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''

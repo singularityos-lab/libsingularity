@@ -418,6 +418,23 @@ int sinty_fs_mkfs_vfat(const char *path, const char *label, uint8_t bits);
 int sinty_fs_mkfs_exfat(const char *path, const char *label);
 int sinty_fs_mkfs_ext4(const char *path, const char *label);
 
+typedef struct {
+    uint32_t version;
+    uint32_t keyslots;
+    uint32_t sector_size;
+    uint32_t pad;
+    uint64_t payload_offset;
+    char uuid[40];
+    char label[48];
+    char cipher[64];
+} SintyLuksInfo;
+
+int sinty_crypt_info(const char *path, SintyLuksInfo *out);
+int sinty_crypt_format(const char *path, const char *pass, size_t len, const char *label);
+int sinty_crypt_change_passphrase(const char *path, const char *old, size_t old_len, const char *new_pass, size_t new_len);
+int sinty_crypt_open(const char *path, const char *pass, size_t len, const char *name, bool read_only);
+int sinty_crypt_close(const char *name);
+
 #ifdef __cplusplus
 }
 #endif

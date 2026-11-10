@@ -28,4 +28,5 @@ test "header layouts match the exported structs" {
     try same(core.disk.Partition, c.SintyPartition);
     try same(core.disk.TableInfo, c.SintyDiskTable);
     try same(core.fs.FsInfo, c.SintyFsInfo);
+    try same(core.crypt.Info, c.SintyLuksInfo);
 }
