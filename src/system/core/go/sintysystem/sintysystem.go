@@ -440,3 +440,138 @@ func StageCapsule(esp, name string, data []byte) error {
 	defer C.free(unsafe.Pointer(n))
 	return check(C.sinty_firmware_stage_capsule(e, n, (*C.uint8_t)(unsafe.Pointer(&data[0])), C.size_t(len(data))))
 }
+
+type TableKind uint32
+
+const (
+	TableNone TableKind = 0
+	TableGPT  TableKind = 1
+	TableDOS  TableKind = 2
+)
+
+type DiskTable struct {
+	Kind        TableKind
+	SectorSize  uint32
+	Size        uint64
+	FirstUsable uint64
+	LastUsable  uint64
+	ID          string
+}
+
+type Partition struct {
+	Number   uint32
+	Bootable bool
+	Start    uint64
+	Size     uint64
+	Attrs    uint64
+	Type     string
+	UUID     string
+	Name     string
+}
+
+func ReadPartitions(path string) (DiskTable, []Partition, error) {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	var info C.SintyDiskTable
+	var l *C.SintyPartitionList
+	if err := check(C.sinty_disk_table(p, &info, &l)); err != nil {
+		return DiskTable{}, nil, err
+	}
+	defer C.sinty_disk_partitions_free(l)
+	t := DiskTable{TableKind(info.kind), uint32(info.sector_size), uint64(info.size), uint64(info.first_usable), uint64(info.last_usable), text(info.guid[:])}
+	n := int(C.sinty_disk_partitions_count(l))
+	out := make([]Partition, 0, n)
+	for i := 0; i < n; i++ {
+		e := C.sinty_disk_partitions_at(l, C.size_t(i))
+		out = append(out, Partition{uint32(e.number), e.bootable != 0, uint64(e.start), uint64(e.size), uint64(e.attrs),
+			text(e._type[:]), text(e.uuid[:]), text(e.name[:])})
+	}
+	return t, out, nil
+}
+
+func CreatePartitionTable(path string, kind TableKind) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_create_table(p, C.uint32_t(kind)))
+}
+
+func AddPartition(path string, start, size uint64, kind, name string) (uint32, error) {
+	p, k, n := C.CString(path), C.CString(kind), C.CString(name)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(k))
+	defer C.free(unsafe.Pointer(n))
+	var number C.uint32_t
+	if err := check(C.sinty_disk_add(p, C.uint64_t(start), C.uint64_t(size), k, n, &number)); err != nil {
+		return 0, err
+	}
+	return uint32(number), nil
+}
+
+func RemovePartition(path string, number uint32) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_remove(p, C.uint32_t(number)))
+}
+
+func SetPartitionType(path string, number uint32, kind string) error {
+	p, k := C.CString(path), C.CString(kind)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(k))
+	return check(C.sinty_disk_set_type(p, C.uint32_t(number), k))
+}
+
+func SetPartitionName(path string, number uint32, name string) error {
+	p, n := C.CString(path), C.CString(name)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(n))
+	return check(C.sinty_disk_set_name(p, C.uint32_t(number), n))
+}
+
+func SetPartitionAttrs(path string, number uint32, attrs uint64) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_set_attrs(p, C.uint32_t(number), C.uint64_t(attrs)))
+}
+
+func ResizePartition(path string, number uint32, size uint64) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_resize(p, C.uint32_t(number), C.uint64_t(size)))
+}
+
+func SyncPartitions(path string) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_sync_kernel(p))
+}
+
+func BlockUevent(name, action string) error {
+	n, a := C.CString(name), C.CString(action)
+	defer C.free(unsafe.Pointer(n))
+	defer C.free(unsafe.Pointer(a))
+	return check(C.sinty_disk_uevent(n, a))
+}
+
+func SettleBlock(name string, timeoutMs uint32) bool {
+	n := C.CString(name)
+	defer C.free(unsafe.Pointer(n))
+	return bool(C.sinty_disk_settle(n, C.uint32_t(timeoutMs)))
+}
+
+func WipeSignatures(path string) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_wipe(p))
+}
+
+func Swap(path string, on bool) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_swap(p, C.bool(on)))
+}
+
+func Eject(path string) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_disk_eject(p))
+}

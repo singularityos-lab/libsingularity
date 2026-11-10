@@ -360,6 +360,46 @@ void sinty_firmware_esrt_free(SintyEsrtList *list);
 bool sinty_firmware_capsule_supported(void);
 int sinty_firmware_stage_capsule(const char *esp, const char *name, const uint8_t *data, size_t len);
 
+typedef struct {
+    uint32_t number;
+    uint32_t bootable;
+    uint64_t start;
+    uint64_t size;
+    uint64_t attrs;
+    char type[40];
+    char uuid[40];
+    char name[80];
+} SintyPartition;
+
+typedef struct {
+    uint32_t kind;
+    uint32_t sector_size;
+    uint64_t size;
+    uint64_t first_usable;
+    uint64_t last_usable;
+    char guid[40];
+} SintyDiskTable;
+
+typedef struct SintyPartitionList SintyPartitionList;
+
+int sinty_disk_table(const char *path, SintyDiskTable *info, SintyPartitionList **out);
+size_t sinty_disk_partitions_count(const SintyPartitionList *list);
+const SintyPartition *sinty_disk_partitions_at(const SintyPartitionList *list, size_t index);
+void sinty_disk_partitions_free(SintyPartitionList *list);
+int sinty_disk_create_table(const char *path, uint32_t kind);
+int sinty_disk_add(const char *path, uint64_t start, uint64_t size, const char *type, const char *name, uint32_t *number);
+int sinty_disk_remove(const char *path, uint32_t number);
+int sinty_disk_set_type(const char *path, uint32_t number, const char *type);
+int sinty_disk_set_name(const char *path, uint32_t number, const char *name);
+int sinty_disk_set_attrs(const char *path, uint32_t number, uint64_t attrs);
+int sinty_disk_resize(const char *path, uint32_t number, uint64_t size);
+int sinty_disk_sync_kernel(const char *path);
+int sinty_disk_uevent(const char *name, const char *action);
+bool sinty_disk_settle(const char *name, uint32_t timeout_ms);
+int sinty_disk_wipe(const char *path);
+int sinty_disk_swap(const char *path, bool on);
+int sinty_disk_eject(const char *path);
+
 #ifdef __cplusplus
 }
 #endif

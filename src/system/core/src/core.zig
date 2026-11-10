@@ -13,6 +13,7 @@ pub const audio = @import("v1/audio.zig");
 pub const time = @import("v1/time.zig");
 pub const session = @import("v1/session.zig");
 pub const firmware = @import("v1/firmware.zig");
+pub const disk = @import("v1/disk.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -411,6 +412,110 @@ export fn sinty_firmware_stage_capsule(esp: [*:0]const u8, name: [*:0]const u8, 
     return 0;
 }
 
+export fn sinty_disk_table(path: [*:0]const u8, info: *disk.TableInfo, out: *?*disk.PartitionList) c_int {
+    var o = disk.Opened.open(path, false) catch |e| return sys.code(e);
+    defer o.close();
+    info.* = disk.info(o.disk, o.table);
+    out.* = disk.list(o.disk, o.table) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_partitions_count(l: *const disk.PartitionList) usize {
+    return l.count();
+}
+
+export fn sinty_disk_partitions_at(l: *const disk.PartitionList, i: usize) ?*const disk.Partition {
+    return l.at(i);
+}
+
+export fn sinty_disk_partitions_free(l: ?*disk.PartitionList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_disk_create_table(path: [*:0]const u8, kind: u32) c_int {
+    const k = std.enums.fromInt(disk.Kind, kind) orelse return sys.code(error.Invalid);
+    var d = disk.Disk.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    var t = disk.create(d, k) catch |e| return sys.code(e);
+    t.deinit();
+    return 0;
+}
+
+export fn sinty_disk_add(path: [*:0]const u8, start: u64, size: u64, kind: [*:0]const u8, name: [*:0]const u8, number: ?*u32) c_int {
+    var o = disk.Opened.open(path, true) catch |e| return sys.code(e);
+    defer o.close();
+    const n = disk.add(o.disk, &o.table, start, size, span(kind), span(name)) catch |e| return sys.code(e);
+    if (number) |p| p.* = n;
+    return 0;
+}
+
+export fn sinty_disk_remove(path: [*:0]const u8, number: u32) c_int {
+    var o = disk.Opened.open(path, true) catch |e| return sys.code(e);
+    defer o.close();
+    disk.remove(o.disk, &o.table, number) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_set_type(path: [*:0]const u8, number: u32, kind: [*:0]const u8) c_int {
+    var o = disk.Opened.open(path, true) catch |e| return sys.code(e);
+    defer o.close();
+    disk.setType(o.disk, &o.table, number, span(kind)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_set_name(path: [*:0]const u8, number: u32, name: [*:0]const u8) c_int {
+    var o = disk.Opened.open(path, true) catch |e| return sys.code(e);
+    defer o.close();
+    disk.setName(o.disk, &o.table, number, span(name)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_set_attrs(path: [*:0]const u8, number: u32, attrs: u64) c_int {
+    var o = disk.Opened.open(path, true) catch |e| return sys.code(e);
+    defer o.close();
+    disk.setAttrs(o.disk, &o.table, number, attrs) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_resize(path: [*:0]const u8, number: u32, size: u64) c_int {
+    var o = disk.Opened.open(path, true) catch |e| return sys.code(e);
+    defer o.close();
+    disk.resize(o.disk, &o.table, number, size) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_sync_kernel(path: [*:0]const u8) c_int {
+    var d = disk.Disk.open(path, false) catch |e| return sys.code(e);
+    defer d.close();
+    var nb: [256]u8 = undefined;
+    disk.syncKernel(d, sysfs, disk.diskName(span(path), &nb)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_uevent(name: [*:0]const u8, action: [*:0]const u8) c_int {
+    disk.uevent(sysfs, span(name), span(action)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_settle(name: [*:0]const u8, timeout_ms: u32) bool {
+    return disk.settle(sysfs, "/dev", span(name), timeout_ms);
+}
+
+export fn sinty_disk_wipe(path: [*:0]const u8) c_int {
+    disk.wipe(path) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_swap(path: [*:0]const u8, on: bool) c_int {
+    disk.swap(path, on) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_disk_eject(path: [*:0]const u8) c_int {
+    disk.eject(path) catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -426,6 +531,7 @@ test {
     _ = time;
     _ = session;
     _ = firmware;
+    _ = disk;
 }
 
 test "a tcp connection shows up with its owner and counters" {

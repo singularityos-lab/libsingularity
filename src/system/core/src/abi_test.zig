@@ -25,4 +25,6 @@ test "header layouts match the exported structs" {
     try same(core.time.RtcTime, c.SintyRtcTime);
     try same(core.time.ClockState, c.SintyClockState);
     try same(core.firmware.EsrtEntry, c.SintyEsrtEntry);
+    try same(core.disk.Partition, c.SintyPartition);
+    try same(core.disk.TableInfo, c.SintyDiskTable);
 }

@@ -1,8 +1,11 @@
 package sintysystem
 
 import (
+	"errors"
 	"net"
 	"os"
+	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -78,5 +81,41 @@ func TestEsrt(t *testing.T) {
 	}
 	if err := StageCapsule(t.TempDir(), "../evil.cap", make([]byte, 64)); err == nil {
 		t.Fatal("a capsule name with a path was accepted")
+	}
+}
+
+func TestPartitionTableOnImage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "disk.img")
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, 32<<20); err != nil {
+		t.Fatal(err)
+	}
+	if err := CreatePartitionTable(path, TableGPT); err != nil {
+		t.Fatal(err)
+	}
+	n, err := AddPartition(path, 0, 8<<20, "", "data")
+	if err != nil || n != 1 {
+		t.Fatalf("add: %d %v", n, err)
+	}
+	if err := SetPartitionName(path, 1, "renamed"); err != nil {
+		t.Fatal(err)
+	}
+	info, parts, err := ReadPartitions(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Kind != TableGPT || info.SectorSize != 512 || len(parts) != 1 {
+		t.Fatalf("table: %+v %+v", info, parts)
+	}
+	if parts[0].Name != "renamed" || parts[0].Start != 1<<20 || parts[0].Size != 8<<20 {
+		t.Fatalf("partition: %+v", parts[0])
+	}
+	if err := RemovePartition(path, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemovePartition(path, 1); !errors.Is(err, syscall.ENOENT) {
+		t.Fatalf("remove twice: %v", err)
 	}
 }
