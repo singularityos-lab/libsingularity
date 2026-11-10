@@ -565,3 +565,17 @@ func TestCheckFilesystem(t *testing.T) {
 		t.Fatalf("after repair: %+v", r)
 	}
 }
+
+func TestBuildErofs(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "a", "b"), 0o755)
+	os.WriteFile(filepath.Join(src, "a", "b", "nota"), []byte("ciao"), 0o644)
+	img := filepath.Join(t.TempDir(), "root.erofs")
+	blocks, err := BuildErofs(src, img, "radice")
+	if err != nil || blocks < 3 {
+		t.Fatalf("build: %d %v", blocks, err)
+	}
+	if _, err := BuildErofs(filepath.Join(src, "a", "b", "nota"), img, ""); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("file as source: %v", err)
+	}
+}

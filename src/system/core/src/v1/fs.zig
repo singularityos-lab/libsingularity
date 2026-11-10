@@ -776,6 +776,18 @@ fn f2fsProbe(d: Dev, out: *FsInfo) !bool {
     return true;
 }
 
+fn erofsProbe(d: Dev, out: *FsInfo) !bool {
+    var b: [1024 + 128]u8 = undefined;
+    d.readAt(0, &b) catch return false;
+    const info = erofs.parseSuper(&b) catch return false;
+    setText(&out.type, "erofs");
+    setText(&out.label, trimRight(sys.cstr(&info.label)));
+    uuidText(&out.uuid, &info.uuid);
+    out.block_size = info.block_size;
+    out.size = @as(u64, info.blocks) * info.block_size;
+    return true;
+}
+
 fn luksProbe(d: Dev, out: *FsInfo) !bool {
     var h: [512]u8 = undefined;
     d.readAt(0, &h) catch return false;
@@ -816,7 +828,7 @@ fn ntfsProbe(d: Dev, out: *FsInfo) !bool {
 pub fn probe(d: Dev) !FsInfo {
     var out = std.mem.zeroes(FsInfo);
     setText(&out.usage, "filesystem");
-    const probes = [_]*const fn (Dev, *FsInfo) anyerror!bool{ luksProbe, extProbe, btrfsProbe, xfsProbe, f2fsProbe, exfatProbe, ntfsProbe, swapProbe, isoProbe, fatProbe };
+    const probes = [_]*const fn (Dev, *FsInfo) anyerror!bool{ luksProbe, erofsProbe, extProbe, btrfsProbe, xfsProbe, f2fsProbe, exfatProbe, ntfsProbe, swapProbe, isoProbe, fatProbe };
     for (probes) |p| {
         if (try p(d, &out)) return out;
         const usage = out.usage;
@@ -835,6 +847,7 @@ pub fn setLabel(d: Dev, label: []const u8) !void {
 
 const upcase = @import("upcase.zig");
 pub const ext4 = @import("ext4.zig");
+const erofs = @import("erofs.zig");
 
 fn upcaseTable(out: []u16) usize {
     var up: [0x10000]u16 = undefined;

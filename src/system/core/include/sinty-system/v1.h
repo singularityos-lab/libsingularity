@@ -436,6 +436,7 @@ typedef struct {
 } SintyFsCheck;
 
 int sinty_fs_check(const char *path, bool repair, SintyFsCheck *out);
+int sinty_erofs_build(const char *source, const char *out, const char *label, uint32_t *blocks);
 int sinty_mount(const char *source, const char *target, const char *fstype, const char *options);
 int sinty_mount_overlay(const char *target, const char *const *lowers, size_t n, const char *upper, const char *work, const char *options, bool readonly);
 int sinty_unmount(const char *target, bool lazy);

@@ -32,6 +32,7 @@ pub const conf = @import("v1/conf.zig");
 pub const fscrypt = @import("v1/fscrypt.zig");
 pub const mounts = @import("v1/mount.zig");
 pub const fsck = @import("v1/fsck.zig");
+pub const erofs = @import("v1/erofs.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -625,6 +626,12 @@ export fn sinty_mount_find(dev: [*:0]const u8, target: [*]u8, len: usize) c_int 
     return 1;
 }
 
+export fn sinty_erofs_build(source: [*:0]const u8, out: [*:0]const u8, label: ?[*:0]const u8, blocks: ?*u32) c_int {
+    const info = erofs.build(source, out, .{ .label = if (label) |l| span(l) else "" }) catch |e| return sys.code(e);
+    if (blocks) |b| b.* = info.blocks;
+    return 0;
+}
+
 export fn sinty_fs_check(path: [*:0]const u8, repair: bool, out: *fsck.Report) c_int {
     var d = fs.Dev.open(path, repair) catch |e| return sys.code(e);
     defer d.close();
@@ -977,6 +984,7 @@ test {
     _ = fscrypt;
     _ = mounts;
     _ = fsck;
+    _ = erofs;
 }
 
 test "a tcp connection shows up with its owner and counters" {

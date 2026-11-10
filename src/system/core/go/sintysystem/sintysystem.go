@@ -735,6 +735,16 @@ func CheckFilesystem(path string, repair bool) (FsCheck, error) {
 	}, nil
 }
 
+func BuildErofs(source, out, label string) (uint32, error) {
+	s, o, l := C.CString(source), C.CString(out), C.CString(label)
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(o))
+	defer C.free(unsafe.Pointer(l))
+	var blocks C.uint32_t
+	err := check(C.sinty_erofs_build(s, o, l, &blocks))
+	return uint32(blocks), err
+}
+
 type FscryptID [16]byte
 
 type FscryptPolicy struct {

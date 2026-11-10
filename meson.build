@@ -516,6 +516,7 @@ if get_option('system')
     'src/system/core/src/v1/mount.zig',
     'src/system/core/src/v1/fsck.zig',
     'src/system/core/src/v1/ext4check.zig',
+    'src/system/core/src/v1/erofs.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''
