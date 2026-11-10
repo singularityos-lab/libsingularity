@@ -17,6 +17,7 @@ pub const disk = @import("v1/disk.zig");
 pub const fs = @import("v1/fs.zig");
 pub const crypt = @import("v1/crypt.zig");
 pub const dbus = @import("v1/bus.zig");
+pub const bluetooth = @import("v1/bluetooth.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -596,6 +597,92 @@ export fn sinty_crypt_open(path: [*:0]const u8, pass: [*]const u8, len: usize, n
 export fn sinty_crypt_close(name: [*:0]const u8) c_int {
     crypt.close(span(name)) catch |e| return sys.code(e);
     return 0;
+}
+
+fn withBt(s: ?*dbus.Conn, comptime f: anytype, args: anytype) c_int {
+    var tmp: dbus.Conn = undefined;
+    const c = if (s) |p| p else blk: {
+        tmp = dbus.Conn.system() catch |e| return sys.code(e);
+        break :blk &tmp;
+    };
+    defer if (s == null) tmp.close();
+    @call(.auto, f, .{c} ++ args) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_bt_session_open(out: *?*dbus.Conn) c_int {
+    const c = sys.gpa.create(dbus.Conn) catch return sys.code(error.NoMemory);
+    c.* = dbus.Conn.system() catch |e| {
+        sys.gpa.destroy(c);
+        return sys.code(e);
+    };
+    out.* = c;
+    return 0;
+}
+
+export fn sinty_bt_session_close(s: ?*dbus.Conn) void {
+    if (s) |c| {
+        c.close();
+        sys.gpa.destroy(c);
+    }
+}
+
+export fn sinty_bt_snapshot(s: ?*dbus.Conn, out: *?*bluetooth.State) c_int {
+    var tmp: dbus.Conn = undefined;
+    const c = if (s) |p| p else blk: {
+        tmp = dbus.Conn.system() catch |e| return sys.code(e);
+        break :blk &tmp;
+    };
+    defer if (s == null) tmp.close();
+    out.* = bluetooth.snapshot(c) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_bt_adapter_count(st: *const bluetooth.State) usize {
+    return st.adapters.items.len;
+}
+
+export fn sinty_bt_adapter_at(st: *const bluetooth.State, i: usize) ?*const bluetooth.Adapter {
+    return if (i < st.adapters.items.len) &st.adapters.items[i] else null;
+}
+
+export fn sinty_bt_device_count(st: *const bluetooth.State) usize {
+    return st.devices.items.len;
+}
+
+export fn sinty_bt_device_at(st: *const bluetooth.State, i: usize) ?*const bluetooth.Device {
+    return if (i < st.devices.items.len) &st.devices.items[i] else null;
+}
+
+export fn sinty_bt_free(st: ?*bluetooth.State) void {
+    if (st) |p| p.destroy();
+}
+
+export fn sinty_bt_set_adapter(s: ?*dbus.Conn, path: [*:0]const u8, which: c_int, on: bool) c_int {
+    const w = std.enums.fromInt(bluetooth.AdapterFlag, which) orelse return sys.code(error.Invalid);
+    return withBt(s, bluetooth.setAdapter, .{ span(path), w, on });
+}
+
+export fn sinty_bt_set_device(s: ?*dbus.Conn, path: [*:0]const u8, which: c_int, on: bool) c_int {
+    const w = std.enums.fromInt(bluetooth.DeviceFlag, which) orelse return sys.code(error.Invalid);
+    return withBt(s, bluetooth.setDevice, .{ span(path), w, on });
+}
+
+export fn sinty_bt_set_alias(s: ?*dbus.Conn, path: [*:0]const u8, alias: [*:0]const u8) c_int {
+    return withBt(s, bluetooth.setAlias, .{ span(path), span(alias) });
+}
+
+export fn sinty_bt_device_action(s: ?*dbus.Conn, path: [*:0]const u8, action: c_int) c_int {
+    const a = std.enums.fromInt(bluetooth.Action, action) orelse return sys.code(error.Invalid);
+    return withBt(s, bluetooth.device, .{ span(path), a });
+}
+
+export fn sinty_bt_remove(s: ?*dbus.Conn, path: [*:0]const u8) c_int {
+    return withBt(s, bluetooth.remove, .{span(path)});
+}
+
+export fn sinty_bt_discovery(s: ?*dbus.Conn, adapter: [*:0]const u8, on: bool) c_int {
+    return withBt(s, bluetooth.discovery, .{ span(adapter), on });
 }
 
 test {

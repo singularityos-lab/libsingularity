@@ -435,6 +435,57 @@ int sinty_crypt_change_passphrase(const char *path, const char *old, size_t old_
 int sinty_crypt_open(const char *path, const char *pass, size_t len, const char *name, bool read_only);
 int sinty_crypt_close(const char *name);
 
+typedef struct SintyBtSession SintyBtSession;
+typedef struct SintyBtState SintyBtState;
+
+typedef struct {
+    char path[64];
+    char address[24];
+    char alias[256];
+    char name[256];
+    bool powered;
+    bool discoverable;
+    bool pairable;
+    bool discovering;
+} SintyBtAdapter;
+
+typedef struct {
+    char path[128];
+    char adapter[64];
+    char address[24];
+    char alias[256];
+    char name[256];
+    char icon[64];
+    uint32_t device_class;
+    int16_t rssi;
+    int16_t battery;
+    bool paired;
+    bool trusted;
+    bool blocked;
+    bool connected;
+    bool has_rssi;
+    uint8_t pad[3];
+} SintyBtDevice;
+
+enum { SINTY_BT_POWERED, SINTY_BT_DISCOVERABLE, SINTY_BT_PAIRABLE };
+enum { SINTY_BT_TRUSTED, SINTY_BT_BLOCKED };
+enum { SINTY_BT_CONNECT, SINTY_BT_DISCONNECT, SINTY_BT_PAIR, SINTY_BT_CANCEL_PAIRING };
+
+int sinty_bt_session_open(SintyBtSession **out);
+void sinty_bt_session_close(SintyBtSession *s);
+int sinty_bt_snapshot(SintyBtSession *s, SintyBtState **out);
+size_t sinty_bt_adapter_count(const SintyBtState *st);
+const SintyBtAdapter *sinty_bt_adapter_at(const SintyBtState *st, size_t i);
+size_t sinty_bt_device_count(const SintyBtState *st);
+const SintyBtDevice *sinty_bt_device_at(const SintyBtState *st, size_t i);
+void sinty_bt_free(SintyBtState *st);
+int sinty_bt_set_adapter(SintyBtSession *s, const char *path, int which, bool on);
+int sinty_bt_set_device(SintyBtSession *s, const char *path, int which, bool on);
+int sinty_bt_set_alias(SintyBtSession *s, const char *path, const char *alias);
+int sinty_bt_device_action(SintyBtSession *s, const char *path, int action);
+int sinty_bt_remove(SintyBtSession *s, const char *path);
+int sinty_bt_discovery(SintyBtSession *s, const char *adapter, bool on);
+
 #ifdef __cplusplus
 }
 #endif

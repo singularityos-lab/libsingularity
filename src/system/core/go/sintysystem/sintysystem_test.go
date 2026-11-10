@@ -186,3 +186,29 @@ func TestLuksOnImage(t *testing.T) {
 		t.Fatalf("open on a regular file: %v", err)
 	}
 }
+
+func TestBluetoothWithoutBluez(t *testing.T) {
+	addr := os.Getenv("SINTY_BUS_ADDRESS")
+	if addr == "" {
+		t.Skip("SINTY_BUS_ADDRESS is not set")
+	}
+	t.Setenv("DBUS_SYSTEM_BUS_ADDRESS", addr)
+	var once *Bluetooth
+	if _, _, err := once.Snapshot(); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("snapshot without bluez: %v", err)
+	}
+	b, err := OpenBluetooth()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	if err := b.SetPowered("/org/freedesktop/DBus", true); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("a foreign path gave %v", err)
+	}
+	if err := b.Connect("/org/bluez/hci0"); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("an adapter path as a device gave %v", err)
+	}
+	if err := b.Discovery("/org/bluez/hci0", true); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("discovery without bluez: %v", err)
+	}
+}

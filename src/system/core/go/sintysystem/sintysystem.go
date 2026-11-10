@@ -702,3 +702,157 @@ func LuksClose(name string) error {
 	defer C.free(unsafe.Pointer(m))
 	return check(C.sinty_crypt_close(m))
 }
+
+type BtAdapter struct {
+	Path         string
+	Address      string
+	Alias        string
+	Name         string
+	Powered      bool
+	Discoverable bool
+	Pairable     bool
+	Discovering  bool
+}
+
+type BtDevice struct {
+	Path      string
+	Adapter   string
+	Address   string
+	Alias     string
+	Name      string
+	Icon      string
+	Class     uint32
+	RSSI      int16
+	HasRSSI   bool
+	Battery   int
+	Paired    bool
+	Trusted   bool
+	Blocked   bool
+	Connected bool
+}
+
+type Bluetooth struct {
+	s *C.SintyBtSession
+}
+
+func OpenBluetooth() (*Bluetooth, error) {
+	var s *C.SintyBtSession
+	if err := check(C.sinty_bt_session_open(&s)); err != nil {
+		return nil, err
+	}
+	return &Bluetooth{s: s}, nil
+}
+
+func (b *Bluetooth) Close() {
+	if b != nil && b.s != nil {
+		C.sinty_bt_session_close(b.s)
+		b.s = nil
+	}
+}
+
+func (b *Bluetooth) session() *C.SintyBtSession {
+	if b == nil {
+		return nil
+	}
+	return b.s
+}
+
+func (b *Bluetooth) Snapshot() ([]BtAdapter, []BtDevice, error) {
+	var st *C.SintyBtState
+	if err := check(C.sinty_bt_snapshot(b.session(), &st)); err != nil {
+		return nil, nil, err
+	}
+	defer C.sinty_bt_free(st)
+	var adapters []BtAdapter
+	for i := C.size_t(0); i < C.sinty_bt_adapter_count(st); i++ {
+		a := C.sinty_bt_adapter_at(st, i)
+		adapters = append(adapters, BtAdapter{
+			Path: text(a.path[:]), Address: text(a.address[:]), Alias: text(a.alias[:]), Name: text(a.name[:]),
+			Powered: bool(a.powered), Discoverable: bool(a.discoverable), Pairable: bool(a.pairable), Discovering: bool(a.discovering),
+		})
+	}
+	var devices []BtDevice
+	for i := C.size_t(0); i < C.sinty_bt_device_count(st); i++ {
+		d := C.sinty_bt_device_at(st, i)
+		devices = append(devices, BtDevice{
+			Path: text(d.path[:]), Adapter: text(d.adapter[:]), Address: text(d.address[:]), Alias: text(d.alias[:]),
+			Name: text(d.name[:]), Icon: text(d.icon[:]), Class: uint32(d.device_class), RSSI: int16(d.rssi),
+			HasRSSI: bool(d.has_rssi), Battery: int(d.battery), Paired: bool(d.paired), Trusted: bool(d.trusted),
+			Blocked: bool(d.blocked), Connected: bool(d.connected),
+		})
+	}
+	return adapters, devices, nil
+}
+
+func (b *Bluetooth) setAdapter(path string, which C.int, on bool) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_bt_set_adapter(b.session(), p, which, C.bool(on)))
+}
+
+func (b *Bluetooth) SetPowered(adapter string, on bool) error {
+	return b.setAdapter(adapter, C.SINTY_BT_POWERED, on)
+}
+
+func (b *Bluetooth) SetDiscoverable(adapter string, on bool) error {
+	return b.setAdapter(adapter, C.SINTY_BT_DISCOVERABLE, on)
+}
+
+func (b *Bluetooth) SetPairable(adapter string, on bool) error {
+	return b.setAdapter(adapter, C.SINTY_BT_PAIRABLE, on)
+}
+
+func (b *Bluetooth) setDevice(path string, which C.int, on bool) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_bt_set_device(b.session(), p, which, C.bool(on)))
+}
+
+func (b *Bluetooth) SetTrusted(device string, on bool) error {
+	return b.setDevice(device, C.SINTY_BT_TRUSTED, on)
+}
+
+func (b *Bluetooth) SetBlocked(device string, on bool) error {
+	return b.setDevice(device, C.SINTY_BT_BLOCKED, on)
+}
+
+func (b *Bluetooth) SetAlias(path, alias string) error {
+	p, a := C.CString(path), C.CString(alias)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(a))
+	return check(C.sinty_bt_set_alias(b.session(), p, a))
+}
+
+func (b *Bluetooth) action(device string, action C.int) error {
+	p := C.CString(device)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_bt_device_action(b.session(), p, action))
+}
+
+func (b *Bluetooth) Connect(device string) error {
+	return b.action(device, C.SINTY_BT_CONNECT)
+}
+
+func (b *Bluetooth) Disconnect(device string) error {
+	return b.action(device, C.SINTY_BT_DISCONNECT)
+}
+
+func (b *Bluetooth) Pair(device string) error {
+	return b.action(device, C.SINTY_BT_PAIR)
+}
+
+func (b *Bluetooth) CancelPairing(device string) error {
+	return b.action(device, C.SINTY_BT_CANCEL_PAIRING)
+}
+
+func (b *Bluetooth) Remove(device string) error {
+	p := C.CString(device)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_bt_remove(b.session(), p))
+}
+
+func (b *Bluetooth) Discovery(adapter string, on bool) error {
+	p := C.CString(adapter)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_bt_discovery(b.session(), p, C.bool(on)))
+}

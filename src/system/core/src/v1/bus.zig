@@ -687,9 +687,9 @@ pub const Conn = struct {
         c.rbuf.replaceRange(sys.gpa, 0, end + 2, &.{}) catch unreachable;
         if (!ok) return error.Access;
         try sys.writeAll(c.fd, "BEGIN\r\n");
-        var reply = try c.call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", "", "", 5000);
-        defer reply.deinit();
-        var r = reply.reader();
+        var hello = try c.call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", "", "", 5000);
+        defer hello.deinit();
+        var r = hello.reader();
         sys.copyName(&c.unique, try r.string());
     }
 
@@ -799,6 +799,27 @@ pub const Conn = struct {
         defer m.deinit();
         var r = m.reader();
         return r.boolean();
+    }
+
+    pub fn requestName(c: *Conn, name: []const u8) !void {
+        var m = try c.callWith("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName", "su", .{ name, @as(u32, 4) });
+        defer m.deinit();
+        var r = m.reader();
+        const v = try r.uint32();
+        if (v != 1 and v != 4) return error.Exists;
+    }
+
+    pub fn reply(c: *Conn, to: *const Message, sig: []const u8, body: []const u8) !void {
+        if (to.flags & no_reply != 0) return;
+        _ = try c.send(.{ .kind = .reply, .serial = 0, .reply_serial = to.serial, .destination = to.sender, .signature = sig }, body);
+    }
+
+    pub fn replyError(c: *Conn, to: *const Message, name: []const u8, text: []const u8) !void {
+        if (to.flags & no_reply != 0) return;
+        var w = Writer{};
+        defer w.deinit();
+        try w.string(text);
+        _ = try c.send(.{ .kind = .err, .serial = 0, .reply_serial = to.serial, .destination = to.sender, .error_name = name, .signature = "s" }, w.bytes());
     }
 };
 
