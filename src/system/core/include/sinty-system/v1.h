@@ -415,6 +415,7 @@ int sinty_fs_probe(const char *path, SintyFsInfo *out);
 int sinty_fs_set_label(const char *path, const char *label);
 int sinty_fs_mkswap(const char *path, const char *label);
 int sinty_fs_mkfs_vfat(const char *path, const char *label, uint8_t bits);
+int sinty_fs_mkfs_exfat(const char *path, const char *label);
 
 #ifdef __cplusplus
 }

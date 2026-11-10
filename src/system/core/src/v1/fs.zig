@@ -833,6 +833,180 @@ pub fn setLabel(d: Dev, label: []const u8) !void {
     try d.sync();
 }
 
+const upcase = @import("upcase.zig");
+
+fn upcaseTable(out: []u16) usize {
+    var up: [0x10000]u16 = undefined;
+    for (&up, 0..) |*u, i| u.* = @intCast(i);
+    for (upcase.pairs) |p| up[p[0]] = p[1];
+    var n: usize = 0;
+    var i: usize = 0;
+    while (i < up.len) {
+        if (up[i] != i) {
+            out[n] = up[i];
+            n += 1;
+            i += 1;
+            continue;
+        }
+        var j = i;
+        while (j < up.len and up[j] == j) j += 1;
+        if (j - i > 2 or j == up.len) {
+            out[n] = 0xffff;
+            out[n + 1] = @intCast(j - i);
+            n += 2;
+        } else {
+            while (i < j) : (i += 1) {
+                out[n] = @intCast(i);
+                n += 1;
+            }
+        }
+        i = j;
+    }
+    return n;
+}
+
+fn exfatSum(sum: u32, b: []const u8, skip_flags: bool) u32 {
+    var c = sum;
+    for (b, 0..) |x, i| {
+        if (skip_flags and (i == 106 or i == 107 or i == 112)) continue;
+        c = ((c & 1) << 31) +% (c >> 1) +% x;
+    }
+    return c;
+}
+
+pub fn mkfsExfat(d: Dev, label: []const u8) !void {
+    const bps: u64 = d.sector;
+    const shift: u8 = @intCast(std.math.log2_int(u64, bps));
+    const vol = d.size / bps;
+    if (d.size < 1 << 20) return error.TooBig;
+    const cluster: u64 = if (d.size <= 256 << 20) 4096 else if (d.size <= 32 << 30) 32768 else 131072;
+    const spc = @max(cluster / bps, 1);
+    const boundary: u64 = (if (d.size >= 16 << 20) @as(u64, 1 << 20) else 65536) / bps;
+    const fat_off = std.mem.alignForward(u64, 24, boundary);
+    const fat_len = ((vol / spc + 2) * 4 + bps - 1) / bps;
+    const heap_off = std.mem.alignForward(u64, fat_off + fat_len, @max(boundary, spc));
+    if (heap_off >= vol) return error.TooBig;
+    const count = (vol - heap_off) / spc;
+    if (count < 4 or count > 0xfffffff5) return error.TooBig;
+    const cbytes = spc * bps;
+    var lab = std.mem.zeroes([32]u8);
+    const units = try utf16Encode(lab[2..24], label);
+    lab[0] = if (units == 0) 0x03 else 0x83;
+    lab[1] = @intCast(units);
+
+    const up = try sys.gpa.alloc(u16, 0x10000 + 64);
+    defer sys.gpa.free(up);
+    const up_units = upcaseTable(up);
+    const up_bytes = std.mem.sliceAsBytes(up[0..up_units]);
+    const bitmap_bytes = (count + 7) / 8;
+    const bitmap_clusters = (bitmap_bytes + cbytes - 1) / cbytes;
+    const up_clusters = (up_bytes.len + cbytes - 1) / cbytes;
+    const bitmap_first: u32 = 2;
+    const up_first: u32 = @intCast(2 + bitmap_clusters);
+    const root_first: u32 = @intCast(2 + bitmap_clusters + up_clusters);
+    const used = bitmap_clusters + up_clusters + 1;
+    if (used >= count) return error.TooBig;
+
+    try d.zero(0, heap_off * bps + used * cbytes);
+
+    const boot = try sys.gpa.alloc(u8, 12 * bps);
+    defer sys.gpa.free(boot);
+    @memset(boot, 0);
+    const b0 = boot[0..bps];
+    b0[0] = 0xeb;
+    b0[1] = 0x76;
+    b0[2] = 0x90;
+    @memcpy(b0[3..11], "EXFAT   ");
+    std.mem.writeInt(u64, b0[0x48..0x50], vol, .little);
+    std.mem.writeInt(u32, b0[0x50..0x54], @intCast(fat_off), .little);
+    std.mem.writeInt(u32, b0[0x54..0x58], @intCast(fat_len), .little);
+    std.mem.writeInt(u32, b0[0x58..0x5c], @intCast(heap_off), .little);
+    std.mem.writeInt(u32, b0[0x5c..0x60], @intCast(count), .little);
+    std.mem.writeInt(u32, b0[0x60..0x64], root_first, .little);
+    var serial: [4]u8 = undefined;
+    random(&serial);
+    @memcpy(b0[0x64..0x68], &serial);
+    std.mem.writeInt(u16, b0[0x68..0x6a], 0x0100, .little);
+    b0[0x6c] = shift;
+    b0[0x6d] = @intCast(std.math.log2_int(u64, spc));
+    b0[0x6e] = 1;
+    b0[0x6f] = 0x80;
+    b0[510] = 0x55;
+    b0[511] = 0xaa;
+    var s: usize = 1;
+    while (s <= 8) : (s += 1) {
+        const sec = boot[s * bps .. (s + 1) * bps];
+        sec[bps - 2] = 0x55;
+        sec[bps - 1] = 0xaa;
+    }
+    var sum: u32 = exfatSum(0, b0, true);
+    s = 1;
+    while (s < 11) : (s += 1) sum = exfatSum(sum, boot[s * bps .. (s + 1) * bps], false);
+    var w: usize = 11 * bps;
+    while (w < 12 * bps) : (w += 4) std.mem.writeInt(u32, boot[w..][0..4], sum, .little);
+    try d.writeAt(0, boot);
+    try d.writeAt(12 * bps, boot);
+
+    const fat_bytes: usize = @intCast((2 + used) * 4);
+    const fat = try sys.gpa.alloc(u8, fat_bytes);
+    defer sys.gpa.free(fat);
+    std.mem.writeInt(u32, fat[0..4], 0xfffffff8, .little);
+    std.mem.writeInt(u32, fat[4..8], 0xffffffff, .little);
+    const chains = [_][2]u64{ .{ bitmap_first, bitmap_clusters }, .{ up_first, up_clusters }, .{ root_first, 1 } };
+    for (chains) |ch| {
+        var k: u64 = 0;
+        while (k < ch[1]) : (k += 1) {
+            const c = ch[0] + k;
+            const next: u32 = if (k + 1 == ch[1]) 0xffffffff else @intCast(c + 1);
+            std.mem.writeInt(u32, fat[@intCast(c * 4)..][0..4], next, .little);
+        }
+    }
+    try d.writeAt(fat_off * bps, fat);
+
+    const bitmap = try sys.gpa.alloc(u8, @intCast((used + 7) / 8));
+    defer sys.gpa.free(bitmap);
+    @memset(bitmap, 0);
+    var k: u64 = 0;
+    while (k < used) : (k += 1) bitmap[@intCast(k / 8)] |= @as(u8, 1) << @intCast(k % 8);
+    const heap = heap_off * bps;
+    try d.writeAt(heap, bitmap);
+    try d.writeAt(heap + (up_first - 2) * cbytes, up_bytes);
+
+    var root: [96]u8 = std.mem.zeroes([96]u8);
+    @memcpy(root[0..32], &lab);
+    root[32] = 0x81;
+    std.mem.writeInt(u32, root[52..56], bitmap_first, .little);
+    std.mem.writeInt(u64, root[56..64], bitmap_bytes, .little);
+    root[64] = 0x82;
+    std.mem.writeInt(u32, root[68..72], exfatSum(0, up_bytes, false), .little);
+    std.mem.writeInt(u32, root[84..88], up_first, .little);
+    std.mem.writeInt(u64, root[88..96], up_bytes.len, .little);
+    try d.writeAt(heap + (root_first - 2) * cbytes, &root);
+    try d.sync();
+}
+
+test "exfat formats, probes and relabels" {
+    var pb: [600]u8 = undefined;
+    const path = try testImage("exfat", 48 << 20, &pb);
+    var d = try Dev.open(path, true);
+    defer d.close();
+    try mkfsExfat(d, "Musique");
+    const info = try probe(d);
+    try std.testing.expectEqualStrings("exfat", sys.cstr(&info.type));
+    try std.testing.expectEqualStrings("Musique", sys.cstr(&info.label));
+    try setLabel(d, "Données");
+    try std.testing.expectEqualStrings("Données", sys.cstr(&(try probe(d)).label));
+}
+
+test "the up-case table maps letters and compresses identity runs" {
+    var buf: [0x10000 + 64]u16 = undefined;
+    const n = upcaseTable(&buf);
+    try std.testing.expect(n < 8192);
+    try std.testing.expectEqual(@as(u16, 0xffff), buf[0]);
+    try std.testing.expectEqual(@as(u16, 0x61), buf[1]);
+    try std.testing.expectEqual(@as(u16, 'A'), buf[2]);
+}
+
 fn testImage(name: []const u8, size: u64, out: []u8) ![*:0]const u8 {
     var rb: [512]u8 = undefined;
     const root = try sys.testRoot(&rb, name);

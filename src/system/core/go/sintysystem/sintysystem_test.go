@@ -141,6 +141,12 @@ func TestFilesystemOnImage(t *testing.T) {
 	if info.Type != "vfat" || info.Version != "FAT16" || info.Label != "PHOTOS" || len(info.UUID) != 9 {
 		t.Fatalf("probe: %+v", info)
 	}
+	if err := MakeExfat(path, "Média"); err != nil {
+		t.Fatal(err)
+	}
+	if info, err = ProbeFilesystem(path); err != nil || info.Type != "exfat" || info.Label != "Média" {
+		t.Fatalf("exfat: %+v %v", info, err)
+	}
 	if err := MakeSwap(path, "swap"); err != nil {
 		t.Fatal(err)
 	}

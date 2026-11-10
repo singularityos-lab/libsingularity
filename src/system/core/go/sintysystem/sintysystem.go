@@ -616,3 +616,10 @@ func MakeVfat(path, label string, bits uint8) error {
 	defer C.free(unsafe.Pointer(l))
 	return check(C.sinty_fs_mkfs_vfat(p, l, C.uint8_t(bits)))
 }
+
+func MakeExfat(path, label string) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_fs_mkfs_exfat(p, l))
+}
