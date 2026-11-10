@@ -212,3 +212,23 @@ func TestBluetoothWithoutBluez(t *testing.T) {
 		t.Errorf("discovery without bluez: %v", err)
 	}
 }
+
+func TestNotifyWithoutServer(t *testing.T) {
+	addr := os.Getenv("SINTY_BUS_ADDRESS")
+	if addr == "" {
+		t.Skip("SINTY_BUS_ADDRESS is not set")
+	}
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", addr)
+	if _, err := Notify(Notification{Summary: "x", Actions: []string{"odd"}}); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("an odd action list gave %v", err)
+	}
+	if _, err := Notify(Notification{Summary: "x", Actions: []string{"", "Apri"}}); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("an empty action key gave %v", err)
+	}
+	if _, err := Notify(Notification{Summary: "Prova", Urgency: 2}); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("notify without a server: %v", err)
+	}
+	if err := CloseNotification(7); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("close without a server: %v", err)
+	}
+}

@@ -856,3 +856,62 @@ func (b *Bluetooth) Discovery(adapter string, on bool) error {
 	defer C.free(unsafe.Pointer(p))
 	return check(C.sinty_bt_discovery(b.session(), p, C.bool(on)))
 }
+
+type Notification struct {
+	AppName      string
+	Icon         string
+	Summary      string
+	Body         string
+	Category     string
+	DesktopEntry string
+	Actions      []string
+	ReplacesID   uint32
+	TimeoutMs    int32
+	Urgency      uint8
+	Transient    bool
+}
+
+func Notify(n Notification) (uint32, error) {
+	var q C.SintyNotification
+	var owned []*C.char
+	str := func(s string) *C.char {
+		if s == "" {
+			return nil
+		}
+		p := C.CString(s)
+		owned = append(owned, p)
+		return p
+	}
+	defer func() {
+		for _, p := range owned {
+			C.free(unsafe.Pointer(p))
+		}
+	}()
+	q.app_name, q.icon, q.summary, q.body = str(n.AppName), str(n.Icon), str(n.Summary), str(n.Body)
+	q.category, q.desktop_entry = str(n.Category), str(n.DesktopEntry)
+	if len(n.Actions) > 0 {
+		arr := (*[32]*C.char)(C.malloc(C.size_t(32 * unsafe.Sizeof(uintptr(0)))))
+		defer C.free(unsafe.Pointer(arr))
+		if len(n.Actions) > len(arr) {
+			return 0, syscall.EINVAL
+		}
+		for i, a := range n.Actions {
+			if a == "" {
+				return 0, syscall.EINVAL
+			}
+			arr[i] = str(a)
+		}
+		q.actions = &arr[0]
+		q.n_actions = C.size_t(len(n.Actions))
+	}
+	q.replaces_id, q.timeout_ms, q.urgency, q.transient = C.uint32_t(n.ReplacesID), C.int32_t(n.TimeoutMs), C.uint8_t(n.Urgency), C.bool(n.Transient)
+	var id C.uint32_t
+	if err := check(C.sinty_notify_send(&q, &id)); err != nil {
+		return 0, err
+	}
+	return uint32(id), nil
+}
+
+func CloseNotification(id uint32) error {
+	return check(C.sinty_notify_close(C.uint32_t(id)))
+}

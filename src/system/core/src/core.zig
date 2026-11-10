@@ -18,6 +18,7 @@ pub const fs = @import("v1/fs.zig");
 pub const crypt = @import("v1/crypt.zig");
 pub const dbus = @import("v1/bus.zig");
 pub const bluetooth = @import("v1/bluetooth.zig");
+pub const notify = @import("v1/notify.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -683,6 +684,22 @@ export fn sinty_bt_remove(s: ?*dbus.Conn, path: [*:0]const u8) c_int {
 
 export fn sinty_bt_discovery(s: ?*dbus.Conn, adapter: [*:0]const u8, on: bool) c_int {
     return withBt(s, bluetooth.discovery, .{ span(adapter), on });
+}
+
+export fn sinty_notify_send(q: *const notify.Request, id: *u32) c_int {
+    var actions: [32][]const u8 = undefined;
+    const n = notify.fromRequest(q, &actions) catch |e| return sys.code(e);
+    var c = dbus.Conn.session() catch |e| return sys.code(e);
+    defer c.close();
+    id.* = notify.send(&c, n) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_notify_close(id: u32) c_int {
+    var c = dbus.Conn.session() catch |e| return sys.code(e);
+    defer c.close();
+    notify.close(&c, id) catch |e| return sys.code(e);
+    return 0;
 }
 
 test {

@@ -486,6 +486,27 @@ int sinty_bt_device_action(SintyBtSession *s, const char *path, int action);
 int sinty_bt_remove(SintyBtSession *s, const char *path);
 int sinty_bt_discovery(SintyBtSession *s, const char *adapter, bool on);
 
+enum { SINTY_NOTIFY_LOW, SINTY_NOTIFY_NORMAL, SINTY_NOTIFY_CRITICAL };
+
+typedef struct {
+    const char *app_name;
+    const char *icon;
+    const char *summary;
+    const char *body;
+    const char *category;
+    const char *desktop_entry;
+    const char *const *actions;
+    size_t n_actions;
+    uint32_t replaces_id;
+    int32_t timeout_ms;
+    uint8_t urgency;
+    bool transient;
+    uint8_t pad[6];
+} SintyNotification;
+
+int sinty_notify_send(const SintyNotification *n, uint32_t *id);
+int sinty_notify_close(uint32_t id);
+
 #ifdef __cplusplus
 }
 #endif

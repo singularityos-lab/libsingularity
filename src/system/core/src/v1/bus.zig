@@ -535,7 +535,7 @@ pub fn remoteError(name: []const u8) sys.Error {
     return error.Io;
 }
 
-fn nowMs() i64 {
+pub fn nowMs() i64 {
     var ts: linux.timespec = undefined;
     _ = linux.clock_gettime(.MONOTONIC, &ts);
     return @as(i64, ts.sec) * 1000 + @divTrunc(@as(i64, ts.nsec), 1_000_000);
