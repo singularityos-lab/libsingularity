@@ -32,23 +32,30 @@ namespace Singularity {
         }
 
         private async void check_availability() {
-            available = GLib.Environment.find_program_in_path("gamemoded") != null;
-            if (available) {
-                try {
-                    var connection = yield GLib.Bus.get(GLib.BusType.SESSION, null);
+            try {
+                var connection = yield GLib.Bus.get(GLib.BusType.SESSION, null);
+                foreach (string method in new string[] { "ListNames", "ListActivatableNames" }) {
+                    var names = yield connection.call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus", method, null, new GLib.VariantType("(as)"),
+                        GLib.DBusCallFlags.NONE, 2000, null);
+                    foreach (string n in names.get_child_value(0).get_strv()) {
+                        if (n == "com.feralinteractive.GameMode") available = true;
+                    }
+                }
+                if (available) {
                     _gamemode_proxy = yield new GLib.DBusProxy(
                         connection,
-                        GLib.DBusProxyFlags.NONE,
+                        GLib.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
                         null,
                         "com.feralinteractive.GameMode",
                         "/com/feralinteractive/GameMode",
                         "com.feralinteractive.GameMode",
                         null
                     );
-                } catch (GLib.Error e) {
-                    // D-Bus not available but binary exists - still show the setting
-                    _gamemode_proxy = null;
                 }
+            } catch (GLib.Error e) {
+                available = false;
+                _gamemode_proxy = null;
             }
             state_changed();
         }
@@ -65,7 +72,7 @@ namespace Singularity {
                 try {
                     int pid = (int) Posix.getpid();
                     _gamemode_proxy.call_sync(
-                        "RegisterGame",
+                        "RegisterGameByPID",
                         new GLib.Variant("(ii)", pid, pid),
                         GLib.DBusCallFlags.NONE,
                         1000,
@@ -75,18 +82,7 @@ namespace Singularity {
                     active = true;
                     state_changed();
                 } catch (GLib.Error e) {
-                    warning("GameMode: RegisterGame failed: %s", e.message);
-                }
-            } else if (available) {
-                try {
-                    new GLib.Subprocess.newv(
-                        { "gamemoderun", "true" },
-                        GLib.SubprocessFlags.NONE
-                    );
-                    active = true;
-                    state_changed();
-                } catch (GLib.Error e) {
-                    warning("GameMode: gamemoderun failed: %s", e.message);
+                    warning("GameMode: RegisterGameByPID failed: %s", e.message);
                 }
             }
         }
@@ -96,14 +92,14 @@ namespace Singularity {
             if (_gamemode_proxy != null && _registered_pid >= 0) {
                 try {
                     _gamemode_proxy.call_sync(
-                        "UnregisterGame",
+                        "UnregisterGameByPID",
                         new GLib.Variant("(ii)", _registered_pid, _registered_pid),
                         GLib.DBusCallFlags.NONE,
                         1000,
                         null
                     );
                 } catch (GLib.Error e) {
-                    warning("GameMode: UnregisterGame failed: %s", e.message);
+                    warning("GameMode: UnregisterGameByPID failed: %s", e.message);
                 }
                 _registered_pid = -1;
             }
