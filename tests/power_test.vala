@@ -227,6 +227,67 @@ private void test_charge_limit() {
     assert(replaced.charge_limit_available);
 }
 
+[DBus (name = "org.freedesktop.UPower")]
+public class MockUPower : Object {
+    public ObjectPath[] enumerate_devices() throws Error {
+        return { new ObjectPath("/org/freedesktop/UPower/devices/line_power_AC"),
+            new ObjectPath("/org/freedesktop/UPower/devices/battery_BAT0") };
+    }
+}
+
+[DBus (name = "org.freedesktop.UPower.Device")]
+public class MockUPowerDevice : Object {
+    public string native_path { owned get; construct; }
+    public string file { get; construct; }
+
+    public MockUPowerDevice(string native_path, string file) {
+        Object(native_path: native_path, file: file);
+    }
+
+    public void enable_charge_threshold(bool enable) throws Error {
+        if (file == "") throw new IOError.NOT_SUPPORTED("no threshold");
+        FileUtils.set_contents(file, enable ? "80" : "100");
+    }
+}
+
+private void test_upower_charge_limit() {
+    var bus = new TestDBus(TestDBusFlags.NONE);
+    bus.up();
+    Environment.set_variable("DBUS_SYSTEM_BUS_ADDRESS", bus.get_bus_address(), true);
+    string root = Path.build_filename(fixture_root, "power_supply");
+    string end_file = Path.build_filename(root, "BAT0", "charge_control_end_threshold");
+    try {
+        var conn = Bus.get_sync(BusType.SYSTEM);
+        conn.register_object("/org/freedesktop/UPower", new MockUPower());
+        conn.register_object("/org/freedesktop/UPower/devices/line_power_AC", new MockUPowerDevice("AC", ""));
+        conn.register_object("/org/freedesktop/UPower/devices/battery_BAT0", new MockUPowerDevice("BAT0", end_file));
+        conn.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName",
+            new Variant("(su)", "org.freedesktop.UPower", 0), null, DBusCallFlags.NONE, -1);
+    } catch (Error e) {
+        error("mock: %s", e.message);
+    }
+    var manager = new Singularity.BatteryManager(root, new Singularity.UPowerChargeLimit());
+    assert(manager.charge_limit_available);
+    foreach (bool limited in new bool[] { true, false }) {
+        bool done = false;
+        run_async(() => {
+            manager.set_charge_limited.begin(limited, (obj, res) => {
+                try {
+                    manager.set_charge_limited.end(res);
+                } catch (Error e) {
+                    error("upower limit failed: %s", e.message);
+                }
+                done = true;
+            });
+            return Source.REMOVE;
+        });
+        wait_for(() => done);
+        assert(read_file(end_file) == (limited ? "80" : "100"));
+        assert(manager.charge_limit_active == limited);
+    }
+    bus.down();
+}
+
 public static int main(string[] args) {
     Test.init(ref args);
     try {
@@ -238,5 +299,6 @@ public static int main(string[] args) {
     Test.add_func("/power/command-suspend", test_command_suspend);
     Test.add_func("/power/battery-scan", test_battery_scan);
     Test.add_func("/power/charge-limit", test_charge_limit);
+    Test.add_func("/power/upower-charge-limit", test_upower_charge_limit);
     return Test.run();
 }

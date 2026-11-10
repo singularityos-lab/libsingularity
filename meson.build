@@ -484,6 +484,8 @@ if get_option('system')
     'src/system/core/src/v1/sensors.zig',
     'src/system/core/src/v1/power.zig',
     'src/system/core/src/v1/display.zig',
+    'src/system/core/src/v1/device.zig',
+    'src/system/core/src/v1/net.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''
@@ -597,9 +599,6 @@ if get_option('system')
 
   power_libexecdir = get_option('prefix') / get_option('libexecdir')
   power_charge_command = get_option('charge-limit-command')
-  if power_charge_command == ''
-    power_charge_command = 'pkexec ' + power_libexecdir / 'singularity-power-helper'
-  endif
   firewall_helper_command = get_option('firewall-helper-command')
   if firewall_helper_command == ''
     firewall_helper_command = 'pkexec ' + power_libexecdir / 'singularity-firewall-helper'

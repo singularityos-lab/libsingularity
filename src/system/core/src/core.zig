@@ -4,6 +4,8 @@ pub const proc = @import("v1/proc.zig");
 pub const sensors = @import("v1/sensors.zig");
 pub const power = @import("v1/power.zig");
 pub const display = @import("v1/display.zig");
+pub const device = @import("v1/device.zig");
+pub const net = @import("v1/net.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -233,12 +235,36 @@ export fn sinty_display_ddc_set(bus: u32, vcp: u8, value: u16) c_int {
     return 0;
 }
 
+export fn sinty_device_hwdb_get(modalias: [*:0]const u8, key: [*:0]const u8, out: [*]u8, len: usize) c_int {
+    const n = device.hwdbLookup(span(modalias), span(key), out[0..len]) catch |e| return sys.code(e);
+    return @intCast(n);
+}
+
+export fn sinty_device_names(syspath: [*:0]const u8, out: *device.DeviceNames) c_int {
+    device.names(span(syspath), out) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_device_uevent_get(syspath: [*:0]const u8, key: [*:0]const u8, out: [*]u8, len: usize) c_int {
+    var buf: [512]u8 = undefined;
+    const p = sys.pathZ(&buf, "{s}/uevent", .{span(syspath)}) catch |e| return sys.code(e);
+    const n = device.ueventGet(p, span(key), out[0..len]) catch |e| return sys.code(e);
+    return @intCast(n);
+}
+
+export fn sinty_net_link_info(iface: [*:0]const u8, out: *net.LinkInfo) c_int {
+    net.linkInfo(span(iface), out) catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
     _ = sensors;
     _ = power;
     _ = display;
+    _ = device;
+    _ = net;
 }
 
 test "a tcp connection shows up with its owner and counters" {

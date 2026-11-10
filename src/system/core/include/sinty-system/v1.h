@@ -228,6 +228,29 @@ void sinty_display_ddc_list_free(SintyDdcList *list);
 int sinty_display_ddc_get(uint32_t bus, uint8_t vcp, uint16_t *current, uint16_t *maximum);
 int sinty_display_ddc_set(uint32_t bus, uint8_t vcp, uint16_t value);
 
+typedef struct {
+    char vendor[128];
+    char model[128];
+} SintyDeviceNames;
+
+int sinty_device_hwdb_get(const char *modalias, const char *key, char *out, size_t len);
+int sinty_device_names(const char *syspath, SintyDeviceNames *out);
+int sinty_device_uevent_get(const char *syspath, const char *key, char *out, size_t len);
+
+typedef struct {
+    int32_t speed_mbps;
+    int32_t max_supported_mbps;
+    int32_t duplex;
+    int32_t autoneg;
+    int32_t port;
+    int32_t pad;
+    uint32_t supported[32];
+    uint32_t words;
+    uint32_t pad2;
+} SintyLinkInfo;
+
+int sinty_net_link_info(const char *iface, SintyLinkInfo *out);
+
 #ifdef __cplusplus
 }
 #endif

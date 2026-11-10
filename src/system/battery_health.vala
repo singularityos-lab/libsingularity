@@ -117,6 +117,39 @@ namespace Singularity {
         public abstract async void set_limit(BatteryHealth battery, int percent) throws Error;
     }
 
+    public class UPowerChargeLimit : Object, ChargeLimitBackend {
+        public string name {
+            owned get { return "upower"; }
+        }
+
+        public bool supports(BatteryHealth battery) {
+            return battery.limit_supported;
+        }
+
+        public async void set_limit(BatteryHealth battery, int percent) throws Error {
+            var bus = yield Bus.get(BusType.SYSTEM);
+            var devices = yield bus.call("org.freedesktop.UPower", "/org/freedesktop/UPower",
+                "org.freedesktop.UPower", "EnumerateDevices", null,
+                new VariantType("(ao)"), DBusCallFlags.NONE, 3000, null);
+            var iter = devices.get_child_value(0).iterator();
+            string? device_path;
+            while (iter.next("o", out device_path)) {
+                var native = yield bus.call("org.freedesktop.UPower", device_path,
+                    "org.freedesktop.DBus.Properties", "Get",
+                    new Variant("(ss)", "org.freedesktop.UPower.Device", "NativePath"),
+                    new VariantType("(v)"), DBusCallFlags.NONE, 3000, null);
+                string path = native.get_child_value(0).get_variant().get_string();
+                if (path != battery.name && Path.get_basename(path) != battery.name) continue;
+                yield bus.call("org.freedesktop.UPower", device_path,
+                    "org.freedesktop.UPower.Device", "EnableChargeThreshold",
+                    new Variant("(b)", percent < 100), null, DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, 10000, null);
+                return;
+            }
+            throw new IOError.NOT_FOUND(_("The battery %s is not known to the power service").printf(battery.name));
+        }
+    }
+
+    [Version (deprecated = true, replacement = "UPowerChargeLimit")]
     public class CommandChargeLimit : Object, ChargeLimitBackend {
         public string command_line { get; construct; }
 
@@ -190,7 +223,9 @@ namespace Singularity {
             string choice = config.get_string("Battery", "ChargeLimit", "auto").down();
             string command = config.get_string("Battery", "ChargeLimitCommand", POWER_DEFAULT_CHARGE_LIMIT_COMMAND);
             ChargeLimitBackend? backend = null;
-            if (choice != "none" && choice != "disabled" && command != "") backend = new CommandChargeLimit(command);
+            if (choice != "none" && choice != "disabled") {
+                backend = command != "" ? (ChargeLimitBackend) new CommandChargeLimit(command) : new UPowerChargeLimit();
+            }
             return new BatteryManager(root, backend);
         }
 

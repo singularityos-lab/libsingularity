@@ -277,4 +277,30 @@ namespace SintySystem {
     [CCode (cname = "sinty_display_ddc_set")]
     public int display_ddc_set (uint32 bus, uint8 vcp, uint16 value);
 
+    [CCode (cname = "SintyDeviceNames", has_type_id = false, destroy_function = "")]
+    public struct DeviceNames {
+        public char vendor[128];
+        public char model[128];
+    }
+
+    [CCode (cname = "sinty_device_hwdb_get")]
+    public int device_hwdb_get (string modalias, string key, [CCode (array_length_type = "size_t")] char[] buffer);
+    [CCode (cname = "sinty_device_names")]
+    public int device_names (string syspath, out DeviceNames names);
+    [CCode (cname = "sinty_device_uevent_get")]
+    public int device_uevent_get (string syspath, string key, [CCode (array_length_type = "size_t")] char[] buffer);
+
+    [CCode (cname = "SintyLinkInfo", has_type_id = false, destroy_function = "")]
+    public struct LinkInfo {
+        public int32 speed_mbps;
+        public int32 max_supported_mbps;
+        public int32 duplex;
+        public int32 autoneg;
+        public int32 port;
+        public uint32 supported[32];
+        public uint32 words;
+    }
+
+    [CCode (cname = "sinty_net_link_info")]
+    public int net_link_info (string iface, out LinkInfo info);
 }

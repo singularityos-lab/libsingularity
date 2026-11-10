@@ -17,4 +17,6 @@ test "header layouts match the exported structs" {
     try same(core.power.CpuPolicy, c.SintyCpuPolicy);
     try same(core.display.Backlight, c.SintyBacklight);
     try same(core.display.DdcDisplay, c.SintyDdcDisplay);
+    try same(core.device.DeviceNames, c.SintyDeviceNames);
+    try same(core.net.LinkInfo, c.SintyLinkInfo);
 }

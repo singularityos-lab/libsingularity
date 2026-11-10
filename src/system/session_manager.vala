@@ -37,12 +37,22 @@ namespace Singularity {
                 }
             }
 
-            // 2. loginctl – works when a screen-lock handler is registered.
+            // 2. login1 Session.Lock, works when a screen-lock handler is registered.
             try {
-                Process.spawn_command_line_async("loginctl lock-session");
+                var system = Bus.get_sync(BusType.SYSTEM);
+                system.call_sync(
+                    "org.freedesktop.login1",
+                    "/org/freedesktop/login1/session/auto",
+                    "org.freedesktop.login1.Session",
+                    "Lock",
+                    null,
+                    null,
+                    DBusCallFlags.NONE,
+                    5000
+                );
                 return;
             } catch (Error e) {
-                warning("loginctl lock-session failed: %s", e.message);
+                debug("SessionManager: login1 Session.Lock unavailable: %s", e.message);
             }
 
             // 3. org.freedesktop.ScreenSaver.Lock D-Bus call.

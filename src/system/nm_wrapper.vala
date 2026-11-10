@@ -13,10 +13,10 @@ namespace Singularity {
         public string iface { get; private set; }
         public bool connected { get; private set; }
 
-        /** PCI chipset string (lspci), e.g. "RTL8125 2.5GbE Controller". Empty until probed. */
+        /** PCI chipset name from the hardware database, e.g. "RTL8125 2.5GbE Controller". Empty until probed. */
         public string chipset { get; private set; default = ""; }
 
-        /** Highest advertised link mode (ethtool), e.g. "2.5 GbE". Empty until probed or unknown. */
+        /** Highest supported base-T link mode, e.g. "2.5 GbE". Empty until probed or unknown. */
         public string capability { get; private set; default = ""; }
 
         public EthernetPortInfo(string iface, bool connected) {
@@ -291,93 +291,41 @@ namespace Singularity {
         }
 
         /**
-         * Chipset (lspci) and top advertised link mode (ethtool) for one
-         * port. Both are external processes, so this runs once per port at
-         * discovery time and caches the result on the EthernetPortInfo --
-         * neither changes while the machine is running, so there is nothing
-         * to re-probe on a later link-state change.
+         * Chipset (from the hardware database) and top supported link mode
+         * (from the ethtool link settings) for one port. Neither changes
+         * while the machine is running, so this runs once per port at
+         * discovery time and caches the result on the EthernetPortInfo.
          */
         private async void probe_ethernet_port(EthernetPortInfo port) {
-            string chipset = yield probe_chipset(port.iface);
-            string capability = yield probe_capability(port.iface);
+            string iface = port.iface;
+            string chipset = "";
+            string capability = "";
+            new Thread<bool>("ethernet-probe", () => {
+                chipset = probe_chipset(iface);
+                capability = probe_capability(iface);
+                Idle.add(probe_ethernet_port.callback);
+                return true;
+            });
+            yield;
             port.set_details(chipset, capability);
             ethernet_ports_changed();
         }
 
-        private async string probe_chipset(string iface) {
-            string pci_addr;
-            try {
-                string link = GLib.FileUtils.read_link("/sys/class/net/%s/device".printf(iface));
-                pci_addr = GLib.Path.get_basename(link);
-            } catch (GLib.FileError e) {
-                return "";
-            }
-            string[] argv = { "lspci", "-s", pci_addr, "-vmm" };
-            string? output = yield run_probe(argv);
-            if (output == null) {
-                return "";
-            }
-            // lspci -vmm is "Key:\tValue" lines, one record per device. The
-            // marketing chipset name is the Device field, not Vendor -- e.g.
-            // "RTL8125 2.5GbE Controller", not "Realtek Semiconductor Co., Ltd.".
-            foreach (string line in output.split("\n")) {
-                if (line.has_prefix("Device:")) {
-                    return line.substring("Device:".length).strip();
-                }
-            }
-            return "";
+        private static string probe_chipset(string iface) {
+            SintySystem.DeviceNames names;
+            if (SintySystem.device_names("/sys/class/net/%s/device".printf(iface), out names) != 0) return "";
+            string model = ((string) names.model).strip();
+            return model != "" ? model : ((string) names.vendor).strip();
         }
 
-        private async string probe_capability(string iface) {
-            string[] argv = { "ethtool", iface };
-            string? output = yield run_probe(argv);
-            if (output == null) {
-                return "";
-            }
-            // "Supported link modes:" is followed by one or more continuation
-            // lines (further indented, no leading key) until the next
-            // "Key:" line. Collect the whole block, then take the highest
-            // NbaseT rate mentioned -- that is the port's ceiling regardless
-            // of what it is currently negotiated to.
-            bool in_block = false;
-            int best_mbps = -1;
-            foreach (string raw_line in output.split("\n")) {
-                string line = raw_line.strip();
-                if (line.has_prefix("Supported link modes:")) {
-                    in_block = true;
-                    line = line.substring("Supported link modes:".length).strip();
-                } else if (in_block && raw_line.length > 0 && !raw_line.get_char(0).isspace()) {
-                    break;
-                } else if (!in_block) {
-                    continue;
-                }
-                foreach (string token in line.split(" ")) {
-                    int idx = token.index_of("baseT");
-                    if (idx <= 0) continue;
-                    int mbps = int.parse(token.substring(0, idx));
-                    if (mbps > best_mbps) best_mbps = mbps;
-                }
-            }
-            if (best_mbps <= 0) {
-                return "";
-            }
+        private static string probe_capability(string iface) {
+            SintySystem.LinkInfo info;
+            if (SintySystem.net_link_info(iface, out info) != 0) return "";
+            int best_mbps = info.max_supported_mbps;
+            if (best_mbps <= 0) return "";
             return best_mbps >= 1000
                 ? "%.3g GbE".printf(best_mbps / 1000.0)
                 : "%d Mbps".printf(best_mbps);
-        }
-
-        /** Run a short-lived probe utility off-thread; null on any failure. */
-        private async string? run_probe(string[] argv) {
-            try {
-                var proc = new GLib.Subprocess.newv(argv,
-                    GLib.SubprocessFlags.STDOUT_PIPE | GLib.SubprocessFlags.STDERR_SILENCE);
-                string? stdout_text = null;
-                string? stderr_text = null;
-                yield proc.communicate_utf8_async(null, null, out stdout_text, out stderr_text);
-                return stdout_text;
-            } catch (GLib.Error e) {
-                return null;
-            }
         }
 
         // Setting client.wireless_enabled / wwan_enabled directly is a
