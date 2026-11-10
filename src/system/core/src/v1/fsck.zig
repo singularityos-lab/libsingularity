@@ -20,13 +20,13 @@ pub const Report = extern struct {
         return r.errors == r.fixed;
     }
 
-    fn problem(r: *Report, repair: bool, comptime fmt: []const u8, args: anytype) void {
+    pub fn problem(r: *Report, repair: bool, comptime fmt: []const u8, args: anytype) void {
         if (r.errors == 0) _ = std.fmt.bufPrint(r.message[0 .. r.message.len - 1], fmt, args) catch {};
         r.errors += 1;
         if (repair) r.fixed += 1;
     }
 
-    fn fatal(r: *Report, comptime fmt: []const u8, args: anytype) void {
+    pub fn fatal(r: *Report, comptime fmt: []const u8, args: anytype) void {
         if (r.errors == r.fixed) {
             @memset(&r.message, 0);
             _ = std.fmt.bufPrint(r.message[0 .. r.message.len - 1], fmt, args) catch {};
@@ -728,6 +728,7 @@ pub fn check(d: fs.Dev, repair: bool) !Report {
     const t = sys.cstr(&info.type);
     if (std.mem.eql(u8, t, "vfat")) return checkFat(d, repair);
     if (std.mem.eql(u8, t, "exfat")) return checkExfat(d, repair);
+    if (std.mem.startsWith(u8, t, "ext")) return @import("ext4check.zig").check(d, repair);
     return error.Unsupported;
 }
 
@@ -904,4 +905,51 @@ test "unknown filesystems are not checked" {
     var d = try fs.Dev.open(path, false);
     defer d.close();
     try std.testing.expectError(error.NotFound, check(d, false));
+}
+
+test "ext4 problems are found and repaired" {
+    var rb: [512]u8 = undefined;
+    const root = try sys.testRoot(&rb, "fsck-ext4");
+    var pb: [600]u8 = undefined;
+    const path = try sys.pathZ(&pb, "{s}/fs.img", .{root});
+    const fd = try sys.open(path, .{ .ACCMODE = .WRONLY, .CREAT = true, .TRUNC = true, .CLOEXEC = true }, 0o644);
+    _ = std.os.linux.ftruncate(fd, 64 << 20);
+    sys.close(fd);
+    var d = try fs.Dev.open(path, true);
+    defer d.close();
+    try fs.ext4.mkfs(d, "check");
+    var r = try check(d, false);
+    try std.testing.expectEqual(@as(u32, 0), r.errors);
+    try std.testing.expect(r.dirs >= 2);
+
+    var sb: [1024]u8 = undefined;
+    try d.readAt(1024, &sb);
+    std.mem.writeInt(u16, sb[0x3a..0x3c], 0, .little);
+    try d.writeAt(1024, &sb);
+    r = try check(d, false);
+    try std.testing.expectEqual(@as(u32, 1), r.dirty);
+    try std.testing.expect(r.counters >= 1);
+    try std.testing.expect((try check(d, true)).clean());
+    try std.testing.expectEqual(@as(u32, 0), (try check(d, false)).errors);
+
+    var desc: [64]u8 = undefined;
+    try d.readAt(4096, &desc);
+    const bitmap = std.mem.readInt(u32, desc[0..4], .little);
+    var byte: [1]u8 = undefined;
+    try d.readAt(@as(u64, bitmap) * 4096 + 2000, &byte);
+    try std.testing.expectEqual(@as(u8, 0), byte[0]);
+    byte[0] = 0x01;
+    try d.writeAt(@as(u64, bitmap) * 4096 + 2000, &byte);
+    r = try check(d, false);
+    try std.testing.expectEqual(@as(u32, 1), r.lost_clusters);
+    try std.testing.expect((try check(d, true)).clean());
+    try std.testing.expectEqual(@as(u32, 0), (try check(d, false)).errors);
+
+    try d.readAt(4096, &desc);
+    desc[0x0c] +%= 3;
+    try d.writeAt(4096, &desc);
+    r = try check(d, false);
+    try std.testing.expect(r.counters >= 1);
+    try std.testing.expect((try check(d, true)).clean());
+    try std.testing.expectEqual(@as(u32, 0), (try check(d, false)).errors);
 }
