@@ -2008,6 +2008,10 @@ func WgConfigure(ifname, conf string) error {
 	return strings2(ifname, conf, func(a, b *C.char) C.int { return C.sinty_wg_configure(a, b) })
 }
 
+func WgApply(ifname, conf string) error {
+	return strings2(ifname, conf, func(a, b *C.char) C.int { return C.sinty_wg_apply(a, b) })
+}
+
 func WgGet(ifname string) (WgDevice, []WgPeer, error) {
 	c := C.CString(ifname)
 	defer C.free(unsafe.Pointer(c))
@@ -2121,4 +2125,24 @@ func WifiScan(ifname, ssid string, timeoutMs int32) error {
 	defer C.free(unsafe.Pointer(ci))
 	defer C.free(unsafe.Pointer(cs))
 	return check(C.sinty_wifi_scan(ci, cs, C.int32_t(timeoutMs)))
+}
+
+func WifiSetPowerSave(ifname string, on bool) error {
+	c := C.CString(ifname)
+	defer C.free(unsafe.Pointer(c))
+	v := C.int(0)
+	if on {
+		v = 1
+	}
+	return check(C.sinty_wifi_set_power_save(c, v))
+}
+
+func WifiPowerSave(ifname string) (bool, error) {
+	c := C.CString(ifname)
+	defer C.free(unsafe.Pointer(c))
+	r := C.sinty_wifi_power_save(c)
+	if r < 0 {
+		return false, check(r)
+	}
+	return r == 1, nil
 }

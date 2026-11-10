@@ -396,6 +396,15 @@ pub fn configure(ifname: []const u8, text: []const u8) !void {
     };
 }
 
+pub fn apply(ifname: []const u8, text: []const u8) !void {
+    var p: Parsed = undefined;
+    try parseConfig(text, &p);
+    defer p.deinit();
+    net.createLink(ifname, "wireguard") catch |e| if (e != error.Exists) return e;
+    try set(ifname, p.config);
+    try net.setUp(ifname, true);
+}
+
 test "keys follow the curve25519 test vector" {
     var private: Key = undefined;
     _ = try std.fmt.hexToBytes(&private, "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
@@ -506,6 +515,46 @@ fn wgScenario() !void {
     try std.testing.expectEqual(@as(usize, 0), n);
     try net.deleteLink("wga");
     try net.deleteLink("wgb");
+}
+
+fn applyScenario() !void {
+    try net.setUp("lo", true);
+    var key: [key_text]u8 = undefined;
+    var p1: [key_text]u8 = undefined;
+    var p2: [key_text]u8 = undefined;
+    encodeKey(&key, try generateKey());
+    encodeKey(&p1, try publicKey(try generateKey()));
+    encodeKey(&p2, try publicKey(try generateKey()));
+    var cb: [1024]u8 = undefined;
+    const first = try std.fmt.bufPrint(&cb, "[Interface]\nPrivateKey = {s}\nListenPort = 51911\n[Peer]\nPublicKey = {s}\nEndpoint = 127.0.0.1:51912\nAllowedIPs = 10.131.0.0/16\n", .{ sys.cstr(&key), sys.cstr(&p1) });
+    try apply("wgx", first);
+    var dev: Device = undefined;
+    var peers: [4]Peer = undefined;
+    var n = try get("wgx", &dev, &peers);
+    try std.testing.expectEqual(@as(usize, 1), n);
+    try std.testing.expectEqual(@as(u16, 51911), dev.listen_port);
+    try std.testing.expectEqualStrings(sys.cstr(&p1), sys.cstr(&peers[0].public_key));
+    var l: net.Link = undefined;
+    try net.link("wgx", &l);
+    try std.testing.expect(l.flags & net.IFF_UP != 0);
+    var addrs: [16]net.Address = undefined;
+    for (addrs[0..try net.addresses(&addrs)]) |a| try std.testing.expect(a.index != l.index);
+    var rs: [32]net.Route = undefined;
+    for (rs[0..try net.routes(&rs)]) |r| if (r.oif == l.index) try std.testing.expect(!std.mem.startsWith(u8, sys.cstr(&r.destination), "10.13"));
+    var cb2: [1024]u8 = undefined;
+    const second = try std.fmt.bufPrint(&cb2, "[Interface]\nPrivateKey = {s}\n[Peer]\nPublicKey = {s}\nAllowedIPs = 10.132.0.0/16\n", .{ sys.cstr(&key), sys.cstr(&p2) });
+    try apply("wgx", second);
+    n = try get("wgx", &dev, &peers);
+    try std.testing.expectEqual(@as(usize, 1), n);
+    try std.testing.expectEqual(@as(u16, 51911), dev.listen_port);
+    try std.testing.expectEqualStrings(sys.cstr(&p2), sys.cstr(&peers[0].public_key));
+    try std.testing.expectEqualStrings("10.132.0.0/16", sys.cstr(&peers[0].allowed_ips));
+    try std.testing.expectError(error.Invalid, apply("wgx", "[Peer]\nAllowedIPs = 10.0.0.0/8\n"));
+    try net.deleteLink("wgx");
+}
+
+test "apply sets keys and peers but leaves addresses and routes alone" {
+    try net.isolated(applyScenario);
 }
 
 test "two wireguard peers shake hands in a private network namespace" {

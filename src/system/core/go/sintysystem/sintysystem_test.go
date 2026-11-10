@@ -657,7 +657,19 @@ func TestNetLinksAndWireguardKeys(t *testing.T) {
 	if _, err := WgPublicKey("corta"); !errors.Is(err, syscall.EINVAL) {
 		t.Fatalf("bad key: %v", err)
 	}
-	if _, err := WifiInterfaces(); err != nil && !errors.Is(err, syscall.EOPNOTSUPP) {
+	ifs, err := WifiInterfaces()
+	if err != nil && !errors.Is(err, syscall.EOPNOTSUPP) {
 		t.Fatal(err)
+	}
+	for _, i := range ifs {
+		if _, err := WifiPowerSave(i.Name); err != nil && !errors.Is(err, syscall.EOPNOTSUPP) {
+			t.Fatalf("%s power save: %v", i.Name, err)
+		}
+	}
+	if err := WifiSetPowerSave("nonesiste0", true); !errors.Is(err, syscall.ENOENT) {
+		t.Fatalf("missing interface: %v", err)
+	}
+	if err := WgApply("wgtest0", "[Peer]\nAllowedIPs = 10.0.0.0/8\n"); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("peer without key: %v", err)
 	}
 }

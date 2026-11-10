@@ -329,6 +329,7 @@ typedef struct {
 int sinty_wg_generate_key(char out[45]);
 int sinty_wg_public_key(const char *private_key, char out[45]);
 int sinty_wg_configure(const char *ifname, const char *conf);
+int sinty_wg_apply(const char *ifname, const char *conf);
 int sinty_wg_get(const char *ifname, SintyWgDevice *dev, SintyWgPeer *peers, size_t max);
 
 typedef struct {
@@ -369,6 +370,8 @@ int sinty_wifi_interfaces(SintyWifiInterface *out, size_t max);
 int sinty_wifi_scan_results(const char *ifname, SintyWifiBss *out, size_t max);
 int sinty_wifi_stations(const char *ifname, SintyWifiStation *out, size_t max);
 int sinty_wifi_scan(const char *ifname, const char *ssid, int32_t timeout_ms);
+int sinty_wifi_set_power_save(const char *ifname, int on);
+int sinty_wifi_power_save(const char *ifname);
 
 typedef struct SintyTextList SintyTextList;
 

@@ -361,6 +361,11 @@ export fn sinty_wg_configure(ifname: [*:0]const u8, text: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_wg_apply(ifname: [*:0]const u8, text: [*:0]const u8) c_int {
+    wireguard.apply(span(ifname), span(text)) catch |e| return sys.code(e);
+    return 0;
+}
+
 export fn sinty_wg_get(ifname: [*:0]const u8, dev: *wireguard.Device, peers: [*]wireguard.Peer, max: usize) c_int {
     return counted(wireguard.get(span(ifname), dev, peers[0..max]));
 }
@@ -380,6 +385,16 @@ export fn sinty_wifi_stations(ifname: [*:0]const u8, out: [*]wifi.Station, max: 
 export fn sinty_wifi_scan(ifname: [*:0]const u8, ssid: [*:0]const u8, timeout_ms: i32) c_int {
     wifi.scan(span(ifname), span(ssid), timeout_ms) catch |e| return sys.code(e);
     return 0;
+}
+
+export fn sinty_wifi_set_power_save(ifname: [*:0]const u8, on: c_int) c_int {
+    wifi.setPowerSave(span(ifname), on != 0) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_wifi_power_save(ifname: [*:0]const u8) c_int {
+    const on = wifi.powerSave(span(ifname)) catch |e| return sys.code(e);
+    return @intFromBool(on);
 }
 
 export fn sinty_net_link_info(iface: [*:0]const u8, out: *net.LinkInfo) c_int {

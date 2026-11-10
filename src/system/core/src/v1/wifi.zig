@@ -10,6 +10,8 @@ const CMD_GET_SCAN: u8 = 32;
 const CMD_TRIGGER_SCAN: u8 = 33;
 const CMD_NEW_SCAN_RESULTS: u8 = 34;
 const CMD_SCAN_ABORTED: u8 = 35;
+const CMD_SET_POWER_SAVE: u8 = 61;
+const CMD_GET_POWER_SAVE: u8 = 62;
 
 const ATTR_WIPHY: u16 = 1;
 const ATTR_IFINDEX: u16 = 3;
@@ -21,6 +23,7 @@ const ATTR_WIPHY_FREQ: u16 = 38;
 const ATTR_SCAN_SSIDS: u16 = 45;
 const ATTR_BSS: u16 = 47;
 const ATTR_SSID: u16 = 52;
+const ATTR_PS_STATE: u16 = 93;
 
 const BSS_BSSID: u16 = 1;
 const BSS_FREQUENCY: u16 = 2;
@@ -295,6 +298,39 @@ pub fn scan(ifname: []const u8, ssid: []const u8, timeout_ms: i32) !void {
     if (w.aborted) return error.Busy;
 }
 
+pub fn powerSaveRequest(b: *nl.Builder, fam: u16, idx: u32, on: bool) !void {
+    try b.genl(fam, 0, CMD_SET_POWER_SAVE, 0);
+    try b.int(ATTR_IFINDEX, u32, idx);
+    try b.int(ATTR_PS_STATE, u32, @intFromBool(on));
+}
+
+pub fn setPowerSave(ifname: []const u8, on: bool) !void {
+    const idx = try net.index(ifname);
+    var se = try Session.open();
+    defer se.close();
+    try powerSaveRequest(&se.b, se.fam.id, @intCast(idx), on);
+    try se.s.exec(&se.b);
+}
+
+pub fn powerSave(ifname: []const u8) !bool {
+    const idx = try net.index(ifname);
+    var se = try Session.open();
+    defer se.close();
+    try se.b.genl(se.fam.id, 0, CMD_GET_POWER_SAVE, 0);
+    try se.b.int(ATTR_IFINDEX, u32, @intCast(idx));
+    const R = struct {
+        fam: u16,
+        state: ?u32 = null,
+        fn f(self: *@This(), kind: u16, body: []const u8) anyerror!void {
+            if (kind != self.fam or body.len < 4) return;
+            if (nl.int(u32, nl.find(body[4..], ATTR_PS_STATE))) |v| self.state = v;
+        }
+    };
+    var r = R{ .fam = se.fam.id };
+    try se.s.call(&se.b, &r, R.f);
+    return (r.state orelse return error.Unsupported) != 0;
+}
+
 fn ie(b: *std.ArrayList(u8), id: u8, data: []const u8) !void {
     try b.append(sys.gpa, id);
     try b.append(sys.gpa, @intCast(data.len));
@@ -395,5 +431,20 @@ test "wireless interfaces of this machine match sysfs" {
         var res: [128]Bss = undefined;
         const m = try scanResults(sys.cstr(&i.name), &res);
         for (res[0..m]) |r| try std.testing.expect(r.frequency >= 2400);
+        _ = powerSave(sys.cstr(&i.name)) catch |e| if (e != error.Unsupported) return e;
+    }
+}
+
+test "power save requests carry the interface and the state" {
+    var b: nl.Builder = .{};
+    defer b.deinit();
+    for ([_]bool{ true, false }) |on| {
+        try powerSaveRequest(&b, 28, 4, on);
+        const msg = b.finish(7);
+        try std.testing.expectEqual(@as(u16, 28), std.mem.readInt(u16, msg[4..6], .little));
+        try std.testing.expectEqual(@as(u8, CMD_SET_POWER_SAVE), msg[16]);
+        const attrs = msg[20..];
+        try std.testing.expectEqual(@as(?u32, 4), nl.int(u32, nl.find(attrs, ATTR_IFINDEX)));
+        try std.testing.expectEqual(@as(?u32, @intFromBool(on)), nl.int(u32, nl.find(attrs, ATTR_PS_STATE)));
     }
 }
