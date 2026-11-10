@@ -14,7 +14,6 @@ namespace Singularity {
         public string backend { get; private set; default = "none"; }
         public bool can_change { get; private set; default = false; }
 
-        private string[] command = {};
 
         public static HostnameManager get_default() {
             if (_instance == null) _instance = new HostnameManager();
@@ -82,8 +81,7 @@ namespace Singularity {
             hostname = Environment.get_host_name();
             pretty_name = "";
             string choice = config_value("Backend", "auto").down();
-            string cmd = config_value("Command", "");
-            if (choice != "none" && choice != "command" && (yield hostnamed_present())) {
+            if (choice != "none" && (yield hostnamed_present())) {
                 backend = "hostnamed";
                 can_change = true;
                 try {
@@ -102,16 +100,6 @@ namespace Singularity {
                 }
                 return;
             }
-            if (choice != "none" && cmd != "") {
-                try {
-                    GLib.Shell.parse_argv(cmd, out command);
-                    backend = "command";
-                    can_change = true;
-                    return;
-                } catch (Error e) {
-                    warning("HostnameManager: bad Command: %s", e.message);
-                }
-            }
             backend = "none";
             can_change = false;
         }
@@ -126,14 +114,6 @@ namespace Singularity {
                 yield conn.call(BUS_NAME, PATH, "org.freedesktop.hostname1", "SetStaticHostname",
                     new Variant("(sb)", name, true), null, DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
                     60000, null);
-            } else if (backend == "command") {
-                string[] argv = command;
-                argv += name;
-                argv += pretty.strip();
-                var proc = new Subprocess.newv(argv, SubprocessFlags.STDERR_PIPE);
-                string? err;
-                yield proc.communicate_utf8_async(null, null, null, out err);
-                if (!proc.get_successful()) throw new IOError.FAILED((err ?? "").strip());
             } else {
                 throw new IOError.NOT_SUPPORTED(_("The computer name cannot be changed on this system."));
             }

@@ -4,9 +4,6 @@ namespace Singularity {
 
     [CCode (cname = "SINGULARITY_SYSCONFDIR")]
     extern const string POWER_SYSCONFDIR;
-    [CCode (cname = "SINGULARITY_SUSPEND_COMMAND")]
-    extern const string POWER_DEFAULT_SUSPEND_COMMAND;
-
     public class PowerConfig : Object {
         public const string FILE_NAME = "singularity/power.conf";
 
@@ -100,6 +97,7 @@ namespace Singularity {
         }
     }
 
+    [Version (deprecated = true, replacement = "LogindSuspendBackend")]
     public class CommandSuspendBackend : Object, SuspendBackend {
         public string command_line { get; construct; }
 
@@ -112,21 +110,11 @@ namespace Singularity {
         }
 
         public async bool is_available() {
-            string[] argv;
-            try {
-                if (!GLib.Shell.parse_argv(command_line, out argv) || argv.length == 0) return false;
-            } catch (ShellError e) {
-                return false;
-            }
-            if (Path.is_absolute(argv[0])) return FileUtils.test(argv[0], FileTest.IS_EXECUTABLE);
-            return Environment.find_program_in_path(argv[0]) != null;
+            return false;
         }
 
         public async void suspend() throws Error {
-            string[] argv;
-            GLib.Shell.parse_argv(command_line, out argv);
-            var process = new Subprocess.newv(argv, SubprocessFlags.NONE);
-            yield process.wait_check_async(null);
+            throw new IOError.NOT_SUPPORTED(_("Suspend is not available on this system"));
         }
     }
 
@@ -149,13 +137,11 @@ namespace Singularity {
 
         public static SuspendBackend? backend_for(PowerConfig config, out string choice) {
             choice = config.get_string("Suspend", "Backend", "auto").down();
-            string command = config.get_string("Suspend", "Command", POWER_DEFAULT_SUSPEND_COMMAND);
             switch (choice) {
                 case "logind":
                 case "elogind":
                     return new LogindSuspendBackend();
                 case "command":
-                    return command != "" ? new CommandSuspendBackend(command) : null;
                 case "none":
                     return null;
                 default:
@@ -170,12 +156,7 @@ namespace Singularity {
             SuspendBackend? backend = backend_for(config, out choice);
             if (choice == "auto") {
                 var logind = new LogindSuspendBackend();
-                if (yield logind.is_available()) {
-                    backend = logind;
-                } else {
-                    string command = config.get_string("Suspend", "Command", POWER_DEFAULT_SUSPEND_COMMAND);
-                    if (command != "") backend = new CommandSuspendBackend(command);
-                }
+                if (yield logind.is_available()) backend = logind;
             }
             bool available = backend != null && yield backend.is_available();
             suspend_backend = available ? backend : null;
@@ -206,17 +187,7 @@ namespace Singularity {
         }
 
         public void lock_screen() {
-            string command = PowerConfig.get_default().get_string("Lock", "Command", "");
-            if (command == "") {
-                SessionManager.get_default().lock_screen();
-                return;
-            }
-            try {
-                Process.spawn_command_line_async(command);
-            } catch (Error e) {
-                warning("PowerActions: lock command failed: %s", e.message);
-                SessionManager.get_default().lock_screen();
-            }
+            SessionManager.get_default().lock_screen();
         }
     }
 }

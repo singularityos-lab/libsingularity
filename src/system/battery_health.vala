@@ -2,8 +2,6 @@ using GLib;
 
 namespace Singularity {
 
-    [CCode (cname = "SINGULARITY_CHARGE_LIMIT_COMMAND")]
-    extern const string POWER_DEFAULT_CHARGE_LIMIT_COMMAND;
 
     public class BatteryHealth : Object {
         public string name { get; construct; }
@@ -161,36 +159,12 @@ namespace Singularity {
             Object(command_line: command_line);
         }
 
-        private string[]? argv() {
-            string[] parsed;
-            try {
-                if (!GLib.Shell.parse_argv(command_line, out parsed) || parsed.length == 0) return null;
-            } catch (ShellError e) {
-                return null;
-            }
-            bool found = Path.is_absolute(parsed[0])
-                ? FileUtils.test(parsed[0], FileTest.IS_EXECUTABLE)
-                : Environment.find_program_in_path(parsed[0]) != null;
-            return found ? parsed : null;
-        }
-
         public bool supports(BatteryHealth battery) {
-            return battery.limit_supported && argv() != null;
+            return false;
         }
 
         public async void set_limit(BatteryHealth battery, int percent) throws Error {
-            string[]? args = argv();
-            if (args == null) throw new IOError.NOT_SUPPORTED(_("The charge limit helper is not installed"));
-            args += "charge-limit";
-            args += battery.name;
-            args += percent.clamp(50, 100).to_string();
-            var process = new Subprocess.newv(args, SubprocessFlags.STDERR_PIPE);
-            string? err;
-            yield process.communicate_utf8_async(null, null, null, out err);
-            if (!process.get_successful()) {
-                string detail = err != null ? err.strip() : "";
-                throw new IOError.FAILED(detail != "" ? detail : _("The charge limit could not be changed"));
-            }
+            throw new IOError.NOT_SUPPORTED(_("The charge limit helper is not installed"));
         }
     }
 
@@ -221,11 +195,8 @@ namespace Singularity {
         public static BatteryManager from_config(PowerConfig config) {
             string root = config.get_string("Battery", "SysfsPath", "/sys/class/power_supply");
             string choice = config.get_string("Battery", "ChargeLimit", "auto").down();
-            string command = config.get_string("Battery", "ChargeLimitCommand", POWER_DEFAULT_CHARGE_LIMIT_COMMAND);
             ChargeLimitBackend? backend = null;
-            if (choice != "none" && choice != "disabled") {
-                backend = command != "" ? (ChargeLimitBackend) new CommandChargeLimit(command) : new UPowerChargeLimit();
-            }
+            if (choice != "none" && choice != "disabled") backend = new UPowerChargeLimit();
             return new BatteryManager(root, backend);
         }
 

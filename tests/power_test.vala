@@ -64,9 +64,8 @@ private void test_config_backends() {
     assert(config.get_string("Suspend", "Command", "") == "/bin/true --flag");
     assert(config.get_string("Missing", "Key", "fallback") == "fallback");
     string choice;
-    var backend = Singularity.PowerActions.backend_for(config, out choice);
+    assert(Singularity.PowerActions.backend_for(config, out choice) == null);
     assert(choice == "command");
-    assert(backend is Singularity.CommandSuspendBackend);
 
     write_file(path, "[Suspend]\nBackend=elogind\n");
     config = new Singularity.PowerConfig.from_file(path);
@@ -85,44 +84,29 @@ private void test_config_backends() {
 
 private void test_command_suspend() {
     string marker = Path.build_filename(fixture_root, "suspended");
-    string fake = script("fake-suspend", "echo \"$@\" > %s\n".printf(marker));
-    var backend = new Singularity.CommandSuspendBackend(fake + " mem");
-    var missing = new Singularity.CommandSuspendBackend(Path.build_filename(fixture_root, "bin", "absent"));
-    var failing = new Singularity.CommandSuspendBackend(script("fail-suspend", "exit 3\n"));
+    var backend = new Singularity.CommandSuspendBackend(script("fake-suspend", "touch %s\n".printf(marker)));
     bool done = false;
-    bool available = false;
-    bool missing_available = true;
-    bool failed = false;
+    bool available = true;
+    bool refused = false;
     run_async(() => {
         backend.is_available.begin((obj, res) => {
             available = backend.is_available.end(res);
-            missing.is_available.begin((obj2, res2) => {
-                missing_available = missing.is_available.end(res2);
-                backend.suspend.begin((obj3, res3) => {
-                    try {
-                        backend.suspend.end(res3);
-                    } catch (Error e) {
-                        error("suspend failed: %s", e.message);
-                    }
-                    failing.suspend.begin((obj4, res4) => {
-                        try {
-                            failing.suspend.end(res4);
-                        } catch (Error e) {
-                            failed = true;
-                        }
-                        done = true;
-                    });
-                });
+            backend.suspend.begin((obj2, res2) => {
+                try {
+                    backend.suspend.end(res2);
+                } catch (Error e) {
+                    refused = e is IOError.NOT_SUPPORTED;
+                }
+                done = true;
             });
         });
         return Source.REMOVE;
     });
     wait_for(() => done);
     assert(done);
-    assert(available);
-    assert(!missing_available);
-    assert(failed);
-    assert(read_file(marker) == "mem");
+    assert(!available);
+    assert(refused);
+    assert(!FileUtils.test(marker, FileTest.EXISTS));
 }
 
 private void test_battery_scan() {
@@ -160,11 +144,10 @@ private void test_battery_scan() {
 
 private void test_charge_limit() {
     string root = Path.build_filename(fixture_root, "power_supply");
-    string helper = script("fake-helper",
-        "[ \"$1\" = charge-limit ] || exit 2\necho \"$3\" > %s/$2/charge_control_end_threshold\n".printf(root));
+    string marker = Path.build_filename(fixture_root, "helper-ran");
+    string helper = script("fake-helper", "touch %s\n".printf(marker));
     var manager = new Singularity.BatteryManager(root, new Singularity.CommandChargeLimit(helper));
-    assert(manager.charge_limit_available);
-    assert(!manager.charge_limit_active);
+    assert(!manager.charge_limit_available);
 
     bool done = false;
     run_async(() => {
@@ -179,42 +162,9 @@ private void test_charge_limit() {
         return Source.REMOVE;
     });
     wait_for(() => done);
-    assert(read_file(Path.build_filename(root, "BAT0", "charge_control_end_threshold")) == "80");
-    assert(manager.charge_limit_active);
-    assert(manager.primary.charge_limit == 80);
-
-    done = false;
-    run_async(() => {
-        manager.set_charge_limited.begin(false, (obj, res) => {
-            try {
-                manager.set_charge_limited.end(res);
-            } catch (Error e) {
-                error("unlimit failed: %s", e.message);
-            }
-            done = true;
-        });
-        return Source.REMOVE;
-    });
-    wait_for(() => done);
+    assert(!FileUtils.test(marker, FileTest.EXISTS));
     assert(read_file(Path.build_filename(root, "BAT0", "charge_control_end_threshold")) == "100");
     assert(!manager.charge_limit_active);
-
-    var broken = new Singularity.BatteryManager(root, new Singularity.CommandChargeLimit(script("deny-helper", "echo denied >&2\nexit 1\n")));
-    string message = "";
-    done = false;
-    run_async(() => {
-        broken.set_charge_limited.begin(true, (obj, res) => {
-            try {
-                broken.set_charge_limited.end(res);
-            } catch (Error e) {
-                message = e.message;
-            }
-            done = true;
-        });
-        return Source.REMOVE;
-    });
-    wait_for(() => done);
-    assert(message == "denied");
 
     string conf = Path.build_filename(fixture_root, "limit.conf");
     write_file(conf, "[Battery]\nSysfsPath=%s\nChargeLimit=none\n".printf(root));
@@ -225,6 +175,7 @@ private void test_charge_limit() {
     write_file(conf, "[Battery]\nSysfsPath=%s\nChargeLimitCommand=%s\n".printf(root, helper));
     var replaced = Singularity.BatteryManager.from_config(new Singularity.PowerConfig.from_file(conf));
     assert(replaced.charge_limit_available);
+    assert(replaced.charge_limit_backend is Singularity.UPowerChargeLimit);
 }
 
 [DBus (name = "org.freedesktop.UPower")]

@@ -634,14 +634,8 @@ if get_option('system')
   )
 
   power_libexecdir = get_option('prefix') / get_option('libexecdir')
-  power_charge_command = get_option('charge-limit-command')
-  firewall_helper_command = get_option('firewall-helper-command')
   power_c_args = [
     '-DSINGULARITY_SYSCONFDIR="@0@"'.format(get_option('prefix') / get_option('sysconfdir')),
-    '-DSINGULARITY_SUSPEND_COMMAND="@0@"'.format(get_option('suspend-command')),
-    '-DSINGULARITY_CHARGE_LIMIT_COMMAND="@0@"'.format(power_charge_command),
-    '-DSINGULARITY_FIREWALL_HELPER="@0@"'.format(firewall_helper_command),
-    '-DSINGULARITY_FIREWALL_STATE="@0@"'.format(get_option('firewall-state-file')),
   ]
   updates_c_args = [
     '-DSINGULARITY_DEFAULT_UPDATES_BACKEND="@0@"'.format(get_option('updates-backend')),

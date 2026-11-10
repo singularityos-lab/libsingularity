@@ -4,10 +4,6 @@ namespace Singularity {
 
     [CCode (cname = "SINGULARITY_SYSCONFDIR")]
     extern const string FIREWALL_SYSCONFDIR;
-    [CCode (cname = "SINGULARITY_FIREWALL_HELPER")]
-    extern const string FIREWALL_DEFAULT_HELPER;
-    [CCode (cname = "SINGULARITY_FIREWALL_STATE")]
-    extern const string FIREWALL_DEFAULT_STATE;
 
     public errordomain FirewallError {
         NOT_AVAILABLE,
@@ -397,33 +393,16 @@ namespace Singularity {
 
     [Version (deprecated = true, replacement = "SintyFirewallBackend")]
     public class NftablesBackend : Object, FirewallBackend {
-        private string[] command;
         private string state_file;
 
         public string name { get { return "nftables"; } }
 
         public NftablesBackend(string command, string state_file) {
-            try {
-                GLib.Shell.parse_argv(command, out this.command);
-            } catch (Error e) {
-                this.command = {};
-            }
             this.state_file = state_file;
         }
 
         public async bool is_available() {
-            if (command.length == 0) return false;
-            string program = command[0];
-            if (program == "pkexec" && command.length > 1) {
-                if (Environment.find_program_in_path("pkexec") == null) return false;
-                program = command[1];
-            }
-            bool helper = Path.is_absolute(program) ? FileUtils.test(program, FileTest.IS_EXECUTABLE)
-                : Environment.find_program_in_path(program) != null;
-            if (!helper) return false;
-            foreach (string nft in new string[] { "/usr/sbin/nft", "/sbin/nft", "/usr/bin/nft" })
-                if (FileUtils.test(nft, FileTest.IS_EXECUTABLE)) return true;
-            return Environment.find_program_in_path("nft") != null;
+            return false;
         }
 
         public static FirewallStatus parse_state(string text) {
@@ -454,17 +433,7 @@ namespace Singularity {
         }
 
         private async void run(string[] args) throws Error {
-            string[] argv = command;
-            foreach (unowned string a in args) argv += a;
-            var proc = new Subprocess.newv(argv, SubprocessFlags.STDERR_PIPE | SubprocessFlags.STDOUT_SILENCE);
-            string? err;
-            yield proc.communicate_utf8_async(null, null, null, out err);
-            if (!proc.get_if_exited() || proc.get_exit_status() != 0) {
-                int status = proc.get_if_exited() ? proc.get_exit_status() : -1;
-                if (status == 126 || status == 127) throw new FirewallError.FAILED(_("Permission was not given."));
-                string detail = (err ?? "").strip();
-                throw new FirewallError.FAILED(detail != "" ? detail : _("The firewall could not be changed."));
-            }
+            throw new FirewallError.NOT_AVAILABLE(_("No firewall is available on this system."));
         }
 
         public async void set_enabled(bool enabled) throws Error {
@@ -506,8 +475,6 @@ namespace Singularity {
             var firewalld = new FirewalldBackend(config.get_string("HomeZone", "home"),
                 config.get_string("PublicZone", "public"));
             var sinty = new SintyFirewallBackend();
-            var nft = new NftablesBackend(config.get_string("HelperCommand", FIREWALL_DEFAULT_HELPER),
-                config.get_string("StateFile", FIREWALL_DEFAULT_STATE));
             switch (choice) {
                 case "none":
                     backend = null;
@@ -518,13 +485,9 @@ namespace Singularity {
                 case "firewalld":
                     backend = (yield firewalld.is_available()) ? firewalld : null;
                     break;
-                case "nftables":
-                    backend = (yield nft.is_available()) ? nft : null;
-                    break;
                 default:
                     if (yield sinty.is_available()) backend = sinty;
                     else if (yield firewalld.is_available()) backend = firewalld;
-                    else if (yield nft.is_available()) backend = nft;
                     break;
             }
             ready = true;
