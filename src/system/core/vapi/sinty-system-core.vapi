@@ -338,4 +338,16 @@ namespace SintySystem {
 
     [CCode (cname = "sinty_gpu_nvidia")]
     public int gpu_nvidia (out NvidiaList list);
+    [Compact]
+    [CCode (cname = "SintyAudioGraph", free_function = "sinty_audio_graph_free")]
+    public class AudioGraph {
+        [CCode (cname = "sinty_audio_graph_count")]
+        public size_t count ();
+    }
+
+    [CCode (cname = "sinty_audio_graph")]
+    public int audio_graph (out AudioGraph graph);
+
+    [CCode (cname = "sinty_audio_set_controls")]
+    public int audio_set_controls (string node_name, [CCode (array_length = false)] string[] names, [CCode (array_length = false)] float[] values, size_t count);
 }

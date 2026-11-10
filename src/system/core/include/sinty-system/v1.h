@@ -312,6 +312,7 @@ size_t sinty_audio_graph_count(const SintyAudioGraph *graph);
 const SintyAudioObject *sinty_audio_graph_at(const SintyAudioGraph *graph, size_t index);
 void sinty_audio_graph_free(SintyAudioGraph *graph);
 const char *sinty_audio_object_prop(const SintyAudioObject *object, const char *key);
+int sinty_audio_set_controls(const char *node_name, const char *const *names, const float *values, size_t count);
 
 #ifdef __cplusplus
 }

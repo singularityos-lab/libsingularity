@@ -331,6 +331,16 @@ export fn sinty_audio_graph_free(g: ?*audio.Graph) void {
     if (g) |p| p.destroy();
 }
 
+export fn sinty_audio_set_controls(node_name: [*:0]const u8, names: ?[*]const ?[*:0]const u8, values: ?[*]const f32, count: usize) c_int {
+    var controls: [64]audio.Control = undefined;
+    if (count == 0 or count > controls.len) return sys.code(error.Invalid);
+    const ns = names orelse return sys.code(error.Invalid);
+    const vs = values orelse return sys.code(error.Invalid);
+    for (0..count) |i| controls[i] = .{ .name = span(ns[i] orelse return sys.code(error.Invalid)), .value = vs[i] };
+    audio.setControls(span(node_name), controls[0..count]) catch |e| return sys.code(e);
+    return 0;
+}
+
 export fn sinty_audio_object_prop(o: *const audio.Object, key: [*:0]const u8) ?[*:0]const u8 {
     const k = o.keys orelse return null;
     const v = o.values orelse return null;

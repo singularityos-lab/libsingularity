@@ -138,6 +138,18 @@ namespace Singularity {
             return sb.str;
         }
 
+        public void controls(double[] gains, out string[] names, out float[] values) {
+            var norm = normalize(gains);
+            string[] n = { "eq_preamp:Gain" };
+            float[] v = { (float) preamp(norm) };
+            for (int i = 0; i < COUNT; i++) {
+                n += "eq_band_%d:Gain".printf(i + 1);
+                v += (float) norm[i];
+            }
+            names = n;
+            values = v;
+        }
+
         public string control_params(double[] gains) {
             var norm = normalize(gains);
             var sb = new StringBuilder("{ params = [ ");
@@ -330,10 +342,15 @@ namespace Singularity {
 
         public async bool probe() {
             if (Environment.find_program_in_path("pipewire") == null) return false;
-            if (Environment.find_program_in_path("pw-cli") == null) return false;
-            string output;
-            bool ok = yield equalizer_run({ "pw-cli", "info", "0" }, 3000, out output);
-            return ok && output.contains("id: 0");
+            bool reachable = false;
+            SourceFunc resume = probe.callback;
+            new Thread<void>("equalizer-probe", () => {
+                SintySystem.AudioGraph graph;
+                reachable = SintySystem.audio_graph(out graph) == 0;
+                Idle.add((owned) resume);
+            });
+            yield;
+            return reachable;
         }
 
         public string? sink_for(string device) {
@@ -395,20 +412,27 @@ namespace Singularity {
 
         public async void update(string device, double[] gains) throws Error {
             double[] values = EqualizerBands.normalize(gains);
-            string params = EqualizerBands.control_params(values);
             string node = EqualizerBands.node_name(device);
             string conf_path = Path.build_filename(state_dir(), node + ".conf");
             if (FileUtils.test(conf_path, FileTest.IS_REGULAR)) {
                 string desc = descriptions.lookup(device) ?? device;
                 FileUtils.set_contents(conf_path, EqualizerBands.filter_chain_conf(node, desc, device, values));
             }
-            string id = yield find_node_id(node);
-            if (id == "") throw new EqualizerError.FAILED("equalizer node %s not found", node);
-            string output;
-            bool ok = yield equalizer_run({ "pw-cli", "set-param", id, "Props", params }, 3000, out output);
-            if (!ok) throw new EqualizerError.FAILED("pw-cli set-param failed");
+            string[] names;
+            float[] levels;
+            EqualizerBands.controls(values, out names, out levels);
+            int rc = 0;
+            SourceFunc resume = update.callback;
+            new Thread<void>("equalizer-update", () => {
+                rc = SintySystem.audio_set_controls(node, names, levels, names.length);
+                Idle.add((owned) resume);
+            });
+            yield;
+            if (rc == -Posix.ENOENT) throw new EqualizerError.FAILED("equalizer node %s not found", node);
+            if (rc < 0) throw new EqualizerError.FAILED("equalizer node %s refused the gains: %s", node, Posix.strerror(-rc));
         }
 
+        [Version (deprecated = true)]
         public static string parse_node_id(string listing, string node) {
             string current = "";
             foreach (string raw in listing.split("\n")) {
@@ -426,12 +450,6 @@ namespace Singularity {
                 }
             }
             return "";
-        }
-
-        private async string find_node_id(string node) {
-            string output;
-            if (!(yield equalizer_run({ "pw-cli", "ls", "Node" }, 3000, out output))) return "";
-            return parse_node_id(output, node);
         }
 
         public async void remove(string device) {

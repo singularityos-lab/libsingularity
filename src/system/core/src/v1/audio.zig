@@ -39,7 +39,9 @@ pub const Graph = sys.List(Object);
 
 const T = struct {
     const none: u32 = 1;
+    const id: u32 = 3;
     const int: u32 = 4;
+    const float: u32 = 6;
     const long: u32 = 5;
     const string: u32 = 8;
     const @"struct": u32 = 14;
@@ -118,6 +120,35 @@ pub const Builder = struct {
         @memcpy(b.buf[start..][0..s.len], s);
         @memset(b.buf[start + s.len .. start + pad8(s.len + 1)], 0);
         b.len += pad8(s.len + 1);
+    }
+
+    pub fn id(b: *Builder, v: u32) !void {
+        try b.header(4, T.id);
+        var x: [4]u8 = undefined;
+        std.mem.writeInt(u32, &x, v, .native);
+        try b.put(&x);
+    }
+
+    pub fn float(b: *Builder, v: f32) !void {
+        try b.header(4, T.float);
+        var x: [4]u8 = undefined;
+        std.mem.writeInt(u32, &x, @bitCast(v), .native);
+        try b.put(&x);
+    }
+
+    pub fn raw(b: *Builder, v: u32) !void {
+        if (b.len + 4 > b.buf.len) return error.TooBig;
+        std.mem.writeInt(u32, b.buf[b.len..][0..4], v, .native);
+        b.len += 4;
+    }
+
+    pub fn pushObject(b: *Builder, object_type: u32, object_id: u32) !void {
+        if (b.depth == b.stack.len) return error.TooBig;
+        b.stack[b.depth] = b.len;
+        b.depth += 1;
+        try b.header(0, 15);
+        try b.raw(object_type);
+        try b.raw(object_id);
     }
 
     pub fn push(b: *Builder) !void {
@@ -292,7 +323,13 @@ pub fn applyInfo(o: *Object, body: []const u8) !void {
     }
 }
 
-fn sync(c: *Conn, scratch: *std.ArrayList(u8), seq: i32, graph: *Graph, pending: []const Pending, globals: ?*std.ArrayList(Pending)) !void {
+const Watch = struct { name: []const u8, found: ?u32 = null, failed: ?u32 = null };
+
+fn sync(c: *Conn, scratch: *std.ArrayList(u8), seq: i32, graph: ?*Graph, pending: []const Pending, globals: ?*std.ArrayList(Pending)) !void {
+    return syncWatch(c, scratch, seq, graph, pending, globals, null);
+}
+
+fn syncWatch(c: *Conn, scratch: *std.ArrayList(u8), seq: i32, graph: ?*Graph, pending: []const Pending, globals: ?*std.ArrayList(Pending), watch: ?*Watch) !void {
     var b = Builder{};
     try b.push();
     try b.int(0);
@@ -324,11 +361,11 @@ fn sync(c: *Conn, scratch: *std.ArrayList(u8), seq: i32, graph: *Graph, pending:
                 3 => {
                     const id = podInt(r.next() orelse continue) orelse continue;
                     if (id == 0) return error.Io;
+                    if (watch) |w| w.failed = @bitCast(id);
                 },
                 else => {},
             }
         } else if (m.id == registry_id and m.opcode == 0) {
-            const list = globals orelse continue;
             var top = Reader{ .data = m.body };
             const s = top.next() orelse continue;
             var r = Reader{ .data = s.body };
@@ -336,25 +373,31 @@ fn sync(c: *Conn, scratch: *std.ArrayList(u8), seq: i32, graph: *Graph, pending:
             _ = r.next();
             const ty = podString(r.next() orelse continue) orelse continue;
             const k = kindOf(ty) orelse continue;
+            if (watch) |w| {
+                if (k != .node) continue;
+                _ = r.next();
+                const dict = r.next() orelse continue;
+                var probe = std.mem.zeroes(Object);
+                defer probe.deinit();
+                dictInto(&probe, dict) catch continue;
+                const name = probe.prop("node.name") orelse continue;
+                if (std.mem.eql(u8, name, w.name)) w.found = @bitCast(id);
+                continue;
+            }
+            const list = globals orelse continue;
             try list.append(sys.gpa, .{ .global = @bitCast(id), .kind = k, .proxy = 0 });
         } else if (m.opcode == 0) {
+            const g = graph orelse continue;
             for (pending, 0..) |p, i| {
                 if (p.proxy != m.id) continue;
-                applyInfo(&graph.items.items[i], m.body) catch {};
+                applyInfo(&g.items.items[i], m.body) catch {};
                 break;
             }
         }
     }
 }
 
-pub fn snapshotAt(path: [*:0]const u8) !*Graph {
-    const fd = try connect(path);
-    defer sys.close(fd);
-    var c = Conn{ .fd = fd };
-    defer c.in.deinit(sys.gpa);
-    var scratch: std.ArrayList(u8) = .empty;
-    defer scratch.deinit(sys.gpa);
-
+fn hello(c: *Conn) !void {
     var b = Builder{};
     try b.push();
     try b.int(4);
@@ -377,6 +420,17 @@ pub fn snapshotAt(path: [*:0]const u8) !*Graph {
     try b.int(@intCast(registry_id));
     b.pop();
     try c.send(0, 5, b.buf[0..b.len]);
+}
+
+pub fn snapshotAt(path: [*:0]const u8) !*Graph {
+    const fd = try connect(path);
+    defer sys.close(fd);
+    var c = Conn{ .fd = fd };
+    defer c.in.deinit(sys.gpa);
+    var scratch: std.ArrayList(u8) = .empty;
+    defer scratch.deinit(sys.gpa);
+    try hello(&c);
+    var b = Builder{};
 
     const graph = try Graph.create();
     errdefer graph.destroy();
@@ -400,6 +454,63 @@ pub fn snapshotAt(path: [*:0]const u8) !*Graph {
     }
     try sync(&c, &scratch, 2, graph, globals.items, null);
     return graph;
+}
+
+pub const Control = struct { name: []const u8, value: f32 };
+
+const prop_params: u32 = 0x80001;
+const object_props: u32 = 0x40002;
+const param_props: u32 = 2;
+
+pub fn controlsBody(b: *Builder, controls: []const Control) !void {
+    try b.push();
+    try b.id(param_props);
+    try b.int(0);
+    try b.pushObject(object_props, param_props);
+    try b.raw(prop_params);
+    try b.raw(0);
+    try b.push();
+    for (controls) |ctl| {
+        try b.string(ctl.name);
+        try b.float(ctl.value);
+    }
+    b.pop();
+    b.pop();
+    b.pop();
+}
+
+pub fn setControlsAt(path: [*:0]const u8, node_name: []const u8, controls: []const Control) !void {
+    if (controls.len == 0 or controls.len > 64) return error.Invalid;
+    const fd = try connect(path);
+    defer sys.close(fd);
+    var c = Conn{ .fd = fd };
+    defer c.in.deinit(sys.gpa);
+    var scratch: std.ArrayList(u8) = .empty;
+    defer scratch.deinit(sys.gpa);
+    try hello(&c);
+    var w = Watch{ .name = node_name };
+    try syncWatch(&c, &scratch, 1, null, &.{}, null, &w);
+    const global = w.found orelse return error.NotFound;
+    const proxy: u32 = 3;
+    var b = Builder{};
+    try b.push();
+    try b.int(@bitCast(global));
+    try b.string("PipeWire:Interface:Node");
+    try b.int(3);
+    try b.int(@bitCast(proxy));
+    b.pop();
+    try c.send(registry_id, 1, b.buf[0..b.len]);
+    b = Builder{};
+    try controlsBody(&b, controls);
+    try c.send(proxy, 3, b.buf[0..b.len]);
+    w.failed = null;
+    try syncWatch(&c, &scratch, 2, null, &.{}, null, &w);
+    if (w.failed) |id| if (id == proxy) return error.Access;
+}
+
+pub fn setControls(node_name: []const u8, controls: []const Control) !void {
+    var buf: [512]u8 = undefined;
+    return setControlsAt(try socketPath(&buf), node_name, controls);
 }
 
 pub fn snapshot() !*Graph {
@@ -454,6 +565,32 @@ test "link info gives the two node ids and its props" {
     try std.testing.expectEqual(@as(u32, 31), o.output_node);
     try std.testing.expectEqual(@as(u32, 32), o.input_node);
     try std.testing.expectEqualStrings("31", o.prop("link.output.node").?);
+}
+
+test "a Props param carries the control names and values" {
+    var b = Builder{};
+    try controlsBody(&b, &.{ .{ .name = "eq_band_1:Gain", .value = 3.5 }, .{ .name = "eq_band_2:Gain", .value = -2 } });
+    var top = Reader{ .data = b.buf[0..b.len] };
+    const s = top.next().?;
+    var r = Reader{ .data = s.body };
+    const pid = r.next().?;
+    try std.testing.expectEqual(T.id, pid.ty);
+    try std.testing.expectEqual(param_props, u32At(pid.body, 0));
+    try std.testing.expectEqual(@as(i32, 0), podInt(r.next().?).?);
+    const obj = r.next().?;
+    try std.testing.expectEqual(@as(u32, 15), obj.ty);
+    try std.testing.expectEqual(object_props, u32At(obj.body, 0));
+    try std.testing.expectEqual(param_props, u32At(obj.body, 4));
+    try std.testing.expectEqual(prop_params, u32At(obj.body, 8));
+    var inner = Reader{ .data = obj.body[16..] };
+    const list = inner.next().?;
+    try std.testing.expectEqual(T.@"struct", list.ty);
+    var lr = Reader{ .data = list.body };
+    try std.testing.expectEqualStrings("eq_band_1:Gain", podString(lr.next().?).?);
+    const v = lr.next().?;
+    try std.testing.expectEqual(T.float, v.ty);
+    try std.testing.expectEqual(@as(f32, 3.5), @as(f32, @bitCast(u32At(v.body, 0))));
+    try std.testing.expect(r.next() == null);
 }
 
 test "a truncated dict is refused" {

@@ -861,8 +861,8 @@ if get_option('system')
       'src/system/audio_manager.vala',
     ),
     c_args: power_c_args,
-    vala_args: ['--pkg', 'posix'],
-    dependencies: [gio_dep, giounix_dep, gee_dep, pulse_dep, pulse_glib_dep, m_dep],
+    vala_args: ['--pkg', 'posix'] + system_core_vala_args,
+    dependencies: [gio_dep, giounix_dep, gee_dep, pulse_dep, pulse_glib_dep, m_dep, system_core_dep],
   )
   test('equalizer', equalizer_test, env: ['TMPDIR=' + meson.current_build_dir()])
 

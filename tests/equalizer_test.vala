@@ -69,6 +69,62 @@ void test_conf () {
     assert (EqualizerBands.quote ("a\nb\\") == "\"ab\\\\\"");
 }
 
+void test_controls () {
+    string[] names;
+    float[] values;
+    EqualizerBands.controls ({ 6, 0, 0, 0, 0, 0, 0, 0, 0, -2 }, out names, out values);
+    assert (names.length == 11 && values.length == 11);
+    assert (names[0] == "eq_preamp:Gain" && values[0] == -6.0f);
+    assert (names[1] == "eq_band_1:Gain" && values[1] == 6.0f);
+    assert (names[10] == "eq_band_10:Gain" && values[10] == -2.0f);
+}
+
+void test_live_update () {
+    string? device = Environment.get_variable ("SINTY_EQ_TEST_DEVICE");
+    if (device == null) {
+        Test.skip ("set SINTY_EQ_TEST_DEVICE to a device whose equalizer node is running");
+        return;
+    }
+    var backend = new PipeWireEqualizerBackend ();
+    var loop = new MainLoop ();
+    Error? failure = null;
+    backend.apply.begin (device, "Test", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, (o, r) => {
+        try {
+            backend.apply.end (r);
+        } catch (Error e) {
+            failure = e;
+        }
+        loop.quit ();
+    });
+    loop.run ();
+    assert (failure == null);
+    for (int attempt = 0; attempt < 50; attempt++) {
+        failure = null;
+        backend.update.begin (device, { 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, (o, r) => {
+            try {
+                backend.update.end (r);
+            } catch (Error e) {
+                failure = e;
+            }
+            loop.quit ();
+        });
+        loop.run ();
+        if (failure == null) break;
+        Thread.usleep (100000);
+    }
+    assert (failure == null);
+    backend.update.begin ("no-such-device", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, (o, r) => {
+        try {
+            backend.update.end (r);
+        } catch (Error e) {
+            failure = e;
+        }
+        loop.quit ();
+    });
+    loop.run ();
+    assert (failure is EqualizerError.FAILED);
+}
+
 void test_parse_node_id () {
     string listing = "\tid 31, type PipeWire:Interface:Node/3\n \t\tfactory.id = \"11\"\n \t\tnode.name = \"alsa_output.x\"\n\tid 57, type PipeWire:Interface:Node/3\n \t\tnode.description = \"EQ\"\n \t\tnode.name = \"singularity-eq-abc\"\n";
     assert (PipeWireEqualizerBackend.parse_node_id (listing, "singularity-eq-abc") == "57");
@@ -118,6 +174,8 @@ int main (string[] args) {
     Test.add_func ("/equalizer/numbers", test_numbers);
     Test.add_func ("/equalizer/conf", test_conf);
     Test.add_func ("/equalizer/node-id", test_parse_node_id);
+    Test.add_func ("/equalizer/controls", test_controls);
+    Test.add_func ("/equalizer/live-update", test_live_update);
     Test.add_func ("/equalizer/store", test_store);
     Test.add_func ("/equalizer/backends", test_backends);
     return Test.run ();
