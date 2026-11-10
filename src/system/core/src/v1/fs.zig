@@ -779,7 +779,7 @@ fn f2fsProbe(d: Dev, out: *FsInfo) !bool {
 fn f2fsLabel(d: Dev, label: []const u8) !void {
     var name = std.mem.zeroes([1024]u8);
     const n = try utf16Encode(&name, label);
-    if (n > 512) return error.TooBig;
+    if (n > 1024) return error.TooBig;
     for ([_]u64{ 1024, 4096 + 1024 }) |off| {
         var m: [4]u8 = undefined;
         try d.readAt(off, &m);
