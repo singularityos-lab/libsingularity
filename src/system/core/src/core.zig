@@ -8,6 +8,7 @@ pub const device = @import("v1/device.zig");
 pub const net = @import("v1/net.zig");
 pub const i18n = @import("v1/i18n.zig");
 pub const gpu = @import("v1/gpu.zig");
+pub const firewall = @import("v1/firewall.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -294,6 +295,24 @@ export fn sinty_gpu_nvidia_list_free(l: ?*gpu.NvidiaList) void {
     if (l) |p| p.destroy();
 }
 
+export fn sinty_firewall_apply(enabled: bool, public_profile: bool, specs: ?[*]const ?[*:0]const u8, comments: ?[*]const ?[*:0]const u8, count: usize) c_int {
+    var ports: [256]firewall.Port = undefined;
+    var n: usize = 0;
+    var i: usize = 0;
+    while (i < count) : (i += 1) {
+        const spec = (specs orelse return sys.code(error.Invalid))[i] orelse return sys.code(error.Invalid);
+        const comment: []const u8 = if (comments) |c| (if (c[i]) |p| span(p) else "") else "";
+        n += firewall.parsePorts(span(spec), comment, ports[n..]) catch |e| return sys.code(e);
+    }
+    firewall.apply(.{ .enabled = enabled, .public_profile = public_profile, .ports = ports[0..n] }) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_firewall_summary(out: *firewall.Summary) c_int {
+    firewall.summary(out) catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -304,6 +323,7 @@ test {
     _ = net;
     _ = i18n;
     _ = gpu;
+    _ = firewall;
 }
 
 test "a tcp connection shows up with its owner and counters" {

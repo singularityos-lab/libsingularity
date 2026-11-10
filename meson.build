@@ -488,6 +488,7 @@ if get_option('system')
     'src/system/core/src/v1/net.zig',
     'src/system/core/src/v1/i18n.zig',
     'src/system/core/src/v1/gpu.zig',
+    'src/system/core/src/v1/firewall.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''

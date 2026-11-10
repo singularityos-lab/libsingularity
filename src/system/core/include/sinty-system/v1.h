@@ -1,6 +1,7 @@
 #ifndef SINTY_SYSTEM_V1_H
 #define SINTY_SYSTEM_V1_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -275,6 +276,18 @@ int sinty_gpu_nvidia(SintyNvidiaList **out);
 size_t sinty_gpu_nvidia_list_count(const SintyNvidiaList *list);
 const SintyNvidiaGpu *sinty_gpu_nvidia_list_at(const SintyNvidiaList *list, size_t index);
 void sinty_gpu_nvidia_list_free(SintyNvidiaList *list);
+
+typedef struct {
+    uint8_t table_present;
+    uint8_t chain_present;
+    uint8_t chain_policy_drop;
+    uint8_t pad;
+    uint32_t rules;
+    char comments[16][64];
+} SintyFirewallSummary;
+
+int sinty_firewall_apply(bool enabled, bool public_profile, const char *const *port_specs, const char *const *comments, size_t count);
+int sinty_firewall_summary(SintyFirewallSummary *out);
 
 #ifdef __cplusplus
 }
