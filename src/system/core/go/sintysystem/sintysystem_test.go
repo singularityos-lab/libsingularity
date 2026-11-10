@@ -579,3 +579,24 @@ func TestBuildErofs(t *testing.T) {
 		t.Fatalf("file as source: %v", err)
 	}
 }
+
+func TestMakeF2fs(t *testing.T) {
+	img := filepath.Join(t.TempDir(), "f2fs.img")
+	f, err := os.Create(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Truncate(96 << 20)
+	f.Close()
+	if err := MakeF2fs(img, "Dati"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetFilesystemLabel(img, "Nuovo"); err != nil {
+		t.Fatal(err)
+	}
+	small := filepath.Join(t.TempDir(), "small.img")
+	os.WriteFile(small, make([]byte, 4<<20), 0o644)
+	if err := MakeF2fs(small, ""); !errors.Is(err, syscall.EFBIG) {
+		t.Fatalf("tiny device: %v", err)
+	}
+}

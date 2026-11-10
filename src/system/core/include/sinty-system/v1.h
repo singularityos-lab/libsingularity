@@ -418,6 +418,7 @@ int sinty_fs_mkfs_vfat(const char *path, const char *label, uint8_t bits);
 int sinty_fs_mkfs_exfat(const char *path, const char *label);
 int sinty_fs_mkfs_ext4(const char *path, const char *label);
 int sinty_fs_mkfs_ext4_encrypted(const char *path, const char *label);
+int sinty_fs_mkfs_f2fs(const char *path, const char *label);
 int sinty_fs_ext4_grow(const char *path, uint64_t bytes, uint64_t *out_bytes);
 
 typedef struct {

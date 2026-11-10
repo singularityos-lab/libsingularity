@@ -631,6 +631,13 @@ func MakeExt4(path, label string) error {
 	return check(C.sinty_fs_mkfs_ext4(p, l))
 }
 
+func MakeF2fs(path, label string) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_fs_mkfs_f2fs(p, l))
+}
+
 func MakeExt4Encrypted(path, label string) error {
 	p, l := C.CString(path), C.CString(label)
 	defer C.free(unsafe.Pointer(p))

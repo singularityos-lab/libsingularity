@@ -33,6 +33,7 @@ pub const fscrypt = @import("v1/fscrypt.zig");
 pub const mounts = @import("v1/mount.zig");
 pub const fsck = @import("v1/fsck.zig");
 pub const erofs = @import("v1/erofs.zig");
+pub const f2fs = @import("v1/f2fs.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -577,6 +578,13 @@ export fn sinty_fs_mkfs_ext4(path: [*:0]const u8, label: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_fs_mkfs_f2fs(path: [*:0]const u8, label: [*:0]const u8) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    f2fs.mkfs(d, span(label)) catch |e| return sys.code(e);
+    return 0;
+}
+
 export fn sinty_fs_mkfs_ext4_encrypted(path: [*:0]const u8, label: [*:0]const u8) c_int {
     var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
     defer d.close();
@@ -985,6 +993,7 @@ test {
     _ = mounts;
     _ = fsck;
     _ = erofs;
+    _ = f2fs;
 }
 
 test "a tcp connection shows up with its owner and counters" {

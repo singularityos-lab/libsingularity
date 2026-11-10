@@ -776,6 +776,18 @@ fn f2fsProbe(d: Dev, out: *FsInfo) !bool {
     return true;
 }
 
+fn f2fsLabel(d: Dev, label: []const u8) !void {
+    var name = std.mem.zeroes([1024]u8);
+    const n = try utf16Encode(&name, label);
+    if (n > 512) return error.TooBig;
+    for ([_]u64{ 1024, 4096 + 1024 }) |off| {
+        var m: [4]u8 = undefined;
+        try d.readAt(off, &m);
+        if (std.mem.readInt(u32, &m, .little) != 0xf2f52010) continue;
+        try d.writeAt(off + 124, &name);
+    }
+}
+
 fn erofsProbe(d: Dev, out: *FsInfo) !bool {
     var b: [1024 + 128]u8 = undefined;
     d.readAt(0, &b) catch return false;
@@ -841,7 +853,7 @@ pub fn probe(d: Dev) !FsInfo {
 pub fn setLabel(d: Dev, label: []const u8) !void {
     const info = try probe(d);
     const t = sys.cstr(&info.type);
-    if (std.mem.startsWith(u8, t, "ext")) try extLabel(d, label) else if (std.mem.eql(u8, t, "vfat")) try fatLabel(d, label) else if (std.mem.eql(u8, t, "exfat")) try exfatLabel(d, label) else if (std.mem.eql(u8, t, "btrfs")) try btrfsLabel(d, label) else if (std.mem.eql(u8, t, "xfs")) try xfsLabel(d, label) else if (std.mem.eql(u8, t, "swap")) try swapLabel(d, label) else return error.Unsupported;
+    if (std.mem.startsWith(u8, t, "ext")) try extLabel(d, label) else if (std.mem.eql(u8, t, "vfat")) try fatLabel(d, label) else if (std.mem.eql(u8, t, "exfat")) try exfatLabel(d, label) else if (std.mem.eql(u8, t, "btrfs")) try btrfsLabel(d, label) else if (std.mem.eql(u8, t, "xfs")) try xfsLabel(d, label) else if (std.mem.eql(u8, t, "swap")) try swapLabel(d, label) else if (std.mem.eql(u8, t, "f2fs")) try f2fsLabel(d, label) else return error.Unsupported;
     try d.sync();
 }
 
