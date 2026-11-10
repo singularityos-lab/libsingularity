@@ -1006,3 +1006,109 @@ func SetSystemLanguage(lang string) error {
 	defer C.free(unsafe.Pointer(l))
 	return check(C.sinty_language_set(l))
 }
+
+type Printer struct {
+	Name, URI, Info, Location, MakeModel string
+	State, Queued                        uint32
+	Accepting, Default                   bool
+}
+
+type PrintJob struct {
+	ID, State  uint32
+	Name       string
+	PrinterURI string
+	User       string
+	Created    int64
+	KBytes     uint32
+}
+
+func printServer(server string) *C.char {
+	if server == "" {
+		return nil
+	}
+	return C.CString(server)
+}
+
+func printerFrom(p *C.SintyPrinter) Printer {
+	return Printer{
+		Name: text(p.name[:]), URI: text(p.uri[:]), Info: text(p.info[:]), Location: text(p.location[:]),
+		MakeModel: text(p.make_model[:]), State: uint32(p.state), Queued: uint32(p.queued),
+		Accepting: bool(p.accepting), Default: bool(p.is_default),
+	}
+}
+
+func Printers(server string) ([]Printer, error) {
+	s := printServer(server)
+	defer C.free(unsafe.Pointer(s))
+	var l *C.SintyPrinters
+	if err := check(C.sinty_print_printers(s, &l)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_print_printers_free(l)
+	var out []Printer
+	for i := C.size_t(0); i < C.sinty_print_printers_count(l); i++ {
+		out = append(out, printerFrom(C.sinty_print_printers_at(l, i)))
+	}
+	return out, nil
+}
+
+func DefaultPrinter(server string) (string, error) {
+	s := printServer(server)
+	defer C.free(unsafe.Pointer(s))
+	var buf [128]C.char
+	if err := check(C.sinty_print_default(s, &buf[0], C.size_t(len(buf)))); err != nil {
+		return "", err
+	}
+	return text(buf[:]), nil
+}
+
+func PrinterInfo(server, queue string) (Printer, error) {
+	s, q := printServer(server), C.CString(queue)
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(q))
+	var p C.SintyPrinter
+	if err := check(C.sinty_print_printer(s, q, &p)); err != nil {
+		return Printer{}, err
+	}
+	return printerFrom(&p), nil
+}
+
+func PrintJobs(server, queue string, completed bool) ([]PrintJob, error) {
+	s, q := printServer(server), C.CString(queue)
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(q))
+	var l *C.SintyPrintJobs
+	if err := check(C.sinty_print_jobs(s, q, C.bool(completed), &l)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_print_jobs_free(l)
+	var out []PrintJob
+	for i := C.size_t(0); i < C.sinty_print_jobs_count(l); i++ {
+		j := C.sinty_print_jobs_at(l, i)
+		out = append(out, PrintJob{
+			ID: uint32(j.id), State: uint32(j.state), Name: text(j.name[:]), PrinterURI: text(j.printer_uri[:]),
+			User: text(j.user[:]), Created: int64(j.created), KBytes: uint32(j.kbytes),
+		})
+	}
+	return out, nil
+}
+
+func PrintFile(server, queue, path, title string, copies int) (uint32, error) {
+	s, q, p, t := printServer(server), C.CString(queue), C.CString(path), C.CString(title)
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(q))
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(t))
+	var id C.uint32_t
+	if err := check(C.sinty_print_file(s, q, p, t, C.int(copies), &id)); err != nil {
+		return 0, err
+	}
+	return uint32(id), nil
+}
+
+func CancelPrintJob(server, queue string, id uint32) error {
+	s, q := printServer(server), C.CString(queue)
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(q))
+	return check(C.sinty_print_cancel(s, q, C.uint32_t(id)))
+}

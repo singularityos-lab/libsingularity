@@ -569,6 +569,46 @@ int sinty_hostname_set(const char *static_name, const char *pretty);
 int sinty_language_get(char *buf, size_t len);
 int sinty_language_set(const char *lang);
 
+typedef struct SintyPrinters SintyPrinters;
+typedef struct SintyPrintJobs SintyPrintJobs;
+
+typedef struct {
+    char name[128];
+    char uri[256];
+    char info[256];
+    char location[256];
+    char make_model[256];
+    uint32_t state;
+    uint32_t queued;
+    bool accepting;
+    bool is_default;
+    uint8_t pad[6];
+} SintyPrinter;
+
+typedef struct {
+    uint32_t id;
+    uint32_t state;
+    char name[256];
+    char printer_uri[256];
+    char user[64];
+    int64_t created;
+    uint32_t kbytes;
+    uint32_t pad;
+} SintyPrintJob;
+
+int sinty_print_printers(const char *server, SintyPrinters **out);
+size_t sinty_print_printers_count(const SintyPrinters *l);
+const SintyPrinter *sinty_print_printers_at(const SintyPrinters *l, size_t i);
+void sinty_print_printers_free(SintyPrinters *l);
+int sinty_print_default(const char *server, char *name, size_t len);
+int sinty_print_printer(const char *server, const char *queue, SintyPrinter *out);
+int sinty_print_jobs(const char *server, const char *queue, bool completed, SintyPrintJobs **out);
+size_t sinty_print_jobs_count(const SintyPrintJobs *l);
+const SintyPrintJob *sinty_print_jobs_at(const SintyPrintJobs *l, size_t i);
+void sinty_print_jobs_free(SintyPrintJobs *l);
+int sinty_print_file(const char *server, const char *queue, const char *path, const char *title, int copies, uint32_t *job);
+int sinty_print_cancel(const char *server, const char *queue, uint32_t job);
+
 #ifdef __cplusplus
 }
 #endif

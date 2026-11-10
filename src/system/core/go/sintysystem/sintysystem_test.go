@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestVersion(t *testing.T) {
@@ -254,5 +255,64 @@ func TestAccountsDaemon(t *testing.T) {
 	}
 	if err := SetHostname("bad name", ""); !errors.Is(err, syscall.EINVAL) {
 		t.Errorf("bad host name gave %v", err)
+	}
+}
+
+func TestPrintWithoutServer(t *testing.T) {
+	missing := "/nonexistent-sinty/cups.sock"
+	if _, err := Printers(missing); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("printers without a server: %v", err)
+	}
+	if _, err := PrinterInfo(missing, "../etc"); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("bad queue name gave %v", err)
+	}
+	if _, err := Printers("example.com:631"); !errors.Is(err, syscall.EOPNOTSUPP) {
+		t.Errorf("remote server gave %v", err)
+	}
+}
+
+func TestPrintTorchio(t *testing.T) {
+	sock, queue := os.Getenv("SINTY_TORCHIO_SOCKET"), os.Getenv("SINTY_TORCHIO_PRINTER")
+	if sock == "" || queue == "" {
+		t.Skip("SINTY_TORCHIO_SOCKET is not set")
+	}
+	list, err := Printers(sock)
+	if err != nil || len(list) == 0 {
+		t.Fatalf("printers: %+v %v", list, err)
+	}
+	if def, err := DefaultPrinter(sock); err != nil || def != queue {
+		t.Errorf("default: %q %v", def, err)
+	}
+	if p, err := PrinterInfo(sock, queue); err != nil || p.Name != queue || !p.Accepting {
+		t.Errorf("printer: %+v %v", p, err)
+	}
+	doc := filepath.Join(t.TempDir(), "lettera.txt")
+	if err := os.WriteFile(doc, []byte("Lettera di prova\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	id, err := PrintFile(sock, queue, doc, "", 1)
+	if err != nil || id == 0 {
+		t.Fatalf("print: %d %v", id, err)
+	}
+	found := false
+	for try := 0; try < 50 && !found; try++ {
+		for _, done := range []bool{false, true} {
+			jobs, err := PrintJobs(sock, queue, done)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, j := range jobs {
+				if j.ID == id && j.Name == "lettera.txt" {
+					found = true
+				}
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !found {
+		t.Errorf("job %d never showed up", id)
+	}
+	if err := CancelPrintJob(sock, queue, 99999); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("cancel of a missing job gave %v", err)
 	}
 }

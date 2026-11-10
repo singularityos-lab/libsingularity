@@ -21,6 +21,7 @@ pub const bluetooth = @import("v1/bluetooth.zig");
 pub const notify = @import("v1/notify.zig");
 pub const input = @import("v1/input.zig");
 pub const accounts = @import("v1/accounts.zig");
+pub const print = @import("v1/print.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -868,6 +869,7 @@ test {
     _ = disk;
     _ = fs;
     _ = crypt;
+    _ = print;
 }
 
 test "a tcp connection shows up with its owner and counters" {
@@ -903,4 +905,78 @@ test "a tcp connection shows up with its owner and counters" {
     }
     try std.testing.expect(client_found);
     try std.testing.expect(server_found);
+}
+
+fn printServer(addr: ?[*:0]const u8) !print.Server {
+    if (addr) |a| return print.Server.parse(span(a));
+    return print.Server.default();
+}
+
+export fn sinty_print_printers(server: ?[*:0]const u8, out: *?*print.Printers) c_int {
+    const s = printServer(server) catch |e| return sys.code(e);
+    out.* = print.printers(&s) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_print_printers_count(l: *const print.Printers) usize {
+    return l.count();
+}
+
+export fn sinty_print_printers_at(l: *const print.Printers, i: usize) ?*const print.Printer {
+    return l.at(i);
+}
+
+export fn sinty_print_printers_free(l: ?*print.Printers) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_print_default(server: ?[*:0]const u8, name: [*]u8, len: usize) c_int {
+    if (len == 0) return sys.code(error.Invalid);
+    const s = printServer(server) catch |e| return sys.code(e);
+    _ = print.defaultPrinter(&s, name[0..len]) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_print_printer(server: ?[*:0]const u8, queue: [*:0]const u8, out: *print.Printer) c_int {
+    const s = printServer(server) catch |e| return sys.code(e);
+    var q = print.Queue{};
+    q.init(&s, span(queue)) catch |e| return sys.code(e);
+    out.* = print.printer(&s, q.uri, q.resource) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_print_jobs(server: ?[*:0]const u8, queue: [*:0]const u8, completed: bool, out: *?*print.Jobs) c_int {
+    const s = printServer(server) catch |e| return sys.code(e);
+    var q = print.Queue{};
+    q.init(&s, span(queue)) catch |e| return sys.code(e);
+    out.* = print.jobs(&s, q.uri, q.resource, completed) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_print_jobs_count(l: *const print.Jobs) usize {
+    return l.count();
+}
+
+export fn sinty_print_jobs_at(l: *const print.Jobs, i: usize) ?*const print.Job {
+    return l.at(i);
+}
+
+export fn sinty_print_jobs_free(l: ?*print.Jobs) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_print_file(server: ?[*:0]const u8, queue: [*:0]const u8, path: [*:0]const u8, title: ?[*:0]const u8, copies: c_int, job: *u32) c_int {
+    const s = printServer(server) catch |e| return sys.code(e);
+    var q = print.Queue{};
+    q.init(&s, span(queue)) catch |e| return sys.code(e);
+    job.* = print.printFile(&s, q.uri, q.resource, path, if (title) |t| span(t) else "", copies) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_print_cancel(server: ?[*:0]const u8, queue: [*:0]const u8, job: u32) c_int {
+    const s = printServer(server) catch |e| return sys.code(e);
+    var q = print.Queue{};
+    q.init(&s, span(queue)) catch |e| return sys.code(e);
+    print.cancel(&s, q.uri, q.resource, job) catch |e| return sys.code(e);
+    return 0;
 }
