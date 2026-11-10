@@ -631,6 +631,40 @@ int sinty_settings_set_strv(const char *schema, const char *path, const char *ke
 int sinty_settings_reset(const char *schema, const char *path, const char *key);
 int sinty_settings_writable(const char *schema, const char *path, const char *key, bool *out);
 
+typedef struct SintyLogEntries SintyLogEntries;
+typedef struct SintyLogBoots SintyLogBoots;
+
+typedef struct {
+    uint64_t realtime_usec;
+    uint64_t monotonic_usec;
+    uint64_t seq;
+    int32_t pid;
+    uint8_t priority;
+    uint8_t pad[3];
+    char boot_id[40];
+    char identifier[64];
+    char unit[128];
+    char message[2048];
+} SintyLogEntry;
+
+typedef struct {
+    char id[40];
+    uint64_t first_usec;
+    uint64_t last_usec;
+    uint64_t entries;
+} SintyLogBoot;
+
+int sinty_logs_kernel(SintyLogEntries **out);
+int sinty_logs_journal(const char *dir, const char *boot, int max_priority, const char *unit, size_t limit, SintyLogEntries **out);
+size_t sinty_logs_entries_count(const SintyLogEntries *l);
+const SintyLogEntry *sinty_logs_entries_at(const SintyLogEntries *l, size_t i);
+void sinty_logs_entries_free(SintyLogEntries *l);
+int sinty_logs_boots(const char *dir, SintyLogBoots **out);
+size_t sinty_logs_boots_count(const SintyLogBoots *l);
+const SintyLogBoot *sinty_logs_boots_at(const SintyLogBoots *l, size_t i);
+void sinty_logs_boots_free(SintyLogBoots *l);
+bool sinty_logs_journal_available(const char *dir);
+
 #ifdef __cplusplus
 }
 #endif

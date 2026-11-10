@@ -410,3 +410,30 @@ func TestSettingsDefaults(t *testing.T) {
 		t.Errorf("missing schema gave %v", err)
 	}
 }
+
+func TestJournalFixtures(t *testing.T) {
+	dir := os.Getenv("SINTY_JOURNAL_FIXTURES")
+	if dir == "" {
+		t.Skip("SINTY_JOURNAL_FIXTURES is not set")
+	}
+	if !JournalAvailable(dir) || JournalAvailable("/nonexistent-sinty") {
+		t.Fatal("availability is wrong")
+	}
+	boots, err := JournalBoots(dir)
+	if err != nil || len(boots) == 0 {
+		t.Fatalf("boots %v %v", boots, err)
+	}
+	last := boots[len(boots)-1]
+	entries, err := Journal(dir, last.ID, 7, "", 20)
+	if err != nil || len(entries) == 0 || len(entries) > 20 {
+		t.Fatalf("entries %d %v", len(entries), err)
+	}
+	for _, e := range entries {
+		if e.BootID != last.ID || e.Realtime < last.First || e.Realtime > last.Last {
+			t.Errorf("entry outside its boot: %+v", e)
+		}
+	}
+	if _, err := Journal(dir, "not-a-boot", 7, "", 1); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("bad boot id gave %v", err)
+	}
+}

@@ -27,6 +27,7 @@ pub const clipboard = @import("v1/clipboard.zig");
 pub const gvariant = @import("v1/gvariant.zig");
 pub const gvdb = @import("v1/gvdb.zig");
 pub const settings = @import("v1/settings.zig");
+pub const logs = @import("v1/logs.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -880,6 +881,7 @@ test {
     _ = gvariant;
     _ = gvdb;
     _ = settings;
+    _ = logs;
 }
 
 test "a tcp connection shows up with its owner and counters" {
@@ -1181,4 +1183,75 @@ export fn sinty_settings_writable(schema: [*:0]const u8, path: ?[*:0]const u8, k
     const k = settingsKey(&store, schema, path, key) catch |e| return sys.code(e);
     out.* = store.writable(&k) catch |e| return sys.code(e);
     return 0;
+}
+
+fn journalFiles(files: *logs.Files, dir: ?[*:0]const u8) !void {
+    if (dir) |d| return files.under(span(d));
+    try files.system();
+}
+
+fn journalFilter(boot: ?[*:0]const u8, max_priority: c_int, unit: ?[*:0]const u8, limit: usize) !logs.Filter {
+    var f = logs.Filter{ .max_priority = @intCast(std.math.clamp(max_priority, 0, 7)), .limit = if (limit == 0) 1000 else limit };
+    if (unit) |u| f.unit = span(u);
+    if (boot) |b| {
+        if (std.mem.eql(u8, span(b), "current")) {
+            var id: [40]u8 = undefined;
+            try logs.currentBoot(&id);
+            f.boot = id[0..32].*;
+        } else f.boot = try logs.parseBoot(span(b));
+    }
+    return f;
+}
+
+export fn sinty_logs_kernel(out: *?*logs.Entries) c_int {
+    out.* = logs.kernel("/run/log/kernel.log") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_logs_journal(dir: ?[*:0]const u8, boot: ?[*:0]const u8, max_priority: c_int, unit: ?[*:0]const u8, limit: usize, out: *?*logs.Entries) c_int {
+    const f = journalFilter(boot, max_priority, unit, limit) catch |e| return sys.code(e);
+    var files = logs.Files{};
+    defer files.deinit();
+    journalFiles(&files, dir) catch |e| return sys.code(e);
+    out.* = logs.query(&files, f) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_logs_entries_count(l: *const logs.Entries) usize {
+    return l.count();
+}
+
+export fn sinty_logs_entries_at(l: *const logs.Entries, i: usize) ?*const logs.Entry {
+    return l.at(i);
+}
+
+export fn sinty_logs_entries_free(l: ?*logs.Entries) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_logs_boots(dir: ?[*:0]const u8, out: *?*logs.Boots) c_int {
+    var files = logs.Files{};
+    defer files.deinit();
+    journalFiles(&files, dir) catch |e| return sys.code(e);
+    out.* = logs.boots(&files) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_logs_boots_count(l: *const logs.Boots) usize {
+    return l.count();
+}
+
+export fn sinty_logs_boots_at(l: *const logs.Boots, i: usize) ?*const logs.Boot {
+    return l.at(i);
+}
+
+export fn sinty_logs_boots_free(l: ?*logs.Boots) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_logs_journal_available(dir: ?[*:0]const u8) bool {
+    var files = logs.Files{};
+    defer files.deinit();
+    journalFiles(&files, dir) catch return false;
+    return files.paths.items.len > 0;
 }

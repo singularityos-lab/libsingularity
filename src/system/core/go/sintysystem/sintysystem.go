@@ -1301,3 +1301,85 @@ func (k SettingsKey) Reset() error {
 	defer freeKey(s, p, n)
 	return check(C.sinty_settings_reset(s, p, n))
 }
+
+type LogEntry struct {
+	Realtime, Monotonic uint64
+	Seq                 uint64
+	PID                 int32
+	Priority            uint8
+	BootID              string
+	Identifier          string
+	Unit                string
+	Message             string
+}
+
+type LogBoot struct {
+	ID          string
+	First, Last uint64
+	Entries     uint64
+}
+
+func logEntries(l *C.SintyLogEntries) []LogEntry {
+	defer C.sinty_logs_entries_free(l)
+	n := int(C.sinty_logs_entries_count(l))
+	out := make([]LogEntry, 0, n)
+	for i := 0; i < n; i++ {
+		e := C.sinty_logs_entries_at(l, C.size_t(i))
+		out = append(out, LogEntry{
+			Realtime: uint64(e.realtime_usec), Monotonic: uint64(e.monotonic_usec), Seq: uint64(e.seq),
+			PID: int32(e.pid), Priority: uint8(e.priority), BootID: text(e.boot_id[:]),
+			Identifier: text(e.identifier[:]), Unit: text(e.unit[:]), Message: text(e.message[:]),
+		})
+	}
+	return out
+}
+
+func optString(s string) *C.char {
+	if s == "" {
+		return nil
+	}
+	return C.CString(s)
+}
+
+func KernelLog() ([]LogEntry, error) {
+	var l *C.SintyLogEntries
+	if err := check(C.sinty_logs_kernel(&l)); err != nil {
+		return nil, err
+	}
+	return logEntries(l), nil
+}
+
+func Journal(dir, boot string, maxPriority int, unit string, limit int) ([]LogEntry, error) {
+	d, b, u := optString(dir), optString(boot), optString(unit)
+	defer C.free(unsafe.Pointer(d))
+	defer C.free(unsafe.Pointer(b))
+	defer C.free(unsafe.Pointer(u))
+	var l *C.SintyLogEntries
+	if err := check(C.sinty_logs_journal(d, b, C.int(maxPriority), u, C.size_t(limit), &l)); err != nil {
+		return nil, err
+	}
+	return logEntries(l), nil
+}
+
+func JournalBoots(dir string) ([]LogBoot, error) {
+	d := optString(dir)
+	defer C.free(unsafe.Pointer(d))
+	var l *C.SintyLogBoots
+	if err := check(C.sinty_logs_boots(d, &l)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_logs_boots_free(l)
+	n := int(C.sinty_logs_boots_count(l))
+	out := make([]LogBoot, 0, n)
+	for i := 0; i < n; i++ {
+		b := C.sinty_logs_boots_at(l, C.size_t(i))
+		out = append(out, LogBoot{ID: text(b.id[:]), First: uint64(b.first_usec), Last: uint64(b.last_usec), Entries: uint64(b.entries)})
+	}
+	return out, nil
+}
+
+func JournalAvailable(dir string) bool {
+	d := optString(dir)
+	defer C.free(unsafe.Pointer(d))
+	return bool(C.sinty_logs_journal_available(d))
+}

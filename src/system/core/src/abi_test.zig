@@ -37,4 +37,6 @@ test "header layouts match the exported structs" {
     try same(core.accounts.Names, c.SintyHostNames);
     try same(core.print.Printer, c.SintyPrinter);
     try same(core.print.Job, c.SintyPrintJob);
+    try same(core.logs.Entry, c.SintyLogEntry);
+    try same(core.logs.Boot, c.SintyLogBoot);
 }

@@ -510,6 +510,7 @@ if get_option('system')
     'src/system/core/src/v1/gvariant.zig',
     'src/system/core/src/v1/gvdb.zig',
     'src/system/core/src/v1/settings.zig',
+    'src/system/core/src/v1/logs.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''
