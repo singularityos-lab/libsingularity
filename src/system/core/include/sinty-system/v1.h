@@ -419,6 +419,23 @@ int sinty_fs_mkfs_exfat(const char *path, const char *label);
 int sinty_fs_mkfs_ext4(const char *path, const char *label);
 int sinty_fs_mkfs_ext4_encrypted(const char *path, const char *label);
 int sinty_fs_ext4_grow(const char *path, uint64_t bytes, uint64_t *out_bytes);
+
+typedef struct {
+    uint32_t errors;
+    uint32_t fixed;
+    uint32_t lost_clusters;
+    uint32_t cross_links;
+    uint32_t bad_chains;
+    uint32_t size_mismatches;
+    uint32_t fat_mismatches;
+    uint32_t dirty;
+    uint32_t counters;
+    uint32_t files;
+    uint32_t dirs;
+    char message[256];
+} SintyFsCheck;
+
+int sinty_fs_check(const char *path, bool repair, SintyFsCheck *out);
 int sinty_mount(const char *source, const char *target, const char *fstype, const char *options);
 int sinty_unmount(const char *target, bool lazy);
 int sinty_mount_find(const char *device, char *target, size_t len);

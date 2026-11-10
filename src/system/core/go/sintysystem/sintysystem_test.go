@@ -529,3 +529,33 @@ func TestMountHelpers(t *testing.T) {
 		t.Fatal("unmount of a plain directory succeeded")
 	}
 }
+
+func TestCheckFilesystem(t *testing.T) {
+	img := filepath.Join(t.TempDir(), "fs.img")
+	f, err := os.Create(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Truncate(48 << 20)
+	f.Close()
+	if err := MakeExfat(img, "Prova"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := CheckFilesystem(img, false)
+	if err != nil || !r.Clean() || r.Errors != 0 {
+		t.Fatalf("fresh volume: %+v %v", r, err)
+	}
+	raw, _ := os.ReadFile(img)
+	raw[0x6a] |= 2
+	os.WriteFile(img, raw, 0o644)
+	r, _ = CheckFilesystem(img, false)
+	if !r.Dirty || r.Clean() || r.Message == "" {
+		t.Fatalf("dirty volume: %+v", r)
+	}
+	if r, err = CheckFilesystem(img, true); err != nil || !r.Clean() {
+		t.Fatalf("repair: %+v %v", r, err)
+	}
+	if r, _ = CheckFilesystem(img, false); r.Errors != 0 {
+		t.Fatalf("after repair: %+v", r)
+	}
+}

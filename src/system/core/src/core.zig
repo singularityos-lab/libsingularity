@@ -31,6 +31,7 @@ pub const logs = @import("v1/logs.zig");
 pub const conf = @import("v1/conf.zig");
 pub const fscrypt = @import("v1/fscrypt.zig");
 pub const mounts = @import("v1/mount.zig");
+pub const fsck = @import("v1/fsck.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -610,6 +611,13 @@ export fn sinty_mount_find(dev: [*:0]const u8, target: [*]u8, len: usize) c_int 
     return 1;
 }
 
+export fn sinty_fs_check(path: [*:0]const u8, repair: bool, out: *fsck.Report) c_int {
+    var d = fs.Dev.open(path, repair) catch |e| return sys.code(e);
+    defer d.close();
+    out.* = fsck.check(d, repair) catch |e| return sys.code(e);
+    return 0;
+}
+
 export fn sinty_fscrypt_identifier(raw: [*]const u8, len: usize, id: *fscrypt.Id) void {
     id.* = fscrypt.identifier(raw[0..len]);
 }
@@ -954,6 +962,7 @@ test {
     _ = conf;
     _ = fscrypt;
     _ = mounts;
+    _ = fsck;
 }
 
 test "a tcp connection shows up with its owner and counters" {

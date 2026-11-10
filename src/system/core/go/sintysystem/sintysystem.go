@@ -672,6 +672,40 @@ func MountPointOf(device string) (string, error) {
 	return text(buf), nil
 }
 
+type FsCheck struct {
+	Errors         uint32
+	Fixed          uint32
+	LostClusters   uint32
+	CrossLinks     uint32
+	BadChains      uint32
+	SizeMismatches uint32
+	FatMismatches  uint32
+	Dirty          bool
+	Counters       uint32
+	Files          uint32
+	Dirs           uint32
+	Message        string
+}
+
+func (c FsCheck) Clean() bool {
+	return c.Errors == c.Fixed
+}
+
+func CheckFilesystem(path string, repair bool) (FsCheck, error) {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	var r C.SintyFsCheck
+	if err := check(C.sinty_fs_check(p, C.bool(repair), &r)); err != nil {
+		return FsCheck{}, err
+	}
+	return FsCheck{
+		Errors: uint32(r.errors), Fixed: uint32(r.fixed), LostClusters: uint32(r.lost_clusters),
+		CrossLinks: uint32(r.cross_links), BadChains: uint32(r.bad_chains), SizeMismatches: uint32(r.size_mismatches),
+		FatMismatches: uint32(r.fat_mismatches), Dirty: r.dirty != 0, Counters: uint32(r.counters),
+		Files: uint32(r.files), Dirs: uint32(r.dirs), Message: text(r.message[:]),
+	}, nil
+}
+
 type FscryptID [16]byte
 
 type FscryptPolicy struct {

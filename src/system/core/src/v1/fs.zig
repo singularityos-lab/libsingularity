@@ -176,7 +176,7 @@ fn extLabel(d: Dev, label: []const u8) !void {
     try d.writeAt(1024, &sb);
 }
 
-const Fat = struct {
+pub const Fat = struct {
     bps: u32,
     spc: u32,
     reserved: u32,
@@ -189,7 +189,7 @@ const Fat = struct {
     first_data: u64,
     clusters: u64,
 
-    fn parse(b: *const [512]u8) ?Fat {
+    pub fn parse(b: *const [512]u8) ?Fat {
         if (b[510] != 0x55 or b[511] != 0xaa) return null;
         if (std.mem.eql(u8, b[3..11], "NTFS    ") or std.mem.eql(u8, b[3..11], "EXFAT   ")) return null;
         const bps = std.mem.readInt(u16, b[0x0b..0x0d], .little);
@@ -218,7 +218,7 @@ const Fat = struct {
         return if (self.bits == 32) 0x40 else 0x24;
     }
 
-    fn clusterOffset(self: Fat, c: u32) u64 {
+    pub fn clusterOffset(self: Fat, c: u32) u64 {
         return (self.first_data + @as(u64, c - 2) * self.spc) * self.bps;
     }
 
@@ -565,7 +565,7 @@ fn exfatProbe(d: Dev, out: *FsInfo) !bool {
     return true;
 }
 
-const Exfat = struct {
+pub const Exfat = struct {
     sector: u64,
     cluster: u32,
     fat_off: u64,
@@ -573,7 +573,7 @@ const Exfat = struct {
     count: u32,
     root: u32,
 
-    fn parse(b: *const [512]u8) !Exfat {
+    pub fn parse(b: *const [512]u8) !Exfat {
         const ss: u6 = @intCast(@min(b[0x6c], 12));
         const cs: u6 = @intCast(@min(b[0x6d], 25));
         const sector = @as(u64, 1) << ss;
@@ -866,7 +866,7 @@ fn upcaseTable(out: []u16) usize {
     return n;
 }
 
-fn exfatSum(sum: u32, b: []const u8, skip_flags: bool) u32 {
+pub fn exfatSum(sum: u32, b: []const u8, skip_flags: bool) u32 {
     var c = sum;
     for (b, 0..) |x, i| {
         if (skip_flags and (i == 106 or i == 107 or i == 112)) continue;

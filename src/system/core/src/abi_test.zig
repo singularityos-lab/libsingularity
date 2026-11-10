@@ -41,4 +41,5 @@ test "header layouts match the exported structs" {
     try same(core.logs.Boot, c.SintyLogBoot);
     try same(core.fscrypt.Policy, c.SintyFscryptPolicy);
     try same(core.fscrypt.KeyStatus, c.SintyFscryptKeyStatus);
+    try same(core.fsck.Report, c.SintyFsCheck);
 }
