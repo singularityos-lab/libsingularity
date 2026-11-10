@@ -509,6 +509,7 @@ if get_option('system')
     'src/system/core/src/v1/gvdb.zig',
     'src/system/core/src/v1/settings.zig',
     'src/system/core/src/v1/logs.zig',
+    'src/system/core/src/v1/sealed.zig',
     'src/system/core/src/v1/conf.zig',
     'src/system/core/src/v1/fscrypt.zig',
     'src/system/core/src/v1/mount.zig',

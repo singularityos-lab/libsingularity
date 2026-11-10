@@ -811,6 +811,7 @@ size_t sinty_logs_boots_count(const SintyLogBoots *l);
 const SintyLogBoot *sinty_logs_boots_at(const SintyLogBoots *l, size_t i);
 void sinty_logs_boots_free(SintyLogBoots *l);
 bool sinty_logs_journal_available(const char *dir);
+int sinty_logs_sealed(const char *key, const char *ring, const char *cold, const char *dictionary, uint32_t boots, SintyLogEntries **out);
 
 typedef struct SintyConf SintyConf;
 

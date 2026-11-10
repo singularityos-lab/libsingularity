@@ -31,6 +31,7 @@ pub const gvariant = @import("v1/gvariant.zig");
 pub const gvdb = @import("v1/gvdb.zig");
 pub const settings = @import("v1/settings.zig");
 pub const logs = @import("v1/logs.zig");
+pub const sealed = @import("v1/sealed.zig");
 pub const conf = @import("v1/conf.zig");
 pub const fscrypt = @import("v1/fscrypt.zig");
 pub const mounts = @import("v1/mount.zig");
@@ -1113,6 +1114,7 @@ test {
     _ = gvdb;
     _ = settings;
     _ = logs;
+    _ = sealed;
     _ = conf;
     _ = fscrypt;
     _ = mounts;
@@ -1491,6 +1493,20 @@ export fn sinty_logs_journal_available(dir: ?[*:0]const u8) bool {
     defer files.deinit();
     journalFiles(&files, dir) catch return false;
     return files.paths.items.len > 0;
+}
+
+export fn sinty_logs_sealed(key: [*:0]const u8, ring: ?[*:0]const u8, cold: ?[*:0]const u8, dictionary: ?[*:0]const u8, boots: u32, out: *?*logs.Entries) c_int {
+    const text = sys.readAlloc(sys.gpa, key, 4096) catch |e| return sys.code(e);
+    defer sys.gpa.free(text);
+    defer std.crypto.secureZero(u8, text);
+    var secret = sealed.parseKey(text) catch |e| return sys.code(e);
+    defer std.crypto.secureZero(u8, &secret);
+    var o = sealed.Options{ .boots = boots };
+    if (ring) |r| o.ring = r;
+    if (cold) |c| o.cold = c;
+    if (dictionary) |d| o.dictionary = d;
+    out.* = sealed.read(secret, o) catch |e| return sys.code(e);
+    return 0;
 }
 
 fn confNew(kf: conf.KeyFile, out: *?*conf.KeyFile) c_int {
