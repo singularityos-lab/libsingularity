@@ -22,6 +22,8 @@ pub const notify = @import("v1/notify.zig");
 pub const input = @import("v1/input.zig");
 pub const accounts = @import("v1/accounts.zig");
 pub const print = @import("v1/print.zig");
+pub const wayland = @import("v1/wayland.zig");
+pub const clipboard = @import("v1/clipboard.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -870,6 +872,8 @@ test {
     _ = fs;
     _ = crypt;
     _ = print;
+    _ = wayland;
+    _ = clipboard;
 }
 
 test "a tcp connection shows up with its owner and counters" {
@@ -979,4 +983,41 @@ export fn sinty_print_cancel(server: ?[*:0]const u8, queue: [*:0]const u8, job: 
     q.init(&s, span(queue)) catch |e| return sys.code(e);
     print.cancel(&s, q.uri, q.resource, job) catch |e| return sys.code(e);
     return 0;
+}
+
+export fn sinty_bytes_free(data: ?[*]u8, len: usize) void {
+    if (data) |d| if (len > 0) sys.gpa.free(d[0..len]);
+}
+
+export fn sinty_clipboard_types(primary: bool, out: *?*i18n.TextList) c_int {
+    var s = clipboard.Session.open() catch |e| return sys.code(e);
+    defer s.close();
+    out.* = s.types(primary) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_clipboard_read(primary: bool, mime: [*:0]const u8, data: *?[*]u8, len: *usize) c_int {
+    var s = clipboard.Session.open() catch |e| return sys.code(e);
+    defer s.close();
+    const got = s.read(primary, span(mime)) catch |e| return sys.code(e);
+    len.* = got.len;
+    data.* = if (got.len > 0) got.ptr else null;
+    return 0;
+}
+
+export fn sinty_clipboard_set(data: ?[*]const u8, len: usize, mimes: [*]const ?[*:0]const u8, n_mimes: usize, primary: bool, out: *?*clipboard.Holder) c_int {
+    if (n_mimes == 0 or n_mimes > 16 or (data == null and len > 0)) return sys.code(error.Invalid);
+    var list: [16][]const u8 = undefined;
+    for (0..n_mimes) |i| list[i] = span(mimes[i] orelse return sys.code(error.Invalid));
+    const bytes: []const u8 = if (data) |d| d[0..len] else "";
+    out.* = clipboard.Holder.create(null, bytes, list[0..n_mimes], primary) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_clipboard_holder_active(h: *const clipboard.Holder) bool {
+    return h.active();
+}
+
+export fn sinty_clipboard_holder_free(h: ?*clipboard.Holder) void {
+    if (h) |p| p.destroy();
 }

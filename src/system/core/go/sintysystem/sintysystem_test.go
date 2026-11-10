@@ -316,3 +316,42 @@ func TestPrintTorchio(t *testing.T) {
 		t.Errorf("cancel of a missing job gave %v", err)
 	}
 }
+
+func TestClipboardWithoutCompositor(t *testing.T) {
+	t.Setenv("WAYLAND_DISPLAY", "/nonexistent-sinty/wayland-0")
+	if _, err := ClipboardTypes(false); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("types without a compositor: %v", err)
+	}
+	if _, err := ClipboardSet([]byte("x"), nil, false); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("set without types: %v", err)
+	}
+}
+
+func TestClipboardCompositor(t *testing.T) {
+	sock := os.Getenv("SINTY_WAYLAND_SOCKET")
+	if sock == "" {
+		t.Skip("SINTY_WAYLAND_SOCKET is not set")
+	}
+	t.Setenv("WAYLAND_DISPLAY", sock)
+	h, err := ClipboardSet([]byte("dal binding Go"), []string{"text/plain;charset=utf-8", "UTF8_STRING"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Close()
+	var got []byte
+	for try := 0; try < 50; try++ {
+		if got, err = ClipboardRead(false, "UTF8_STRING"); err == nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if string(got) != "dal binding Go" {
+		t.Fatalf("read %q %v", got, err)
+	}
+	if types, err := ClipboardTypes(false); err != nil || len(types) != 2 {
+		t.Errorf("types %v %v", types, err)
+	}
+	if !h.Active() {
+		t.Error("holder lost the selection")
+	}
+}

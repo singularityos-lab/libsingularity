@@ -609,6 +609,15 @@ void sinty_print_jobs_free(SintyPrintJobs *l);
 int sinty_print_file(const char *server, const char *queue, const char *path, const char *title, int copies, uint32_t *job);
 int sinty_print_cancel(const char *server, const char *queue, uint32_t job);
 
+typedef struct SintyClipboardHolder SintyClipboardHolder;
+
+void sinty_bytes_free(uint8_t *data, size_t len);
+int sinty_clipboard_types(bool primary, SintyTextList **out);
+int sinty_clipboard_read(bool primary, const char *mime, uint8_t **data, size_t *len);
+int sinty_clipboard_set(const uint8_t *data, size_t len, const char *const *mimes, size_t n_mimes, bool primary, SintyClipboardHolder **out);
+bool sinty_clipboard_holder_active(const SintyClipboardHolder *h);
+void sinty_clipboard_holder_free(SintyClipboardHolder *h);
+
 #ifdef __cplusplus
 }
 #endif

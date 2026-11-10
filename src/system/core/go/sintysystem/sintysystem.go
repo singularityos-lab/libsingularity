@@ -1112,3 +1112,67 @@ func CancelPrintJob(server, queue string, id uint32) error {
 	defer C.free(unsafe.Pointer(q))
 	return check(C.sinty_print_cancel(s, q, C.uint32_t(id)))
 }
+
+func ClipboardTypes(primary bool) ([]string, error) {
+	var list *C.SintyTextList
+	if err := check(C.sinty_clipboard_types(C.bool(primary), &list)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_text_list_free(list)
+	n := int(C.sinty_text_list_count(list))
+	out := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		out = append(out, C.GoString(C.sinty_text_list_at(list, C.size_t(i))))
+	}
+	return out, nil
+}
+
+func ClipboardRead(primary bool, mime string) ([]byte, error) {
+	m := C.CString(mime)
+	defer C.free(unsafe.Pointer(m))
+	var data *C.uint8_t
+	var n C.size_t
+	if err := check(C.sinty_clipboard_read(C.bool(primary), m, &data, &n)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_bytes_free(data, n)
+	return C.GoBytes(unsafe.Pointer(data), C.int(n)), nil
+}
+
+type ClipboardHolder struct {
+	h *C.SintyClipboardHolder
+}
+
+func ClipboardSet(data []byte, mimes []string, primary bool) (*ClipboardHolder, error) {
+	if len(mimes) == 0 {
+		return nil, syscall.EINVAL
+	}
+	cm := C.malloc(C.size_t(len(mimes)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+	defer C.free(cm)
+	list := unsafe.Slice((**C.char)(cm), len(mimes))
+	for i, m := range mimes {
+		list[i] = C.CString(m)
+		defer C.free(unsafe.Pointer(list[i]))
+	}
+	var buf *C.uint8_t
+	if len(data) > 0 {
+		buf = (*C.uint8_t)(C.CBytes(data))
+		defer C.free(unsafe.Pointer(buf))
+	}
+	var h *C.SintyClipboardHolder
+	if err := check(C.sinty_clipboard_set(buf, C.size_t(len(data)), (**C.char)(cm), C.size_t(len(mimes)), C.bool(primary), &h)); err != nil {
+		return nil, err
+	}
+	return &ClipboardHolder{h: h}, nil
+}
+
+func (c *ClipboardHolder) Active() bool {
+	return c.h != nil && bool(C.sinty_clipboard_holder_active(c.h))
+}
+
+func (c *ClipboardHolder) Close() {
+	if c.h != nil {
+		C.sinty_clipboard_holder_free(c.h)
+		c.h = nil
+	}
+}
