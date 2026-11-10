@@ -314,6 +314,33 @@ void sinty_audio_graph_free(SintyAudioGraph *graph);
 const char *sinty_audio_object_prop(const SintyAudioObject *object, const char *key);
 int sinty_audio_set_controls(const char *node_name, const char *const *names, const float *values, size_t count);
 
+typedef struct {
+    int32_t year;
+    int32_t month;
+    int32_t day;
+    int32_t hour;
+    int32_t minute;
+    int32_t second;
+} SintyRtcTime;
+
+typedef struct {
+    int32_t synchronized;
+    int32_t state;
+    uint32_t status;
+    uint32_t pad;
+    int64_t offset_ns;
+    int64_t max_error_us;
+    int64_t est_error_us;
+} SintyClockState;
+
+int sinty_time_rtc_read(SintyRtcTime *out);
+int sinty_time_rtc_write(const SintyRtcTime *time);
+int sinty_time_clock(SintyClockState *out);
+int sinty_time_zone(char *buf, size_t len);
+
+int sinty_service_control(const char *action, const char *unit);
+int sinty_service_state(const char *unit, char *buf, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

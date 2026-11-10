@@ -340,3 +340,63 @@ func FirewallState() (FirewallSummary, error) {
 	}
 	return out, nil
 }
+
+type RTCTime struct {
+	Year, Month, Day, Hour, Minute, Second int32
+}
+
+func RTC() (RTCTime, error) {
+	var t C.SintyRtcTime
+	if err := check(C.sinty_time_rtc_read(&t)); err != nil {
+		return RTCTime{}, err
+	}
+	return RTCTime{int32(t.year), int32(t.month), int32(t.day), int32(t.hour), int32(t.minute), int32(t.second)}, nil
+}
+
+func SetRTC(t RTCTime) error {
+	c := C.SintyRtcTime{year: C.int32_t(t.Year), month: C.int32_t(t.Month), day: C.int32_t(t.Day),
+		hour: C.int32_t(t.Hour), minute: C.int32_t(t.Minute), second: C.int32_t(t.Second)}
+	return check(C.sinty_time_rtc_write(&c))
+}
+
+type ClockState struct {
+	Synchronized bool
+	State        int32
+	Status       uint32
+	OffsetNs     int64
+	MaxErrorUs   int64
+	EstErrorUs   int64
+}
+
+func Clock() (ClockState, error) {
+	var s C.SintyClockState
+	if err := check(C.sinty_time_clock(&s)); err != nil {
+		return ClockState{}, err
+	}
+	return ClockState{s.synchronized != 0, int32(s.state), uint32(s.status), int64(s.offset_ns), int64(s.max_error_us), int64(s.est_error_us)}, nil
+}
+
+func TimeZone() (string, error) {
+	var buf [256]C.char
+	if err := check(C.sinty_time_zone(&buf[0], C.size_t(len(buf)))); err != nil {
+		return "", err
+	}
+	return text(buf[:]), nil
+}
+
+func ServiceControl(action, unit string) error {
+	a, u := C.CString(action), C.CString(unit)
+	defer C.free(unsafe.Pointer(a))
+	defer C.free(unsafe.Pointer(u))
+	return check(C.sinty_service_control(a, u))
+}
+
+func ServiceState(unit string) (string, error) {
+	u := C.CString(unit)
+	defer C.free(unsafe.Pointer(u))
+	var buf [64]C.char
+	if err := check(C.sinty_service_state(u, &buf[0], C.size_t(len(buf)))); err != nil {
+		return "", err
+	}
+	return text(buf[:]), nil
+}

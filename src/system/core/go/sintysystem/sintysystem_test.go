@@ -52,3 +52,16 @@ func TestFirewallValidation(t *testing.T) {
 		t.Fatal("invalid spec accepted")
 	}
 }
+
+func TestClock(t *testing.T) {
+	s, err := Clock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.State < 0 || s.State > 5 || s.MaxErrorUs < 0 {
+		t.Fatalf("clock %+v", s)
+	}
+	if err := SetRTC(RTCTime{Year: 2026, Month: 2, Day: 30}); err == nil {
+		t.Fatal("an impossible date reached the RTC")
+	}
+}

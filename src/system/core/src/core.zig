@@ -10,6 +10,8 @@ pub const i18n = @import("v1/i18n.zig");
 pub const gpu = @import("v1/gpu.zig");
 pub const firewall = @import("v1/firewall.zig");
 pub const audio = @import("v1/audio.zig");
+pub const time = @import("v1/time.zig");
+pub const session = @import("v1/session.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -348,6 +350,40 @@ export fn sinty_audio_object_prop(o: *const audio.Object, key: [*:0]const u8) ?[
     return null;
 }
 
+export fn sinty_time_rtc_read(out: *time.RtcTime) c_int {
+    out.* = time.rtcRead() catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_time_rtc_write(t: *const time.RtcTime) c_int {
+    time.rtcWrite(t.*) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_time_clock(out: *time.ClockState) c_int {
+    out.* = time.clock() catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_time_zone(buf: [*]u8, len: usize) c_int {
+    if (len == 0) return sys.code(error.Invalid);
+    _ = time.zone("/etc/localtime", buf[0..len]) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_service_control(action: [*:0]const u8, unit: [*:0]const u8) c_int {
+    session.control(session.default_socket, span(action), span(unit)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_service_state(unit: [*:0]const u8, buf: [*]u8, len: usize) c_int {
+    if (len == 0) return sys.code(error.Invalid);
+    const r = session.send(session.default_socket, "status", span(unit)) catch |e| return sys.code(e);
+    if (!r.ok) return sys.code(error.NotFound);
+    sys.copyName(buf[0..len], sys.cstr(&r.state));
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -360,6 +396,8 @@ test {
     _ = gpu;
     _ = firewall;
     _ = audio;
+    _ = time;
+    _ = session;
 }
 
 test "a tcp connection shows up with its owner and counters" {
