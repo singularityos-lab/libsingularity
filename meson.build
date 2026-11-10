@@ -610,6 +610,7 @@ if get_option('system')
     'src/system/hardware_info.vala',
     'src/system/sensor.vala',
     'src/system/process_usage.vala',
+    'src/system/system_journal.vala',
     'src/system/utilization.vala',
     'src/system/fan_control_manager.vala',
     'src/system/permission_store.vala',
@@ -708,6 +709,17 @@ if get_option('system')
     dependencies: [gio_dep, giounix_dep, gee_dep],
   )
   test('autostart', autostart_test, env: ['TMPDIR=' + meson.current_build_dir()])
+
+  system_journal_test = executable(
+    'system-journal-test',
+    files(
+      'tests/system_journal_test.vala',
+      'src/system/system_journal.vala',
+    ),
+    dependencies: [gio_dep, system_core_dep],
+    vala_args: ['--pkg', 'posix'] + system_core_vala_args,
+  )
+  test('system-journal', system_journal_test)
 
   sensor_test = executable(
     'sensor-test',
