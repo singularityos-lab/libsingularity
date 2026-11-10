@@ -4,8 +4,6 @@ namespace Singularity.Parental {
     extern const string BUILD_SYSCONFDIR;
     [CCode (cname = "SINGULARITY_PARENTAL_DIR")]
     extern const string BUILD_POLICY_DIR;
-    [CCode (cname = "SINGULARITY_PARENTAL_COMMAND")]
-    extern const string BUILD_COMMAND;
 
     public class Config : Object {
         public const string FILE_NAME = "singularity/parental-controls.conf";
@@ -73,8 +71,9 @@ namespace Singularity.Parental {
             owned get { return get_string("Policy", "Directory", BUILD_POLICY_DIR); }
         }
 
+        [Version (deprecated = true)]
         public string write_command {
-            owned get { return get_string("Policy", "Command", BUILD_COMMAND); }
+            owned get { return ""; }
         }
 
         public string usage_directory_template {
@@ -174,27 +173,9 @@ namespace Singularity.Parental {
 
         public async void save(Policy policy) throws Error {
             if (!valid_user_name(policy.user_name)) throw new IOError.INVALID_ARGUMENT("Invalid user name");
-            if (command.strip() == "" || yield service_available()) {
-                if (!(yield service_available()))
-                    throw new IOError.NOT_SUPPORTED("No parental controls service is available");
-                yield save_through_service(policy);
-                return;
-            }
-            string[] argv;
-            GLib.Shell.parse_argv(command, out argv);
-            argv += policy.is_active ? "set" : "clear";
-            argv += policy.user_name;
-            var launcher = new SubprocessLauncher(SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE);
-            var proc = launcher.spawnv(argv);
-            string? stdout_text;
-            string? stderr_text;
-            yield proc.communicate_utf8_async(policy.is_active ? policy.to_data() : "", null, out stdout_text, out stderr_text);
-            if (!proc.get_if_exited() || proc.get_exit_status() != 0) {
-                int status = proc.get_if_exited() ? proc.get_exit_status() : -1;
-                if (status == 126 || status == 127) throw new IOError.PERMISSION_DENIED("Authorization was not granted");
-                string detail = (stderr_text ?? "").strip();
-                throw new IOError.FAILED(detail != "" ? detail : "The parental controls helper failed");
-            }
+            if (!(yield service_available()))
+                throw new IOError.NOT_SUPPORTED("No parental controls service is available");
+            yield save_through_service(policy);
         }
     }
 
@@ -321,7 +302,7 @@ namespace Singularity.Parental {
         public static PolicyStore policy_store() {
             if (_policy != null) return _policy;
             var config = Config.get_default();
-            var files = new FilePolicyStore(config.policy_directory, config.write_command);
+            var files = new FilePolicyStore(config.policy_directory, "");
             string backend = config.backend;
             if (backend == "malcontent" || (backend == "auto" && MalcontentMirrorStore.available())) {
                 _policy = new MalcontentMirrorStore(files);
@@ -354,7 +335,7 @@ namespace Singularity.Parental {
 
         private WebFilter() {
             var config = Config.get_default();
-            store = new FilePolicyStore(config.policy_directory, config.write_command);
+            store = new FilePolicyStore(config.policy_directory, "");
             policy = store.load(Environment.get_user_name());
             string? path = store.path_for(Environment.get_user_name());
             if (path == null) return;

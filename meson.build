@@ -369,7 +369,6 @@ parental_policy_dir = get_option('prefix') / get_option('localstatedir') / 'lib'
 parental_c_args = [
   '-DSINGULARITY_PARENTAL_SYSCONFDIR="@0@"'.format(get_option('prefix') / get_option('sysconfdir')),
   '-DSINGULARITY_PARENTAL_DIR="@0@"'.format(parental_policy_dir),
-  '-DSINGULARITY_PARENTAL_COMMAND="@0@"'.format(get_option('parental-command')),
 ]
 
 libsingularity_vala_args = ['--vapidir', meson.current_source_dir() / 'src/vapi', '--pkg', 'gdkextra']

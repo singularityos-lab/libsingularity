@@ -119,45 +119,20 @@ static void test_file_store() {
     assert(store.path_for("sam") == Path.build_filename(policies, "sam.conf"));
     assert(!store.load("sam").is_active);
 
+    Environment.set_variable("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=" + Path.build_filename(dir, "no-bus"), true);
     var p = new Policy("sam");
     p.daily_limit_minutes = 30;
-    var loop = new MainLoop();
-    Error? failure = null;
-    store.save.begin(p, (obj, res) => {
-        try {
-            store.save.end(res);
-        } catch (Error e) {
-            failure = e;
-        }
-        loop.quit();
-    });
-    loop.run();
-    assert(failure == null);
-    assert(store.load("sam").daily_limit_minutes == 30);
-
-    store.save.begin(new Policy("sam"), (obj, res) => {
-        try {
-            store.save.end(res);
-        } catch (Error e) {
-            failure = e;
-        }
-        loop.quit();
-    });
-    loop.run();
-    assert(failure == null);
+    Error? failure;
+    save_and_wait(store, p, out failure);
+    assert(failure is IOError.NOT_SUPPORTED);
     assert(!FileUtils.test(Path.build_filename(policies, "sam.conf"), FileTest.EXISTS));
 
-    var failing = new FilePolicyStore(policies, "/bin/false");
-    failing.save.begin(p, (obj, res) => {
-        try {
-            failing.save.end(res);
-        } catch (Error e) {
-            failure = e;
-        }
-        loop.quit();
-    });
-    loop.run();
-    assert(failure != null);
+    try {
+        FileUtils.set_contents(Path.build_filename(policies, "sam.conf"), p.to_data());
+    } catch (Error e) {
+        error(e.message);
+    }
+    assert(store.load("sam").daily_limit_minutes == 30);
 }
 
 static void test_usage_store() {
