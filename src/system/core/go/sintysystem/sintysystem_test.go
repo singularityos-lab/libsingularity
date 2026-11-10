@@ -517,3 +517,15 @@ func TestFscryptIdentifier(t *testing.T) {
 		t.Fatalf("policy %+v", p)
 	}
 }
+
+func TestMountHelpers(t *testing.T) {
+	if _, err := MountPointOf("/proc"); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("non block device: %v", err)
+	}
+	if _, err := GrowExt4(filepath.Join(t.TempDir(), "none"), 0); !errors.Is(err, syscall.ENOENT) {
+		t.Fatalf("missing device: %v", err)
+	}
+	if err := Unmount(t.TempDir(), false); err == nil {
+		t.Fatal("unmount of a plain directory succeeded")
+	}
+}

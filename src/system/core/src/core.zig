@@ -30,6 +30,7 @@ pub const settings = @import("v1/settings.zig");
 pub const logs = @import("v1/logs.zig");
 pub const conf = @import("v1/conf.zig");
 pub const fscrypt = @import("v1/fscrypt.zig");
+pub const mounts = @import("v1/mount.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -581,6 +582,34 @@ export fn sinty_fs_mkfs_ext4_encrypted(path: [*:0]const u8, label: [*:0]const u8
     return 0;
 }
 
+export fn sinty_fs_ext4_grow(path: [*:0]const u8, bytes: u64, out: ?*u64) c_int {
+    const r = fs.ext4.grow(path, bytes) catch |e| return sys.code(e);
+    if (out) |o| o.* = r.bytes();
+    return 0;
+}
+
+export fn sinty_mount(source: [*:0]const u8, target: [*:0]const u8, fstype: [*:0]const u8, options: ?[*:0]const u8) c_int {
+    mounts.mount(source, target, fstype, if (options) |o| span(o) else "") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_unmount(target: [*:0]const u8, lazy: bool) c_int {
+    mounts.unmount(target, lazy) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_mount_find(dev: [*:0]const u8, target: [*]u8, len: usize) c_int {
+    const num = mounts.devNumber(dev) catch |e| return sys.code(e);
+    const t = mounts.table() catch |e| return sys.code(e);
+    defer t.destroy();
+    const e = mounts.findDevice(t, num.major, num.minor) orelse return 0;
+    const s = sys.cstr(&e.target);
+    if (s.len + 1 > len) return sys.code(error.TooBig);
+    @memcpy(target[0..s.len], s);
+    target[s.len] = 0;
+    return 1;
+}
+
 export fn sinty_fscrypt_identifier(raw: [*]const u8, len: usize, id: *fscrypt.Id) void {
     id.* = fscrypt.identifier(raw[0..len]);
 }
@@ -924,6 +953,7 @@ test {
     _ = logs;
     _ = conf;
     _ = fscrypt;
+    _ = mounts;
 }
 
 test "a tcp connection shows up with its owner and counters" {

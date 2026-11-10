@@ -418,6 +418,10 @@ int sinty_fs_mkfs_vfat(const char *path, const char *label, uint8_t bits);
 int sinty_fs_mkfs_exfat(const char *path, const char *label);
 int sinty_fs_mkfs_ext4(const char *path, const char *label);
 int sinty_fs_mkfs_ext4_encrypted(const char *path, const char *label);
+int sinty_fs_ext4_grow(const char *path, uint64_t bytes, uint64_t *out_bytes);
+int sinty_mount(const char *source, const char *target, const char *fstype, const char *options);
+int sinty_unmount(const char *target, bool lazy);
+int sinty_mount_find(const char *device, char *target, size_t len);
 
 typedef struct {
     uint32_t version;

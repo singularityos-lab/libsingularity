@@ -1013,6 +1013,19 @@ test "ext4 can be formatted for fscrypt" {
     try std.testing.expectEqualStrings("home", sys.cstr(&(try probe(d)).label));
 }
 
+test "ext4 size is read from the superblock" {
+    var pb: [600]u8 = undefined;
+    const path = try testImage("ext4-size", 96 << 20, &pb);
+    var d = try Dev.open(path, true);
+    defer d.close();
+    d.size = 48 << 20;
+    try ext4.mkfs(d, "grow");
+    const s = try ext4.measure(d);
+    try std.testing.expectEqual(@as(u64, 48 << 20), s.bytes());
+    try std.testing.expectError(error.Unsupported, ext4.grow(path, 32 << 20));
+    try std.testing.expectError(error.TooBig, ext4.grow(path, 200 << 20));
+}
+
 test "exfat formats, probes and relabels" {
     var pb: [600]u8 = undefined;
     const path = try testImage("exfat", 48 << 20, &pb);

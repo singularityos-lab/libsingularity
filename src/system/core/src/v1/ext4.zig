@@ -2,6 +2,7 @@ const std = @import("std");
 const linux = std.os.linux;
 const sys = @import("../sys.zig");
 const fs = @import("fs.zig");
+const mounts = @import("mount.zig");
 
 const crc_table = blk: {
     @setEvalBranchQuota(10000);
@@ -436,6 +437,49 @@ fn fsRandom(buf: []u8) void {
         const rc = linux.getrandom(buf[n..].ptr, buf.len - n, 0);
         if (linux.errno(rc) == .SUCCESS) n += rc;
     }
+}
+
+pub const Size = struct {
+    blocks: u64,
+    block_size: u32,
+
+    pub fn bytes(s: Size) u64 {
+        return s.blocks * s.block_size;
+    }
+};
+
+pub fn measure(d: fs.Dev) !Size {
+    var sb: [1024]u8 = undefined;
+    _ = try sys.pread(d.fd, &sb, 1024);
+    if (std.mem.readInt(u16, sb[0x38..0x3a], .little) != 0xef53) return error.Invalid;
+    const log = std.mem.readInt(u32, sb[0x18..0x1c], .little);
+    if (log > 6) return error.Invalid;
+    var blocks: u64 = std.mem.readInt(u32, sb[0x04..0x08], .little);
+    if (std.mem.readInt(u32, sb[0x60..0x64], .little) & 0x80 != 0)
+        blocks |= @as(u64, std.mem.readInt(u32, sb[0x150..0x154], .little)) << 32;
+    return .{ .blocks = blocks, .block_size = @as(u32, 1024) << @intCast(log) };
+}
+
+pub fn grow(dev: [*:0]const u8, bytes: u64) !Size {
+    var d = try fs.Dev.open(dev, false);
+    const cur = measure(d) catch |e| {
+        d.close();
+        return e;
+    };
+    const limit = d.size;
+    d.close();
+    const want = if (bytes == 0) limit else bytes;
+    if (want > limit) return error.TooBig;
+    const target = want / cur.block_size;
+    if (target < cur.blocks) return error.Unsupported;
+    if (target == cur.blocks) return cur;
+    var t = try mounts.ensure(dev, "ext4", "");
+    defer t.release();
+    const fd = try sys.open(t.target(), .{ .ACCMODE = .RDONLY, .DIRECTORY = true, .CLOEXEC = true }, 0);
+    defer sys.close(fd);
+    var n: u64 = target;
+    _ = try sys.ioctl(fd, 0x40086610, @intFromPtr(&n));
+    return .{ .blocks = target, .block_size = cur.block_size };
 }
 
 test "raw crc32c matches the standard check value" {

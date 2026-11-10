@@ -638,6 +638,40 @@ func MakeExt4Encrypted(path, label string) error {
 	return check(C.sinty_fs_mkfs_ext4_encrypted(p, l))
 }
 
+func GrowExt4(path string, size uint64) (uint64, error) {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	var out C.uint64_t
+	err := check(C.sinty_fs_ext4_grow(p, C.uint64_t(size), &out))
+	return uint64(out), err
+}
+
+func Mount(source, target, fstype, options string) error {
+	s, t, f, o := C.CString(source), C.CString(target), C.CString(fstype), C.CString(options)
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(t))
+	defer C.free(unsafe.Pointer(f))
+	defer C.free(unsafe.Pointer(o))
+	return check(C.sinty_mount(s, t, f, o))
+}
+
+func Unmount(target string, lazy bool) error {
+	t := C.CString(target)
+	defer C.free(unsafe.Pointer(t))
+	return check(C.sinty_unmount(t, C.bool(lazy)))
+}
+
+func MountPointOf(device string) (string, error) {
+	d := C.CString(device)
+	defer C.free(unsafe.Pointer(d))
+	buf := make([]C.char, 4096)
+	rc := C.sinty_mount_find(d, &buf[0], C.size_t(len(buf)))
+	if err := check(rc); err != nil || rc == 0 {
+		return "", err
+	}
+	return text(buf), nil
+}
+
 type FscryptID [16]byte
 
 type FscryptPolicy struct {
