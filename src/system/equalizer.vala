@@ -307,29 +307,6 @@ namespace Singularity {
         public abstract bool owns_sink(string sink_name);
     }
 
-    internal async bool equalizer_run(string[] argv, int timeout_ms, out string output) {
-        output = "";
-        try {
-            var proc = new Subprocess.newv(argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_SILENCE);
-            var cancel = new Cancellable();
-            bool fired = false;
-            uint timer = Timeout.add(timeout_ms, () => {
-                fired = true;
-                proc.force_exit();
-                cancel.cancel();
-                return Source.REMOVE;
-            });
-            string? out_text = null;
-            yield proc.communicate_utf8_async(null, cancel, out out_text, null);
-            if (!fired) Source.remove(timer);
-            output = out_text ?? "";
-            return proc.get_if_exited() && proc.get_exit_status() == 0;
-        } catch (Error e) {
-            debug("Equalizer: %s failed: %s", argv[0], e.message);
-            return false;
-        }
-    }
-
     public class PipeWireEqualizerBackend : Object, EqualizerBackend {
         private HashTable<string, Subprocess> chains = new HashTable<string, Subprocess>(str_hash, str_equal);
         private HashTable<string, string> descriptions = new HashTable<string, string>(str_hash, str_equal);
@@ -470,6 +447,7 @@ namespace Singularity {
         }
     }
 
+    [Version (deprecated = true, replacement = "PipeWireEqualizerBackend")]
     public class CommandEqualizerBackend : Object, EqualizerBackend {
         public string command { get; construct; }
 
@@ -479,32 +457,12 @@ namespace Singularity {
 
         public string name { get { return "command"; } }
 
-        private string[] argv(string verb, string device, double[]? gains) {
-            string[] args = {};
-            try {
-                Shell.parse_argv(command, out args);
-            } catch (Error e) {
-                args = { command };
-            }
-            args += verb;
-            if (device != "") args += device;
-            if (gains != null) {
-                args += EqualizerBands.number(EqualizerBands.preamp(gains));
-                foreach (double g in EqualizerBands.normalize(gains)) args += EqualizerBands.number(g);
-            }
-            return args;
-        }
-
         public async bool probe() {
-            string output;
-            return yield equalizer_run(argv("probe", "", null), 3000, out output);
+            return false;
         }
 
         public async void apply(string device, string description, double[] gains) throws Error {
-            string output;
-            if (!(yield equalizer_run(argv("apply", device, gains), 5000, out output))) {
-                throw new EqualizerError.FAILED("%s apply failed", command);
-            }
+            throw new EqualizerError.FAILED("equalizer helper commands are no longer run");
         }
 
         public async void update(string device, double[] gains) throws Error {
@@ -512,8 +470,6 @@ namespace Singularity {
         }
 
         public async void remove(string device) {
-            string output;
-            yield equalizer_run(argv("remove", device, null), 5000, out output);
         }
 
         public string? sink_for(string device) {
@@ -562,7 +518,7 @@ namespace Singularity {
         public static EqualizerBackend? backend_for(string choice, string command) {
             switch (choice) {
                 case "none": return null;
-                case "command": return command != "" ? new CommandEqualizerBackend(command) : null;
+                case "command": return null;
                 default: return new PipeWireEqualizerBackend();
             }
         }

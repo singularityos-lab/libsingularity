@@ -158,7 +158,25 @@ void test_store () {
 void test_backends () {
     assert (EqualizerManager.backend_for ("none", "") == null);
     assert (EqualizerManager.backend_for ("command", "") == null);
-    assert (EqualizerManager.backend_for ("command", "/bin/true").name == "command");
+    assert (EqualizerManager.backend_for ("command", "/bin/true") == null);
+    var legacy = new CommandEqualizerBackend ("/bin/true");
+    var loop = new MainLoop ();
+    bool probed = true;
+    Error? failure = null;
+    legacy.probe.begin ((o, r) => {
+        probed = legacy.probe.end (r);
+        legacy.apply.begin ("dev", "Dev", new double[10], (o2, r2) => {
+            try {
+                legacy.apply.end (r2);
+            } catch (Error e) {
+                failure = e;
+            }
+            loop.quit ();
+        });
+    });
+    loop.run ();
+    assert (!probed);
+    assert (failure is EqualizerError.FAILED);
     assert (EqualizerManager.backend_for ("auto", "").name == "pipewire");
     var pw = new PipeWireEqualizerBackend ();
     assert (pw.owns_sink (EqualizerBands.node_name ("x")));

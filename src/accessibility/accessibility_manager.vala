@@ -2,6 +2,9 @@ using GLib;
 
 namespace Singularity.Accessibility {
 
+    [CCode (cname = "kill", cheader_filename = "signal.h")]
+    private extern int signal_process(int pid, int signal);
+
     /**
      * Applies the desktop accessibility settings to Singularity apps.
      *
@@ -166,11 +169,8 @@ namespace Singularity.Accessibility {
                     warning("AccessibilityManager: failed to start orca: %s", e.message);
                 }
             } else if (!screen_reader_enabled && orca_pid != 0) {
-                try {
-                    GLib.Process.spawn_async(null, { "kill", "-TERM", ((int) orca_pid).to_string() }, null,
-                        GLib.SpawnFlags.SEARCH_PATH, null, null);
-                } catch (Error e) {
-                    warning("AccessibilityManager: failed to stop orca: %s", e.message);
+                if (signal_process((int) orca_pid, ProcessSignal.TERM) != 0) {
+                    warning("AccessibilityManager: failed to stop orca: %s", strerror(errno));
                 }
             }
         }
