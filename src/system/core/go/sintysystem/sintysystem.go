@@ -1383,3 +1383,184 @@ func JournalAvailable(dir string) bool {
 	defer C.free(unsafe.Pointer(d))
 	return bool(C.sinty_logs_journal_available(d))
 }
+
+type Conf struct {
+	c *C.SintyConf
+}
+
+func OpenConf(path string) (*Conf, error) {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	var c *C.SintyConf
+	if err := check(C.sinty_conf_open(p, &c)); err != nil {
+		return nil, err
+	}
+	return &Conf{c: c}, nil
+}
+
+func ParseConf(text string) (*Conf, error) {
+	t := C.CString(text)
+	defer C.free(unsafe.Pointer(t))
+	var c *C.SintyConf
+	if err := check(C.sinty_conf_parse(t, C.size_t(len(text)), &c)); err != nil {
+		return nil, err
+	}
+	return &Conf{c: c}, nil
+}
+
+func FindConf(name string) (string, error) {
+	n := C.CString(name)
+	defer C.free(unsafe.Pointer(n))
+	var buf [4096]C.char
+	if err := check(C.sinty_conf_find(n, &buf[0], C.size_t(len(buf)))); err != nil {
+		return "", err
+	}
+	return text(buf[:]), nil
+}
+
+func (f *Conf) Close() {
+	if f.c != nil {
+		C.sinty_conf_free(f.c)
+		f.c = nil
+	}
+}
+
+func cpair(group, key string) (*C.char, *C.char) {
+	return C.CString(group), C.CString(key)
+}
+
+func (f *Conf) String(group, key string) (string, error) {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	var v *C.char
+	if err := check(C.sinty_conf_get_string(f.c, g, k, &v)); err != nil {
+		return "", err
+	}
+	defer C.sinty_string_free(v)
+	return C.GoString(v), nil
+}
+
+func (f *Conf) LocaleString(group, key, locale string) (string, error) {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	l := C.CString(locale)
+	defer C.free(unsafe.Pointer(l))
+	var v *C.char
+	if err := check(C.sinty_conf_get_locale_string(f.c, g, k, l, &v)); err != nil {
+		return "", err
+	}
+	defer C.sinty_string_free(v)
+	return C.GoString(v), nil
+}
+
+func (f *Conf) Bool(group, key string) (bool, error) {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	var v C.bool
+	err := check(C.sinty_conf_get_bool(f.c, g, k, &v))
+	return bool(v), err
+}
+
+func (f *Conf) Int(group, key string) (int64, error) {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	var v C.int64_t
+	err := check(C.sinty_conf_get_int(f.c, g, k, &v))
+	return int64(v), err
+}
+
+func textList(l *C.SintyTextList) []string {
+	defer C.sinty_text_list_free(l)
+	n := int(C.sinty_text_list_count(l))
+	out := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		out = append(out, C.GoString(C.sinty_text_list_at(l, C.size_t(i))))
+	}
+	return out
+}
+
+func (f *Conf) List(group, key string) ([]string, error) {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	var l *C.SintyTextList
+	if err := check(C.sinty_conf_get_list(f.c, g, k, &l)); err != nil {
+		return nil, err
+	}
+	return textList(l), nil
+}
+
+func (f *Conf) SetString(group, key, value string) error {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	v := C.CString(value)
+	defer C.free(unsafe.Pointer(v))
+	return check(C.sinty_conf_set_string(f.c, g, k, v))
+}
+
+func (f *Conf) SetBool(group, key string, value bool) error {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	return check(C.sinty_conf_set_bool(f.c, g, k, C.bool(value)))
+}
+
+func (f *Conf) SetInt(group, key string, value int64) error {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	return check(C.sinty_conf_set_int(f.c, g, k, C.int64_t(value)))
+}
+
+func (f *Conf) SetList(group, key string, values []string) error {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	var arr unsafe.Pointer
+	if len(values) > 0 {
+		arr = C.malloc(C.size_t(len(values)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+		defer C.free(arr)
+		list := unsafe.Slice((**C.char)(arr), len(values))
+		for i, v := range values {
+			list[i] = C.CString(v)
+			defer C.free(unsafe.Pointer(list[i]))
+		}
+	}
+	return check(C.sinty_conf_set_list(f.c, g, k, (**C.char)(arr), C.size_t(len(values))))
+}
+
+func (f *Conf) Remove(group, key string) error {
+	g, k := cpair(group, key)
+	defer C.free(unsafe.Pointer(g))
+	defer C.free(unsafe.Pointer(k))
+	return check(C.sinty_conf_remove(f.c, g, k))
+}
+
+func (f *Conf) Groups() ([]string, error) {
+	var l *C.SintyTextList
+	if err := check(C.sinty_conf_groups(f.c, &l)); err != nil {
+		return nil, err
+	}
+	return textList(l), nil
+}
+
+func (f *Conf) Keys(group string) ([]string, error) {
+	g := C.CString(group)
+	defer C.free(unsafe.Pointer(g))
+	var l *C.SintyTextList
+	if err := check(C.sinty_conf_keys(f.c, g, &l)); err != nil {
+		return nil, err
+	}
+	return textList(l), nil
+}
+
+func (f *Conf) Save(path string) error {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_conf_save(f.c, p))
+}

@@ -437,3 +437,61 @@ func TestJournalFixtures(t *testing.T) {
 		t.Errorf("bad boot id gave %v", err)
 	}
 }
+
+func TestConfRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "xdg", "singularity"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "xdg", "singularity", "power.conf")
+	if err := os.WriteFile(path, []byte("# power\n[Power]\nBackend=command\nSuspend=helper suspend\nLevels=10;20;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_DIRS", filepath.Join(dir, "missing")+":"+filepath.Join(dir, "xdg"))
+	found, err := FindConf("singularity/power.conf")
+	if err != nil || found != path {
+		t.Fatalf("find %q %v", found, err)
+	}
+	if _, err := FindConf("../etc/passwd"); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("escape gave %v", err)
+	}
+	c, err := OpenConf(found)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if v, err := c.String("Power", "Suspend"); err != nil || v != "helper suspend" {
+		t.Errorf("suspend %q %v", v, err)
+	}
+	if v, err := c.List("Power", "Levels"); err != nil || len(v) != 2 || v[1] != "20" {
+		t.Errorf("levels %v %v", v, err)
+	}
+	if err := c.SetBool("Power", "Enabled", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetInt("Limits", "Max", 80); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	want := "# power\n[Power]\nBackend=command\nSuspend=helper suspend\nLevels=10;20;\nEnabled=true\n\n[Limits]\nMax=80\n"
+	if string(data) != want {
+		t.Errorf("saved %q", data)
+	}
+	again, err := ParseConf(string(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer again.Close()
+	if v, err := again.Int("Limits", "Max"); err != nil || v != 80 {
+		t.Errorf("max %v %v", v, err)
+	}
+	if g, err := again.Groups(); err != nil || len(g) != 2 {
+		t.Errorf("groups %v %v", g, err)
+	}
+	if _, err := ParseConf("broken\n"); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("broken gave %v", err)
+	}
+}

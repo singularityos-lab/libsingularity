@@ -28,6 +28,7 @@ pub const gvariant = @import("v1/gvariant.zig");
 pub const gvdb = @import("v1/gvdb.zig");
 pub const settings = @import("v1/settings.zig");
 pub const logs = @import("v1/logs.zig");
+pub const conf = @import("v1/conf.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -882,6 +883,7 @@ test {
     _ = gvdb;
     _ = settings;
     _ = logs;
+    _ = conf;
 }
 
 test "a tcp connection shows up with its owner and counters" {
@@ -1254,4 +1256,117 @@ export fn sinty_logs_journal_available(dir: ?[*:0]const u8) bool {
     defer files.deinit();
     journalFiles(&files, dir) catch return false;
     return files.paths.items.len > 0;
+}
+
+fn confNew(kf: conf.KeyFile, out: *?*conf.KeyFile) c_int {
+    const p = sys.gpa.create(conf.KeyFile) catch {
+        var k = kf;
+        k.deinit();
+        return sys.code(error.NoMemory);
+    };
+    p.* = kf;
+    out.* = p;
+    return 0;
+}
+
+export fn sinty_conf_open(path: [*:0]const u8, out: *?*conf.KeyFile) c_int {
+    const kf = conf.load(path) catch |e| return sys.code(e);
+    return confNew(kf, out);
+}
+
+export fn sinty_conf_parse(text: [*]const u8, len: usize, out: *?*conf.KeyFile) c_int {
+    const kf = conf.KeyFile.parse(text[0..len]) catch |e| return sys.code(e);
+    return confNew(kf, out);
+}
+
+export fn sinty_conf_free(kf: ?*conf.KeyFile) void {
+    if (kf) |p| {
+        p.deinit();
+        sys.gpa.destroy(p);
+    }
+}
+
+export fn sinty_conf_find(name: [*:0]const u8, path: [*]u8, len: usize) c_int {
+    if (len == 0) return sys.code(error.Invalid);
+    const found = conf.find(span(name), path[0 .. len - 1]) catch |e| return sys.code(e);
+    path[found.len] = 0;
+    return 0;
+}
+
+fn confText(kf: *const conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, locale: ?[*:0]const u8, out: *?[*:0]u8) c_int {
+    const v = (if (locale) |l| kf.localeString(span(group), span(key), span(l)) else kf.string(span(group), span(key))) catch |e| return sys.code(e);
+    defer sys.gpa.free(v);
+    if (std.mem.indexOfScalar(u8, v, 0) != null) return sys.code(error.Invalid);
+    out.* = sys.dupZ(sys.gpa, v) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_get_string(kf: *const conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, out: *?[*:0]u8) c_int {
+    return confText(kf, group, key, null, out);
+}
+
+export fn sinty_conf_get_locale_string(kf: *const conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, locale: [*:0]const u8, out: *?[*:0]u8) c_int {
+    return confText(kf, group, key, locale, out);
+}
+
+export fn sinty_conf_get_bool(kf: *const conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, out: *bool) c_int {
+    out.* = kf.boolean(span(group), span(key)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_get_int(kf: *const conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, out: *i64) c_int {
+    out.* = kf.integer(span(group), span(key)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_get_list(kf: *const conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, out: *?*i18n.TextList) c_int {
+    out.* = kf.list(span(group), span(key)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_set_string(kf: *conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, value: [*:0]const u8) c_int {
+    kf.setString(span(group), span(key), span(value)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_set_bool(kf: *conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, value: bool) c_int {
+    kf.setRaw(span(group), span(key), if (value) "true" else "false") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_set_int(kf: *conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, value: i64) c_int {
+    var b: [24]u8 = undefined;
+    kf.setRaw(span(group), span(key), std.fmt.bufPrint(&b, "{d}", .{value}) catch unreachable) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_set_list(kf: *conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8, values: ?[*]const ?[*:0]const u8, n: usize) c_int {
+    var items: std.ArrayList([]const u8) = .empty;
+    defer items.deinit(sys.gpa);
+    if (n > 0) {
+        const list = values orelse return sys.code(error.Invalid);
+        for (0..n) |i| items.append(sys.gpa, span(list[i] orelse return sys.code(error.Invalid))) catch |e| return sys.code(e);
+    }
+    kf.setList(span(group), span(key), items.items) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_remove(kf: *conf.KeyFile, group: [*:0]const u8, key: [*:0]const u8) c_int {
+    kf.remove(span(group), span(key)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_groups(kf: *const conf.KeyFile, out: *?*i18n.TextList) c_int {
+    out.* = kf.groups() catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_keys(kf: *const conf.KeyFile, group: [*:0]const u8, out: *?*i18n.TextList) c_int {
+    out.* = kf.keys(span(group)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_conf_save(kf: *const conf.KeyFile, path: [*:0]const u8) c_int {
+    kf.save(span(path)) catch |e| return sys.code(e);
+    return 0;
 }

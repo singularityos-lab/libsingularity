@@ -665,6 +665,26 @@ const SintyLogBoot *sinty_logs_boots_at(const SintyLogBoots *l, size_t i);
 void sinty_logs_boots_free(SintyLogBoots *l);
 bool sinty_logs_journal_available(const char *dir);
 
+typedef struct SintyConf SintyConf;
+
+int sinty_conf_open(const char *path, SintyConf **out);
+int sinty_conf_parse(const char *text, size_t len, SintyConf **out);
+void sinty_conf_free(SintyConf *conf);
+int sinty_conf_find(const char *name, char *path, size_t len);
+int sinty_conf_get_string(const SintyConf *conf, const char *group, const char *key, char **out);
+int sinty_conf_get_locale_string(const SintyConf *conf, const char *group, const char *key, const char *locale, char **out);
+int sinty_conf_get_bool(const SintyConf *conf, const char *group, const char *key, bool *out);
+int sinty_conf_get_int(const SintyConf *conf, const char *group, const char *key, int64_t *out);
+int sinty_conf_get_list(const SintyConf *conf, const char *group, const char *key, SintyTextList **out);
+int sinty_conf_set_string(SintyConf *conf, const char *group, const char *key, const char *value);
+int sinty_conf_set_bool(SintyConf *conf, const char *group, const char *key, bool value);
+int sinty_conf_set_int(SintyConf *conf, const char *group, const char *key, int64_t value);
+int sinty_conf_set_list(SintyConf *conf, const char *group, const char *key, const char *const *values, size_t n);
+int sinty_conf_remove(SintyConf *conf, const char *group, const char *key);
+int sinty_conf_groups(const SintyConf *conf, SintyTextList **out);
+int sinty_conf_keys(const SintyConf *conf, const char *group, SintyTextList **out);
+int sinty_conf_save(const SintyConf *conf, const char *path);
+
 #ifdef __cplusplus
 }
 #endif
