@@ -16,6 +16,7 @@ pub const firmware = @import("v1/firmware.zig");
 pub const disk = @import("v1/disk.zig");
 pub const fs = @import("v1/fs.zig");
 pub const crypt = @import("v1/crypt.zig");
+pub const dbus = @import("v1/bus.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";

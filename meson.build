@@ -499,6 +499,7 @@ if get_option('system')
     'src/system/core/src/v1/ext4.zig',
     'src/system/core/src/v1/upcase.zig',
     'src/system/core/src/v1/crypt.zig',
+    'src/system/core/src/v1/bus.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''
