@@ -623,3 +623,10 @@ func MakeExfat(path, label string) error {
 	defer C.free(unsafe.Pointer(l))
 	return check(C.sinty_fs_mkfs_exfat(p, l))
 }
+
+func MakeExt4(path, label string) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_fs_mkfs_ext4(p, l))
+}

@@ -834,6 +834,7 @@ pub fn setLabel(d: Dev, label: []const u8) !void {
 }
 
 const upcase = @import("upcase.zig");
+pub const ext4 = @import("ext4.zig");
 
 fn upcaseTable(out: []u16) usize {
     var up: [0x10000]u16 = undefined;
@@ -983,6 +984,21 @@ pub fn mkfsExfat(d: Dev, label: []const u8) !void {
     std.mem.writeInt(u64, root[88..96], up_bytes.len, .little);
     try d.writeAt(heap + (root_first - 2) * cbytes, &root);
     try d.sync();
+}
+
+test "ext4 formats, probes and relabels" {
+    for ([_]u64{ 32 << 20, 600 << 20, 2 << 30 }) |size| {
+        var pb: [600]u8 = undefined;
+        var nb: [32]u8 = undefined;
+        const path = try testImage(try std.fmt.bufPrint(&nb, "ext4-{d}", .{size >> 20}), size, &pb);
+        var d = try Dev.open(path, true);
+        defer d.close();
+        try ext4.mkfs(d, "rootfs");
+        const info = try probe(d);
+        try std.testing.expectEqualStrings("ext4", sys.cstr(&info.type));
+        try std.testing.expectEqualStrings("rootfs", sys.cstr(&info.label));
+        try std.testing.expectEqual(@as(u32, 4096), info.block_size);
+    }
 }
 
 test "exfat formats, probes and relabels" {

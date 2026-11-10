@@ -552,6 +552,13 @@ export fn sinty_fs_mkfs_exfat(path: [*:0]const u8, label: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_fs_mkfs_ext4(path: [*:0]const u8, label: [*:0]const u8) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    fs.ext4.mkfs(d, span(label)) catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
