@@ -502,6 +502,7 @@ if get_option('system')
     'src/system/core/src/v1/bus.zig',
     'src/system/core/src/v1/bluetooth.zig',
     'src/system/core/src/v1/notify.zig',
+    'src/system/core/src/v1/input.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''

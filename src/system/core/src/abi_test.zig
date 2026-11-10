@@ -32,4 +32,5 @@ test "header layouts match the exported structs" {
     try same(core.bluetooth.Adapter, c.SintyBtAdapter);
     try same(core.bluetooth.Device, c.SintyBtDevice);
     try same(core.notify.Request, c.SintyNotification);
+    try same(core.input.Engine, c.SintyInputEngine);
 }

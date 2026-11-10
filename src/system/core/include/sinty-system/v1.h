@@ -507,6 +507,26 @@ typedef struct {
 int sinty_notify_send(const SintyNotification *n, uint32_t *id);
 int sinty_notify_close(uint32_t id);
 
+typedef struct SintyInputEngines SintyInputEngines;
+
+typedef struct {
+    char name[64];
+    char label[128];
+    char symbol[16];
+    char language[32];
+} SintyInputEngine;
+
+enum { SINTY_INPUT_CONVERSION, SINTY_INPUT_FULLWIDTH, SINTY_INPUT_LEARN };
+enum { SINTY_INPUT_CONVERT_NONE, SINTY_INPUT_CONVERT_SIMPLIFIED, SINTY_INPUT_CONVERT_TRADITIONAL, SINTY_INPUT_CONVERT_TAIWAN, SINTY_INPUT_CONVERT_HONGKONG };
+
+int sinty_input_engines(SintyInputEngines **out);
+size_t sinty_input_engines_count(const SintyInputEngines *l);
+const SintyInputEngine *sinty_input_engines_at(const SintyInputEngines *l, size_t i);
+void sinty_input_engines_free(SintyInputEngines *l);
+int sinty_input_select(const char *name);
+int sinty_input_active(char *buf, size_t len);
+int sinty_input_configure(const char *name, int option, int value);
+
 #ifdef __cplusplus
 }
 #endif

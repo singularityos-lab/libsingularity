@@ -19,6 +19,7 @@ pub const crypt = @import("v1/crypt.zig");
 pub const dbus = @import("v1/bus.zig");
 pub const bluetooth = @import("v1/bluetooth.zig");
 pub const notify = @import("v1/notify.zig");
+pub const input = @import("v1/input.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -699,6 +700,53 @@ export fn sinty_notify_close(id: u32) c_int {
     var c = dbus.Conn.session() catch |e| return sys.code(e);
     defer c.close();
     notify.close(&c, id) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_input_engines(out: *?*input.Engines) c_int {
+    var c = dbus.Conn.session() catch |e| return sys.code(e);
+    defer c.close();
+    out.* = input.engines(&c) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_input_engines_count(l: *const input.Engines) usize {
+    return l.count();
+}
+
+export fn sinty_input_engines_at(l: *const input.Engines, i: usize) ?*const input.Engine {
+    return l.at(i);
+}
+
+export fn sinty_input_engines_free(l: ?*input.Engines) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_input_select(name: [*:0]const u8) c_int {
+    var c = dbus.Conn.session() catch |e| return sys.code(e);
+    defer c.close();
+    input.select(&c, span(name)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_input_active(buf: [*]u8, len: usize) c_int {
+    if (len == 0) return sys.code(error.Invalid);
+    var c = dbus.Conn.session() catch |e| return sys.code(e);
+    defer c.close();
+    const s = input.active(&c, buf[0..len]) catch |e| return sys.code(e);
+    return @intCast(s.len);
+}
+
+export fn sinty_input_configure(name: [*:0]const u8, option: c_int, value: c_int) c_int {
+    const opt: input.Option = switch (option) {
+        0 => .{ .conversion = std.enums.fromInt(input.Conversion, value) orelse return sys.code(error.Invalid) },
+        1 => .{ .fullwidth = value != 0 },
+        2 => .{ .learn = value != 0 },
+        else => return sys.code(error.Invalid),
+    };
+    var c = dbus.Conn.session() catch |e| return sys.code(e);
+    defer c.close();
+    input.configure(&c, span(name), opt) catch |e| return sys.code(e);
     return 0;
 }
 
