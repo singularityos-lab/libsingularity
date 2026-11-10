@@ -219,7 +219,15 @@ fn fileInode(raw: *[inode_size]u8, mode: u16, links: u16, size: u64, bs: u32, ex
     }
 }
 
+pub const Options = struct {
+    encrypt: bool = false,
+};
+
 pub fn mkfs(d: fs.Dev, label: []const u8) !void {
+    return mkfsWith(d, label, .{});
+}
+
+pub fn mkfsWith(d: fs.Dev, label: []const u8, opts: Options) !void {
     if (label.len > 16) return error.TooBig;
     const geo = try geometry(d.size);
     var ts: linux.timespec = undefined;
@@ -381,7 +389,8 @@ pub fn mkfs(d: fs.Dev, label: []const u8) !void {
     std.mem.writeInt(u16, sb[0x58..0x5a], inode_size, .little);
     const has_journal: u32 = if (geo.journal > 0) 0x4 else 0;
     std.mem.writeInt(u32, sb[0x5c..0x60], has_journal | 0x8 | 0x20, .little);
-    std.mem.writeInt(u32, sb[0x60..0x64], 0x2 | 0x40 | 0x80, .little);
+    const encrypt: u32 = if (opts.encrypt) 0x10000 else 0;
+    std.mem.writeInt(u32, sb[0x60..0x64], 0x2 | 0x40 | 0x80 | encrypt, .little);
     std.mem.writeInt(u32, sb[0x64..0x68], 0x1 | 0x2 | 0x8 | 0x20 | 0x40 | 0x400, .little);
     @memcpy(sb[0x68..0x78], &uuid);
     @memcpy(sb[0x78 .. 0x78 + label.len], label);

@@ -631,6 +631,102 @@ func MakeExt4(path, label string) error {
 	return check(C.sinty_fs_mkfs_ext4(p, l))
 }
 
+func MakeExt4Encrypted(path, label string) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_fs_mkfs_ext4_encrypted(p, l))
+}
+
+type FscryptID [16]byte
+
+type FscryptPolicy struct {
+	Contents  uint8
+	Filenames uint8
+	Flags     uint8
+	ID        FscryptID
+}
+
+type FscryptKeyStatus struct {
+	Present     bool
+	Incomplete  bool
+	AddedBySelf bool
+	Users       uint32
+}
+
+func NewFscryptPolicy(id FscryptID) FscryptPolicy {
+	return FscryptPolicy{Contents: 1, Filenames: 4, Flags: 2, ID: id}
+}
+
+func FscryptIdentifier(raw []byte) FscryptID {
+	var id FscryptID
+	if len(raw) == 0 {
+		raw = []byte{0}
+	}
+	C.sinty_fscrypt_identifier((*C.uint8_t)(unsafe.Pointer(&raw[0])), C.size_t(len(raw)), (*C.uint8_t)(unsafe.Pointer(&id[0])))
+	return id
+}
+
+func FscryptAddKey(mount string, raw []byte) (FscryptID, error) {
+	var id FscryptID
+	if len(raw) != 64 {
+		return id, syscall.EINVAL
+	}
+	m := C.CString(mount)
+	defer C.free(unsafe.Pointer(m))
+	err := check(C.sinty_fscrypt_add_key(m, (*C.uint8_t)(unsafe.Pointer(&raw[0])), C.size_t(len(raw)), (*C.uint8_t)(unsafe.Pointer(&id[0]))))
+	return id, err
+}
+
+func FscryptRemoveKey(mount string, id FscryptID, allUsers bool) (busy bool, others bool, err error) {
+	m := C.CString(mount)
+	defer C.free(unsafe.Pointer(m))
+	var flags C.uint32_t
+	err = check(C.sinty_fscrypt_remove_key(m, (*C.uint8_t)(unsafe.Pointer(&id[0])), C.bool(allUsers), &flags))
+	return flags&1 != 0, flags&2 != 0, err
+}
+
+func FscryptStatus(mount string, id FscryptID) (FscryptKeyStatus, error) {
+	m := C.CString(mount)
+	defer C.free(unsafe.Pointer(m))
+	var st C.SintyFscryptKeyStatus
+	if err := check(C.sinty_fscrypt_key_status(m, (*C.uint8_t)(unsafe.Pointer(&id[0])), &st)); err != nil {
+		return FscryptKeyStatus{}, err
+	}
+	return FscryptKeyStatus{Present: st.status == 2, Incomplete: st.status == 3, AddedBySelf: bool(st.added_by_self), Users: uint32(st.user_count)}, nil
+}
+
+func FscryptSetPolicy(dir string, p FscryptPolicy) error {
+	d := C.CString(dir)
+	defer C.free(unsafe.Pointer(d))
+	var cp C.SintyFscryptPolicy
+	cp.version = 2
+	cp.contents = C.uint8_t(p.Contents)
+	cp.filenames = C.uint8_t(p.Filenames)
+	cp.flags = C.uint8_t(p.Flags)
+	for i, b := range p.ID {
+		cp.id[i] = C.uint8_t(b)
+	}
+	return check(C.sinty_fscrypt_set_policy(d, &cp))
+}
+
+func FscryptGetPolicy(path string) (*FscryptPolicy, error) {
+	c := C.CString(path)
+	defer C.free(unsafe.Pointer(c))
+	var cp C.SintyFscryptPolicy
+	if err := check(C.sinty_fscrypt_get_policy(c, &cp)); err != nil {
+		if errors.Is(err, syscall.ENODATA) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	p := &FscryptPolicy{Contents: uint8(cp.contents), Filenames: uint8(cp.filenames), Flags: uint8(cp.flags)}
+	for i := range p.ID {
+		p.ID[i] = byte(cp.id[i])
+	}
+	return p, nil
+}
+
 var ErrWrongPassphrase = syscall.EKEYREJECTED
 
 type LuksInfo struct {

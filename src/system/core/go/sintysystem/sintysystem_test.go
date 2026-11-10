@@ -1,6 +1,7 @@
 package sintysystem
 
 import (
+	"encoding/hex"
 	"errors"
 	"net"
 	"os"
@@ -493,5 +494,26 @@ func TestConfRoundTrip(t *testing.T) {
 	}
 	if _, err := ParseConf("broken\n"); !errors.Is(err, syscall.EINVAL) {
 		t.Errorf("broken gave %v", err)
+	}
+}
+
+func TestFscryptIdentifier(t *testing.T) {
+	raw := make([]byte, 64)
+	for i := range raw {
+		raw[i] = byte(i)
+	}
+	id := FscryptIdentifier(raw)
+	if got := hex.EncodeToString(id[:]); got != "8699c2c53707405da5aba5ae4d8583c0" {
+		t.Fatalf("identifier %s", got)
+	}
+	if _, err := FscryptAddKey(t.TempDir(), raw[:10]); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("short key: %v", err)
+	}
+	p, err := FscryptGetPolicy(t.TempDir())
+	if err != nil && !errors.Is(err, syscall.EOPNOTSUPP) {
+		t.Fatal(err)
+	}
+	if p != nil && p.Contents == 0 {
+		t.Fatalf("policy %+v", p)
 	}
 }

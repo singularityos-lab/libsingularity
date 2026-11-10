@@ -29,6 +29,7 @@ pub const gvdb = @import("v1/gvdb.zig");
 pub const settings = @import("v1/settings.zig");
 pub const logs = @import("v1/logs.zig");
 pub const conf = @import("v1/conf.zig");
+pub const fscrypt = @import("v1/fscrypt.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -573,6 +574,44 @@ export fn sinty_fs_mkfs_ext4(path: [*:0]const u8, label: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_fs_mkfs_ext4_encrypted(path: [*:0]const u8, label: [*:0]const u8) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    fs.ext4.mkfsWith(d, span(label), .{ .encrypt = true }) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_fscrypt_identifier(raw: [*]const u8, len: usize, id: *fscrypt.Id) void {
+    id.* = fscrypt.identifier(raw[0..len]);
+}
+
+export fn sinty_fscrypt_add_key(mount: [*:0]const u8, raw: [*]const u8, len: usize, id: *fscrypt.Id) c_int {
+    id.* = fscrypt.addKey(mount, raw[0..len]) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_fscrypt_remove_key(mount: [*:0]const u8, id: *const fscrypt.Id, all_users: bool, flags: ?*u32) c_int {
+    const r = fscrypt.removeKey(mount, id.*, all_users) catch |e| return sys.code(e);
+    if (flags) |f| f.* = @as(u32, @intFromBool(r.files_busy)) | (@as(u32, @intFromBool(r.other_users)) << 1);
+    return 0;
+}
+
+export fn sinty_fscrypt_key_status(mount: [*:0]const u8, id: *const fscrypt.Id, out: *fscrypt.KeyStatus) c_int {
+    out.* = fscrypt.keyStatus(mount, id.*) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_fscrypt_set_policy(dir: [*:0]const u8, policy: *const fscrypt.Policy) c_int {
+    fscrypt.setPolicy(dir, policy.*) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_fscrypt_get_policy(path: [*:0]const u8, out: *fscrypt.Policy) c_int {
+    const p = fscrypt.getPolicy(path) catch |e| return sys.code(e);
+    out.* = p orelse return -@as(c_int, @intFromEnum(std.os.linux.E.NODATA));
+    return 0;
+}
+
 export fn sinty_crypt_info(path: [*:0]const u8, out: *crypt.Info) c_int {
     var d = fs.Dev.open(path, false) catch |e| return sys.code(e);
     defer d.close();
@@ -884,6 +923,7 @@ test {
     _ = settings;
     _ = logs;
     _ = conf;
+    _ = fscrypt;
 }
 
 test "a tcp connection shows up with its owner and counters" {

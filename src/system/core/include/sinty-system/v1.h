@@ -417,6 +417,7 @@ int sinty_fs_mkswap(const char *path, const char *label);
 int sinty_fs_mkfs_vfat(const char *path, const char *label, uint8_t bits);
 int sinty_fs_mkfs_exfat(const char *path, const char *label);
 int sinty_fs_mkfs_ext4(const char *path, const char *label);
+int sinty_fs_mkfs_ext4_encrypted(const char *path, const char *label);
 
 typedef struct {
     uint32_t version;
@@ -684,6 +685,43 @@ int sinty_conf_remove(SintyConf *conf, const char *group, const char *key);
 int sinty_conf_groups(const SintyConf *conf, SintyTextList **out);
 int sinty_conf_keys(const SintyConf *conf, const char *group, SintyTextList **out);
 int sinty_conf_save(const SintyConf *conf, const char *path);
+
+#define SINTY_FSCRYPT_KEY_SIZE 64
+#define SINTY_FSCRYPT_ID_SIZE 16
+
+enum {
+    SINTY_FSCRYPT_KEY_ABSENT = 1,
+    SINTY_FSCRYPT_KEY_PRESENT = 2,
+    SINTY_FSCRYPT_KEY_INCOMPLETELY_REMOVED = 3,
+};
+
+enum {
+    SINTY_FSCRYPT_REMOVAL_FILES_BUSY = 1,
+    SINTY_FSCRYPT_REMOVAL_OTHER_USERS = 2,
+};
+
+typedef struct {
+    uint8_t version;
+    uint8_t contents;
+    uint8_t filenames;
+    uint8_t flags;
+    uint8_t log2_data_unit_size;
+    uint8_t reserved[3];
+    uint8_t id[SINTY_FSCRYPT_ID_SIZE];
+} SintyFscryptPolicy;
+
+typedef struct {
+    uint32_t status;
+    uint32_t user_count;
+    bool added_by_self;
+} SintyFscryptKeyStatus;
+
+void sinty_fscrypt_identifier(const uint8_t *raw, size_t len, uint8_t id[SINTY_FSCRYPT_ID_SIZE]);
+int sinty_fscrypt_add_key(const char *mount, const uint8_t *raw, size_t len, uint8_t id[SINTY_FSCRYPT_ID_SIZE]);
+int sinty_fscrypt_remove_key(const char *mount, const uint8_t id[SINTY_FSCRYPT_ID_SIZE], bool all_users, uint32_t *flags);
+int sinty_fscrypt_key_status(const char *mount, const uint8_t id[SINTY_FSCRYPT_ID_SIZE], SintyFscryptKeyStatus *out);
+int sinty_fscrypt_set_policy(const char *dir, const SintyFscryptPolicy *policy);
+int sinty_fscrypt_get_policy(const char *path, SintyFscryptPolicy *out);
 
 #ifdef __cplusplus
 }

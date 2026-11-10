@@ -1001,6 +1001,18 @@ test "ext4 formats, probes and relabels" {
     }
 }
 
+test "ext4 can be formatted for fscrypt" {
+    var pb: [600]u8 = undefined;
+    const path = try testImage("ext4-enc", 64 << 20, &pb);
+    var d = try Dev.open(path, true);
+    defer d.close();
+    try ext4.mkfsWith(d, "home", .{ .encrypt = true });
+    var sb: [4]u8 = undefined;
+    _ = try sys.pread(d.fd, &sb, 1024 + 0x60);
+    try std.testing.expect(std.mem.readInt(u32, &sb, .little) & 0x10000 != 0);
+    try std.testing.expectEqualStrings("home", sys.cstr(&(try probe(d)).label));
+}
+
 test "exfat formats, probes and relabels" {
     var pb: [600]u8 = undefined;
     const path = try testImage("exfat", 48 << 20, &pb);
