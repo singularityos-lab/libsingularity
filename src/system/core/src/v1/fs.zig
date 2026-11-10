@@ -1106,5 +1106,7 @@ test "filesystems made by the standard tools probe and relabel" {
         if (c.relabel.len == 0) continue;
         try setLabel(d, c.relabel);
         try std.testing.expectEqualStrings(c.relabel, sys.cstr(&(try probe(d)).label));
+        try setLabel(d, c.label);
+        try std.testing.expectEqualStrings(c.label, sys.cstr(&(try probe(d)).label));
     }
 }

@@ -173,6 +173,10 @@ fn derive(kdf: Kdf, out: []u8, pass: []const u8, salt: []const u8) !void {
         .pbkdf2 => |p| try pbkdf2(p.hash, out, pass, salt, p.iterations),
         .argon2 => |a| {
             var threaded: std.Io.Threaded = .init_single_threaded;
+            threaded.allocator = sys.gpa;
+            const cpus = std.Thread.getCpuCount() catch 1;
+            if (cpus > 1 and a.cpus > 1) threaded.async_limit = .limited(@min(cpus, a.cpus) - 1);
+            defer threaded.deinit();
             std.crypto.pwhash.argon2.kdf(sys.gpa, out, pass, salt, .{ .t = a.time, .m = a.memory, .p = a.cpus }, a.mode, threaded.io()) catch |e| return switch (e) {
                 error.OutOfMemory => error.NoMemory,
                 else => error.Invalid,
