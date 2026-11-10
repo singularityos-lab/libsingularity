@@ -12,6 +12,7 @@ pub const firewall = @import("v1/firewall.zig");
 pub const audio = @import("v1/audio.zig");
 pub const time = @import("v1/time.zig");
 pub const session = @import("v1/session.zig");
+pub const firmware = @import("v1/firmware.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -384,6 +385,32 @@ export fn sinty_service_state(unit: [*:0]const u8, buf: [*]u8, len: usize) c_int
     return 0;
 }
 
+export fn sinty_firmware_esrt(out: *?*firmware.EsrtList) c_int {
+    out.* = firmware.esrt(sysfs ++ "/firmware/efi/esrt") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_firmware_esrt_count(l: *const firmware.EsrtList) usize {
+    return l.count();
+}
+
+export fn sinty_firmware_esrt_at(l: *const firmware.EsrtList, i: usize) ?*const firmware.EsrtEntry {
+    return l.at(i);
+}
+
+export fn sinty_firmware_esrt_free(l: ?*firmware.EsrtList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_firmware_capsule_supported() bool {
+    return firmware.capsuleSupported(sysfs ++ "/firmware/efi/efivars");
+}
+
+export fn sinty_firmware_stage_capsule(esp: [*:0]const u8, name: [*:0]const u8, data: [*]const u8, len: usize) c_int {
+    firmware.stageCapsule(span(esp), sysfs ++ "/firmware/efi/efivars", span(name), data[0..len]) catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -398,6 +425,7 @@ test {
     _ = audio;
     _ = time;
     _ = session;
+    _ = firmware;
 }
 
 test "a tcp connection shows up with its owner and counters" {

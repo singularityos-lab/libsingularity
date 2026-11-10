@@ -400,3 +400,43 @@ func ServiceState(unit string) (string, error) {
 	}
 	return text(buf[:]), nil
 }
+
+type EsrtEntry struct {
+	Class              string
+	Type               uint32
+	Version            uint32
+	LowestVersion      uint32
+	CapsuleFlags       uint32
+	LastAttemptVersion uint32
+	LastAttemptStatus  uint32
+}
+
+func Esrt() ([]EsrtEntry, error) {
+	var l *C.SintyEsrtList
+	if err := check(C.sinty_firmware_esrt(&l)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_firmware_esrt_free(l)
+	n := int(C.sinty_firmware_esrt_count(l))
+	out := make([]EsrtEntry, 0, n)
+	for i := 0; i < n; i++ {
+		e := C.sinty_firmware_esrt_at(l, C.size_t(i))
+		out = append(out, EsrtEntry{text(e.fw_class[:]), uint32(e.fw_type), uint32(e.fw_version),
+			uint32(e.lowest_supported_version), uint32(e.capsule_flags), uint32(e.last_attempt_version), uint32(e.last_attempt_status)})
+	}
+	return out, nil
+}
+
+func CapsuleSupported() bool {
+	return bool(C.sinty_firmware_capsule_supported())
+}
+
+func StageCapsule(esp, name string, data []byte) error {
+	if len(data) == 0 {
+		return syscall.EINVAL
+	}
+	e, n := C.CString(esp), C.CString(name)
+	defer C.free(unsafe.Pointer(e))
+	defer C.free(unsafe.Pointer(n))
+	return check(C.sinty_firmware_stage_capsule(e, n, (*C.uint8_t)(unsafe.Pointer(&data[0])), C.size_t(len(data))))
+}

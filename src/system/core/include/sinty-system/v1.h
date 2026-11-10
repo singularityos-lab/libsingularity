@@ -341,6 +341,25 @@ int sinty_time_zone(char *buf, size_t len);
 int sinty_service_control(const char *action, const char *unit);
 int sinty_service_state(const char *unit, char *buf, size_t len);
 
+typedef struct {
+    char fw_class[40];
+    uint32_t fw_type;
+    uint32_t fw_version;
+    uint32_t lowest_supported_version;
+    uint32_t capsule_flags;
+    uint32_t last_attempt_version;
+    uint32_t last_attempt_status;
+} SintyEsrtEntry;
+
+typedef struct SintyEsrtList SintyEsrtList;
+
+int sinty_firmware_esrt(SintyEsrtList **out);
+size_t sinty_firmware_esrt_count(const SintyEsrtList *list);
+const SintyEsrtEntry *sinty_firmware_esrt_at(const SintyEsrtList *list, size_t index);
+void sinty_firmware_esrt_free(SintyEsrtList *list);
+bool sinty_firmware_capsule_supported(void);
+int sinty_firmware_stage_capsule(const char *esp, const char *name, const uint8_t *data, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

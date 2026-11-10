@@ -24,4 +24,5 @@ test "header layouts match the exported structs" {
     try same(core.audio.Object, c.SintyAudioObject);
     try same(core.time.RtcTime, c.SintyRtcTime);
     try same(core.time.ClockState, c.SintyClockState);
+    try same(core.firmware.EsrtEntry, c.SintyEsrtEntry);
 }

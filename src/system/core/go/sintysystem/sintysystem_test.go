@@ -65,3 +65,18 @@ func TestClock(t *testing.T) {
 		t.Fatal("an impossible date reached the RTC")
 	}
 }
+
+func TestEsrt(t *testing.T) {
+	list, err := Esrt()
+	if err != nil {
+		t.Skip(err)
+	}
+	for _, e := range list {
+		if len(e.Class) != 36 {
+			t.Fatalf("class %q", e.Class)
+		}
+	}
+	if err := StageCapsule(t.TempDir(), "../evil.cap", make([]byte, 64)); err == nil {
+		t.Fatal("a capsule name with a path was accepted")
+	}
+}
