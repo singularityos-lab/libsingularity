@@ -227,11 +227,11 @@ namespace Singularity {
     /**
      * Per process network throughput from the kernel's TCP counters.
      *
-     * Reads `ss -tinpH`, which reports byte counters for every TCP socket
-     * together with the processes holding it, without extra privileges for
-     * the user's own processes. Rates are the growth of those counters
-     * between samples. UDP traffic has no per socket counters and is not
-     * included.
+     * Reads the byte counters of every TCP socket from sock_diag through
+     * the system core, together with the process holding it, without extra
+     * privileges for the user's own processes. Rates are the growth of those
+     * counters between samples. UDP traffic has no per socket counters and
+     * is not included.
      */
     public class ProcessNetworkUsage : Object {
         public struct Socket {
@@ -257,6 +257,7 @@ namespace Singularity {
             return received_by_pid.has_key(pid) ? received_by_pid.get(pid) : 0;
         }
 
+        [Version (deprecated = true, replacement = "ProcessNetworkUsage.collect")]
         public static Socket[] parse(string output) {
             Socket[] sockets = {};
             string[] lines = output.split("\n");
@@ -296,25 +297,35 @@ namespace Singularity {
             return uint64.parse(line.substring(index + name.length));
         }
 
+        public static Socket[] collect() {
+            Socket[] sockets = {};
+            SintySystem.SocketList list;
+            if (SintySystem.proc_sockets(SintySystem.SocketFlags.TCP, out list) != 0) return sockets;
+            for (size_t i = 0; i < list.count(); i++) {
+                unowned SintySystem.Socket? s = list.at(i);
+                if (s.pid <= 0) continue;
+                Socket socket = Socket();
+                socket.key = "%s:%u %s:%u".printf((string) s.local, s.local_port, (string) s.remote, s.remote_port);
+                socket.pid = s.pid;
+                socket.sent = s.bytes_sent;
+                socket.received = s.bytes_received;
+                sockets += socket;
+            }
+            return sockets;
+        }
+
         public void sample() {
             if (busy) return;
             busy = true;
-            try {
-                var process = new Subprocess(SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_SILENCE,
-                    "ss", "-tinpH");
-                process.communicate_utf8_async.begin(null, null, (obj, res) => {
+            new Thread<bool>("network-usage", () => {
+                var sockets = collect();
+                Idle.add(() => {
                     busy = false;
-                    string? output = null;
-                    try {
-                        process.communicate_utf8_async.end(res, out output, null);
-                    } catch (Error e) {
-                        return;
-                    }
-                    if (output != null) apply(parse(output));
+                    apply(sockets);
+                    return Source.REMOVE;
                 });
-            } catch (Error e) {
-                busy = false;
-            }
+                return true;
+            });
         }
 
         public void apply(Socket[] sockets) {

@@ -1,0 +1,277 @@
+const std = @import("std");
+const sys = @import("sys.zig");
+pub const proc = @import("v1/proc.zig");
+pub const sensors = @import("v1/sensors.zig");
+pub const power = @import("v1/power.zig");
+pub const display = @import("v1/display.zig");
+
+const sysfs = "/sys";
+const procfs = "/proc";
+
+pub const version_major: u32 = 1;
+pub const version_minor: u32 = 0;
+
+export fn sinty_system_version(major: ?*u32, minor: ?*u32) void {
+    if (major) |m| m.* = version_major;
+    if (minor) |m| m.* = version_minor;
+}
+
+export fn sinty_string_free(s: ?[*:0]u8) void {
+    if (s) |p| sys.gpa.free(std.mem.span(p));
+}
+
+export fn sinty_proc_list(out: *?*proc.ProcessList) c_int {
+    out.* = proc.list("/proc") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_list_count(l: *const proc.ProcessList) usize {
+    return l.items.items.len;
+}
+
+export fn sinty_proc_list_at(l: *const proc.ProcessList, i: usize) ?*const proc.Process {
+    if (i >= l.items.items.len) return null;
+    return &l.items.items[i];
+}
+
+export fn sinty_proc_list_free(l: ?*proc.ProcessList) void {
+    if (l) |p| {
+        p.deinit();
+        sys.gpa.destroy(p);
+    }
+}
+
+export fn sinty_proc_get(pid: i32, out: *proc.Process) c_int {
+    proc.read(pid, out, false) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_signal(pid: i32, sig: i32) c_int {
+    proc.signal(pid, sig) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_get_nice(pid: i32, out: *i32) c_int {
+    out.* = proc.getNice(pid) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_set_nice(pid: i32, nice: i32) c_int {
+    proc.setNice(pid, nice) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_set_io_priority(pid: i32, class: u32, level: u32) c_int {
+    proc.setIoPriority(pid, class, level) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_get_io_priority(pid: i32, class: *u32, level: *u32) c_int {
+    proc.getIoPriority(pid, class, level) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_sockets(flags: u32, out: *?*proc.SocketList) c_int {
+    out.* = proc.sockets("/proc", flags & 1 != 0, flags & 2 != 0) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_proc_socket_list_count(l: *const proc.SocketList) usize {
+    return l.items.items.len;
+}
+
+export fn sinty_proc_socket_list_at(l: *const proc.SocketList, i: usize) ?*const proc.Socket {
+    if (i >= l.items.items.len) return null;
+    return &l.items.items[i];
+}
+
+export fn sinty_proc_socket_list_free(l: ?*proc.SocketList) void {
+    if (l) |p| {
+        p.deinit();
+        sys.gpa.destroy(p);
+    }
+}
+
+fn span(s: [*:0]const u8) []const u8 {
+    return std.mem.span(s);
+}
+
+export fn sinty_sensors_list(flags: u32, out: *?*sensors.ReadingList) c_int {
+    out.* = sensors.list(sysfs, flags & 1 != 0) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_sensors_list_count(l: *const sensors.ReadingList) usize {
+    return l.count();
+}
+
+export fn sinty_sensors_list_at(l: *const sensors.ReadingList, i: usize) ?*const sensors.Reading {
+    return l.at(i);
+}
+
+export fn sinty_sensors_list_free(l: ?*sensors.ReadingList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_sysctl_get(name: [*:0]const u8, out: [*]u8, len: usize) c_int {
+    const n = sensors.sysctlGet(procfs, span(name), out[0..len]) catch |e| return sys.code(e);
+    return @intCast(n);
+}
+
+export fn sinty_sysctl_set(name: [*:0]const u8, value: [*:0]const u8) c_int {
+    sensors.sysctlSet(procfs, span(name), span(value)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_power_supplies(out: *?*power.SupplyList) c_int {
+    out.* = power.supplies(sysfs) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_power_supply_list_count(l: *const power.SupplyList) usize {
+    return l.count();
+}
+
+export fn sinty_power_supply_list_at(l: *const power.SupplyList, i: usize) ?*const power.Supply {
+    return l.at(i);
+}
+
+export fn sinty_power_supply_list_free(l: ?*power.SupplyList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_power_set_charge_thresholds(name: [*:0]const u8, start: i32, end: i32) c_int {
+    power.setChargeThresholds(sysfs, span(name), start, end) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_power_profile(current: [*]u8, current_len: usize, choices: [*]u8, choices_len: usize) c_int {
+    power.platformProfile(sysfs, current[0..current_len], choices[0..choices_len]) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_power_set_profile(profile: [*:0]const u8) c_int {
+    power.setPlatformProfile(sysfs, span(profile)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_power_cpu_policies(out: *?*power.CpuPolicyList) c_int {
+    out.* = power.cpuPolicies(sysfs) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_power_cpu_policy_list_count(l: *const power.CpuPolicyList) usize {
+    return l.count();
+}
+
+export fn sinty_power_cpu_policy_list_at(l: *const power.CpuPolicyList, i: usize) ?*const power.CpuPolicy {
+    return l.at(i);
+}
+
+export fn sinty_power_cpu_policy_list_free(l: ?*power.CpuPolicyList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_power_set_governor(governor: [*:0]const u8) c_int {
+    power.setGovernor(sysfs, span(governor)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_power_set_energy_preference(epp: [*:0]const u8) c_int {
+    power.setEnergyPreference(sysfs, span(epp)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_display_backlights(out: *?*display.BacklightList) c_int {
+    out.* = display.backlights(sysfs) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_display_backlight_list_count(l: *const display.BacklightList) usize {
+    return l.count();
+}
+
+export fn sinty_display_backlight_list_at(l: *const display.BacklightList, i: usize) ?*const display.Backlight {
+    return l.at(i);
+}
+
+export fn sinty_display_backlight_list_free(l: ?*display.BacklightList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_display_set_backlight(name: [*:0]const u8, value: i64) c_int {
+    display.setBacklight(sysfs, span(name), value) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_display_ddc_list(out: *?*display.DdcList) c_int {
+    out.* = display.ddcDisplays(sysfs) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_display_ddc_list_count(l: *const display.DdcList) usize {
+    return l.count();
+}
+
+export fn sinty_display_ddc_list_at(l: *const display.DdcList, i: usize) ?*const display.DdcDisplay {
+    return l.at(i);
+}
+
+export fn sinty_display_ddc_list_free(l: ?*display.DdcList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_display_ddc_get(bus: u32, vcp: u8, current: *u16, maximum: *u16) c_int {
+    const v = display.ddcGet(bus, vcp) catch |e| return sys.code(e);
+    current.* = v.current;
+    maximum.* = v.maximum;
+    return 0;
+}
+
+export fn sinty_display_ddc_set(bus: u32, vcp: u8, value: u16) c_int {
+    display.ddcSet(bus, vcp, value) catch |e| return sys.code(e);
+    return 0;
+}
+
+test {
+    std.testing.refAllDecls(@This());
+    _ = proc;
+    _ = sensors;
+    _ = power;
+    _ = display;
+}
+
+test "a tcp connection shows up with its owner and counters" {
+    const linux = std.os.linux;
+    const lfd: i32 = @intCast(try sys.check(linux.socket(linux.AF.INET, linux.SOCK.STREAM | linux.SOCK.CLOEXEC, 0)));
+    defer sys.close(lfd);
+    var addr = linux.sockaddr.in{ .port = 0, .addr = std.mem.nativeToBig(u32, 0x7f000001) };
+    _ = try sys.check(linux.bind(lfd, @ptrCast(&addr), @sizeOf(linux.sockaddr.in)));
+    _ = try sys.check(linux.listen(lfd, 1));
+    var len: linux.socklen_t = @sizeOf(linux.sockaddr.in);
+    _ = try sys.check(linux.getsockname(lfd, @ptrCast(&addr), &len));
+    const cfd: i32 = @intCast(try sys.check(linux.socket(linux.AF.INET, linux.SOCK.STREAM | linux.SOCK.CLOEXEC, 0)));
+    defer sys.close(cfd);
+    _ = try sys.check(linux.connect(cfd, @ptrCast(&addr), @sizeOf(linux.sockaddr.in)));
+    const afd: i32 = @intCast(try sys.check(linux.accept(lfd, null, null)));
+    defer sys.close(afd);
+    const payload = [_]u8{'x'} ** 5000;
+    try sys.writeAll(cfd, &payload);
+    var sink: [8192]u8 = undefined;
+    var got: usize = 0;
+    while (got < payload.len) got += try sys.read(afd, sink[0..]);
+    var list: ?*proc.SocketList = null;
+    try std.testing.expectEqual(@as(c_int, 0), sinty_proc_sockets(1, &list));
+    defer sinty_proc_socket_list_free(list);
+    const me: i32 = @intCast(linux.getpid());
+    const port = std.mem.bigToNative(u16, addr.port);
+    var client_found = false;
+    var server_found = false;
+    for (list.?.items.items) |s| {
+        if (s.pid != me) continue;
+        if (s.remote_port == port and s.bytes_sent >= 5000) client_found = true;
+        if (s.local_port == port and s.remote_port != 0 and s.bytes_received >= 5000) server_found = true;
+    }
+    try std.testing.expect(client_found);
+    try std.testing.expect(server_found);
+}

@@ -116,6 +116,33 @@ private void test_network_rates() {
     assert(usage.received_rate(999) == 0);
 }
 
+private void test_collect_own_connection() {
+    try {
+        var server = new Socket(SocketFamily.IPV4, SocketType.STREAM, SocketProtocol.TCP);
+        server.bind(new InetSocketAddress(new InetAddress.loopback(SocketFamily.IPV4), 0), true);
+        server.listen();
+        var address = (InetSocketAddress) server.get_local_address();
+        var client = new Socket(SocketFamily.IPV4, SocketType.STREAM, SocketProtocol.TCP);
+        client.connect(address);
+        var accepted = server.accept();
+        uint8[] payload = new uint8[4000];
+        size_t written = 0;
+        while (written < payload.length) written += client.send(payload[written:payload.length]);
+        uint8[] sink = new uint8[8192];
+        size_t got = 0;
+        while (got < payload.length) got += accepted.receive(sink);
+        int me = (int) Posix.getpid();
+        bool found = false;
+        foreach (var socket in Singularity.ProcessNetworkUsage.collect()) {
+            if (socket.pid == me && socket.sent >= 4000
+                    && socket.key.has_suffix(":%u".printf(address.get_port()))) found = true;
+        }
+        assert(found);
+    } catch (Error e) {
+        error("%s", e.message);
+    }
+}
+
 public int main(string[] args) {
     Test.init(ref args);
     Test.add_func("/process-usage/amd-legacy-memory", test_parse_amd_legacy_memory);
@@ -125,5 +152,6 @@ public int main(string[] args) {
     Test.add_func("/process-usage/cached-scan-keeps-client", test_cached_scan_keeps_client);
     Test.add_func("/process-usage/parse-ss", test_parse_ss);
     Test.add_func("/process-usage/network-rates", test_network_rates);
+    Test.add_func("/process-usage/collect-own-connection", test_collect_own_connection);
     return Test.run();
 }

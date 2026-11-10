@@ -476,7 +476,66 @@ if get_option('system')
   libnm_dep      = dependency('libnm', version: '>= 1.0.0')
   soup_sys_dep   = dependency('libsoup-3.0')
 
+  zig = find_program(get_option('zig'))
+  system_core_sources = files(
+    'src/system/core/src/core.zig',
+    'src/system/core/src/sys.zig',
+    'src/system/core/src/v1/proc.zig',
+    'src/system/core/src/v1/sensors.zig',
+    'src/system/core/src/v1/power.zig',
+    'src/system/core/src/v1/display.zig',
+  )
+  system_core_args = []
+  if get_option('zig-target') != ''
+    system_core_args += ['-target', get_option('zig-target')]
+  endif
+  if get_option('zig-cpu') != ''
+    system_core_args += ['-mcpu', get_option('zig-cpu')]
+  endif
+  system_core_lib = custom_target('sinty-system-core',
+    input: 'src/system/core/src/core.zig',
+    output: 'libsinty-system-core.so.1',
+    depend_files: system_core_sources,
+    command: [zig, 'build-lib', '-dynamic', '-O', 'ReleaseSafe', '-fstrip', '-fPIC', '-lc',
+      system_core_args,
+      '--cache-dir', '@PRIVATE_DIR@', '--global-cache-dir', '@PRIVATE_DIR@' / 'global',
+      '-fsoname=libsinty-system-core.so.1', '-femit-bin=@OUTPUT@', '-fno-emit-h', '@INPUT@'],
+    install: true,
+    install_dir: get_option('libdir'),
+  )
+  install_symlink('libsinty-system-core.so',
+    pointing_to: 'libsinty-system-core.so.1',
+    install_dir: get_option('libdir'),
+  )
+  install_headers('src/system/core/include/sinty-system/v1.h', subdir: 'sinty-system')
+  system_core_dep = declare_dependency(
+    link_with: system_core_lib,
+    include_directories: include_directories('src/system/core/include'),
+  )
+  system_core_vala_args = ['--vapidir', meson.current_source_dir() / 'src/system/core/vapi', '--pkg', 'sinty-system-core']
+  pkgconfig.generate(
+    name: 'sinty-system',
+    description: 'Sinty system core: processes, sensors, power, displays and devices through a flat C API',
+    version: '1.0',
+    filebase: 'sinty-system-1',
+    libraries: ['-lsinty-system-core'],
+  )
+  system_core_test = custom_target('sinty-system-core-test',
+    input: 'src/system/core/src/abi_test.zig',
+    output: 'sinty-system-core-test',
+    depend_files: system_core_sources + files('src/system/core/include/sinty-system/v1.h'),
+    command: [zig, 'test', '--test-no-exec', '-lc',
+      '-I', meson.current_source_dir() / 'src/system/core/include',
+      '--cache-dir', '@PRIVATE_DIR@', '--global-cache-dir', '@PRIVATE_DIR@' / 'global',
+      '-femit-bin=@OUTPUT@', '@INPUT@'],
+    build_by_default: not meson.is_cross_build(),
+  )
+  if not meson.is_cross_build()
+    test('system-core', system_core_test, env: ['TMPDIR=' + meson.current_build_dir()])
+  endif
+
   libsingularity_system_deps = [
+    system_core_dep,
     gio_dep, giounix_dep, gee_dep,
     pulse_dep, pulse_glib_dep, gudev_dep, upower_dep,
     libnm_dep, soup_sys_dep, json_dep, m_dep,
@@ -560,7 +619,7 @@ if get_option('system')
   libsingularity_system = shared_library('singularity-system',
     libsingularity_system_sources,
     dependencies: libsingularity_system_deps,
-    vala_args: ['--pkg', 'posix', '--vapidir', meson.current_source_dir() / 'src/vapi'],
+    vala_args: ['--pkg', 'posix', '--vapidir', meson.current_source_dir() / 'src/vapi'] + system_core_vala_args,
     c_args: power_c_args + updates_c_args,
     vala_header: 'singularity-system.h',
     vala_vapi: 'singularity-system-1.0.vapi',
@@ -631,7 +690,8 @@ if get_option('system')
       'src/system/sensor.vala',
       'src/system/process_usage.vala',
     ),
-    dependencies: [gio_dep, gee_dep],
+    dependencies: [gio_dep, gee_dep, system_core_dep],
+    vala_args: system_core_vala_args,
   )
   test('sensor', sensor_test)
 
@@ -641,7 +701,8 @@ if get_option('system')
       'tests/process_usage_test.vala',
       'src/system/process_usage.vala',
     ),
-    dependencies: [gio_dep, gee_dep],
+    dependencies: [gio_dep, gee_dep, system_core_dep],
+    vala_args: system_core_vala_args + ['--pkg', 'posix'],
   )
   test('process-usage', process_usage_test)
 
@@ -682,7 +743,8 @@ if get_option('system')
     # under test -- but the file still needs to LINK, and every valac
     # invocation compiles the whole file regardless of which branch a test
     # exercises.
-    dependencies: [gio_dep, giounix_dep, gee_dep],
+    dependencies: [gio_dep, giounix_dep, gee_dep, system_core_dep],
+    vala_args: system_core_vala_args,
   )
   test('utilization', utilization_test)
 
