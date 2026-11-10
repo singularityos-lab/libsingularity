@@ -5,6 +5,5 @@ libpulse
 libpulse-mainloop-glib
 gudev-1.0
 upower-glib
-libnm
 libsoup-3.0
 json-glib-1.0

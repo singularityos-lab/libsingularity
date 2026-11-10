@@ -474,7 +474,6 @@ if get_option('system')
   pulse_glib_dep = dependency('libpulse-mainloop-glib')
   gudev_dep      = dependency('gudev-1.0')
   upower_dep     = dependency('upower-glib', version: '>= 0.99.0')
-  libnm_dep      = dependency('libnm', version: '>= 1.0.0')
   soup_sys_dep   = dependency('libsoup-3.0')
 
   zig = find_program(get_option('zig'))
@@ -575,7 +574,7 @@ if get_option('system')
     system_core_dep,
     gio_dep, giounix_dep, gee_dep,
     pulse_dep, pulse_glib_dep, gudev_dep, upower_dep,
-    libnm_dep, soup_sys_dep, json_dep, m_dep,
+    soup_sys_dep, json_dep, m_dep,
   ]
 
   libsingularity_system_sources = files(
@@ -594,6 +593,8 @@ if get_option('system')
     'src/system/power_manager.vala',
     'src/system/dynamic_internet_socket.c',
     'src/system/dynamic_internet.vala',
+    'src/system/nm_client.vala',
+    'src/system/nm_import.vala',
     'src/system/nm_dynamic_internet_backend.vala',
     'src/system/nm_wrapper.vala',
     'src/system/call_monitor.vala',
@@ -675,7 +676,7 @@ if get_option('system')
     description: 'Singularity Desktop headless system backends',
     version: meson.project_version(),
     filebase: 'singularity-system-1.0',
-    requires: ['gio-2.0', 'gio-unix-2.0', 'gee-0.8', 'libpulse', 'libpulse-mainloop-glib', 'gudev-1.0', 'upower-glib', 'libnm', 'libsoup-3.0', 'json-glib-1.0'],
+    requires: ['gio-2.0', 'gio-unix-2.0', 'gee-0.8', 'libpulse', 'libpulse-mainloop-glib', 'gudev-1.0', 'upower-glib', 'libsoup-3.0', 'json-glib-1.0'],
   )
 
   install_data(
@@ -801,6 +802,18 @@ if get_option('system')
     dependencies: [gio_dep, gee_dep],
   )
   test('dynamic-internet', dynamic_internet_test)
+
+  nm_import_test = executable(
+    'nm-import-test',
+    files(
+      'tests/nm_import_test.vala',
+      'src/system/nm_client.vala',
+      'src/system/nm_import.vala',
+    ),
+    vala_args: ['--pkg', 'posix'],
+    dependencies: [gio_dep, giounix_dep],
+  )
+  test('nm-import', nm_import_test, env: ['TMPDIR=' + meson.current_build_dir()])
 
   speech_test = executable(
     'speech-test',

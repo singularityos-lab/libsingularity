@@ -1,5 +1,3 @@
-using NM;
-
 namespace Singularity {
 
     public class NetworkManagerDynamicInternetBackend : GLib.Object, DynamicInternetBackend {
@@ -9,7 +7,7 @@ namespace Singularity {
 
         public string name { owned get { return "NetworkManager"; } }
 
-        private NM.Client client;
+        private NmClient client;
         private HashTable<string, int64?> original_ip4 =
             new HashTable<string, int64?>(str_hash, str_equal);
         private HashTable<string, int64?> original_ip6 =
@@ -21,28 +19,29 @@ namespace Singularity {
         private static extern bool bind_to_device(GLib.Socket socket, string interface_name)
             throws GLib.Error;
 
-        public NetworkManagerDynamicInternetBackend(NM.Client client) {
+        public NetworkManagerDynamicInternetBackend(NmClient client) {
             this.client = client;
-            client.active_connection_added.connect(() => changed());
-            client.active_connection_removed.connect(() => changed());
-            client.device_added.connect(() => changed());
-            client.device_removed.connect(() => changed());
+            client.object_added.connect((path) => {
+                if (client.has_interface(path, NM_ACTIVE_IFACE) || client.has_interface(path, NM_DEVICE_IFACE))
+                    changed();
+            });
+            client.object_removed.connect(() => changed());
         }
 
         public async Gee.List<InternetUplink> probe(Cancellable? cancellable) throws Error {
             var result = new Gee.ArrayList<InternetUplink>();
-            foreach (var device in client.get_devices()) {
-                if (!is_uplink(device) || device.get_state() != NM.DeviceState.ACTIVATED) continue;
-                var active = device.get_active_connection();
-                if (active == null || active.get_vpn()) continue;
+            foreach (var device in client.devices()) {
+                if (!is_uplink(device) || client.device_state(device) != NmDeviceState.ACTIVATED) continue;
+                string? active = client.device_active(device);
+                if (active == null || client.prop_bool(active, NM_ACTIVE_IFACE, "Vpn")) continue;
 
-                string iface = device.get_iface();
+                string iface = client.device_iface(device);
                 var uplink = new InternetUplink(iface, iface, display_name(device, active),
-                    kind_for(device.get_device_type()));
-                uplink.primary = active.get_default();
-                uplink.captive = device.get_connectivity(Posix.AF_INET) == NM.ConnectivityState.PORTAL;
-                var metered = (NM.Metered) device.metered;
-                uplink.metered = metered == NM.Metered.YES || metered == NM.Metered.GUESS_YES;
+                    kind_for(client.device_type(device)));
+                uplink.primary = client.prop_bool(active, NM_ACTIVE_IFACE, "Default");
+                uplink.captive = client.prop_uint(device, NM_DEVICE_IFACE, "Ip4Connectivity") == NM_CONNECTIVITY_PORTAL;
+                uint metered = client.prop_uint(device, NM_DEVICE_IFACE, "Metered");
+                uplink.metered = metered == NM_METERED_YES || metered == NM_METERED_GUESS_YES;
                 uplink.latency_ms = yield measure_latency(device, cancellable);
                 uplink.reachable = !uplink.captive && uplink.latency_ms >= 0;
                 result.add(uplink);
@@ -53,16 +52,17 @@ namespace Singularity {
 
         public async void prefer(string uplink_id, Cancellable? cancellable) throws Error {
             var devices = active_uplinks();
-            NM.Device? preferred = null;
-            foreach (var device in devices.data) {
-                if (device.get_iface() == uplink_id) preferred = device;
+            string? preferred = null;
+            foreach (var device in devices) {
+                if (client.device_iface(device) == uplink_id) preferred = device;
             }
             if (preferred == null) throw new IOError.NOT_FOUND("Connection is no longer available");
 
-            var checkpoint = yield client.checkpoint_create(devices, CHECKPOINT_SECONDS,
-                NM.CheckpointCreateFlags.ALLOW_OVERLAPPING, cancellable);
+            var reply = yield client.call(NM_PATH, NM_IFACE, "CheckpointCreate",
+                new Variant("(^aouu)", devices, CHECKPOINT_SECONDS, 0x8), cancellable);
+            string checkpoint = reply.get_child_value(0).get_string();
             try {
-                foreach (var device in devices.data)
+                foreach (var device in devices)
                     yield set_metric(device, device == preferred ? PREFERRED_METRIC : STANDBY_METRIC,
                         cancellable);
 
@@ -70,10 +70,10 @@ namespace Singularity {
                 if (latency < 0) {
                     throw new IOError.HOST_UNREACHABLE("The selected connection failed its safety check");
                 }
-                yield client.checkpoint_destroy(checkpoint.get_path(), cancellable);
+                yield client.call(NM_PATH, NM_IFACE, "CheckpointDestroy", new Variant("(o)", checkpoint), cancellable);
             } catch (Error e) {
                 try {
-                    yield client.checkpoint_rollback(checkpoint.get_path(), cancellable);
+                    yield client.call(NM_PATH, NM_IFACE, "CheckpointRollback", new Variant("(o)", checkpoint), cancellable);
                 } catch (Error rollback_error) {
                     warning("Dynamic Internet rollback failed: %s", rollback_error.message);
                 }
@@ -82,72 +82,86 @@ namespace Singularity {
         }
 
         public async void reset(Cancellable? cancellable) throws Error {
-            var devices = active_uplinks();
-            foreach (var device in devices.data) {
-                string iface = device.get_iface();
+            foreach (var device in active_uplinks()) {
+                string iface = client.device_iface(device);
                 if (!original_ip4.contains(iface) && !original_ip6.contains(iface)) continue;
-                uint64 version;
-                var applied = yield device.get_applied_connection_async(0, cancellable, out version);
-                var ip4 = applied.get_setting_ip4_config();
-                var ip6 = applied.get_setting_ip6_config();
-                int64? metric4 = original_ip4[iface];
-                int64? metric6 = original_ip6[iface];
-                if (ip4 != null && metric4 != null) ip4.route_metric = metric4;
-                if (ip6 != null && metric6 != null) ip6.route_metric = metric6;
-                yield device.reapply_async(applied, version, 0, cancellable);
+                yield reapply(device, original_ip4[iface], original_ip6[iface], cancellable);
             }
             original_ip4.remove_all();
             original_ip6.remove_all();
         }
 
-        private GenericArray<NM.Device> active_uplinks() {
-            var result = new GenericArray<NM.Device>();
-            foreach (var device in client.get_devices()) {
-                if (is_uplink(device) && device.get_state() == NM.DeviceState.ACTIVATED)
-                    result.add(device);
+        private string[] active_uplinks() {
+            string[] result = {};
+            foreach (var device in client.devices()) {
+                if (is_uplink(device) && client.device_state(device) == NmDeviceState.ACTIVATED)
+                    result += device;
             }
             return result;
         }
 
-        private async void set_metric(NM.Device device, int64 metric, Cancellable? cancellable)
-            throws Error {
-            uint64 version;
-            var applied = yield device.get_applied_connection_async(0, cancellable, out version);
-            string iface = device.get_iface();
-            var ip4 = applied.get_setting_ip4_config();
-            var ip6 = applied.get_setting_ip6_config();
-            if (ip4 != null) {
-                if (!original_ip4.contains(iface)) original_ip4[iface] = ip4.route_metric;
-                ip4.route_metric = metric;
-            }
-            if (ip6 != null) {
-                if (!original_ip6.contains(iface)) original_ip6[iface] = ip6.route_metric;
-                ip6.route_metric = metric;
-            }
-            yield device.reapply_async(applied, version, 0, cancellable);
+        private static int64? metric_of(Variant applied, string group) {
+            var g = applied.lookup_value(group, new VariantType("a{sv}"));
+            if (g == null) return null;
+            var v = g.lookup_value("route-metric", VariantType.INT64);
+            return v != null ? v.get_int64() : -1;
         }
 
-        private async int measure_latency(NM.Device device, Cancellable? parent) {
-            NM.IPConfig? config = device.get_ip4_config();
+        private async void reapply(string device, int64? metric4, int64? metric6, Cancellable? cancellable)
+            throws Error {
+            var reply = yield client.call(device, NM_DEVICE_IFACE, "GetAppliedConnection",
+                new Variant("(u)", 0), cancellable);
+            var applied = new NmConnection.detached(reply.get_child_value(0));
+            uint64 version = reply.get_child_value(1).get_uint64();
+            var settings = applied.settings;
+            if (metric4 != null && applied.has_setting("ipv4")) {
+                var c = new HashTable<string, Variant?>(str_hash, str_equal);
+                c.insert("route-metric", new Variant.int64(metric4));
+                settings = new NmConnection.detached(settings).changed("ipv4", c);
+            }
+            if (metric6 != null && applied.has_setting("ipv6")) {
+                var c = new HashTable<string, Variant?>(str_hash, str_equal);
+                c.insert("route-metric", new Variant.int64(metric6));
+                settings = new NmConnection.detached(settings).changed("ipv6", c);
+            }
+            yield client.call(device, NM_DEVICE_IFACE, "Reapply",
+                new Variant("(@a{sa{sv}}tu)", settings, version, 0), cancellable);
+        }
+
+        private async void set_metric(string device, int64 metric, Cancellable? cancellable)
+            throws Error {
+            var reply = yield client.call(device, NM_DEVICE_IFACE, "GetAppliedConnection",
+                new Variant("(u)", 0), cancellable);
+            var applied = reply.get_child_value(0);
+            string iface = client.device_iface(device);
+            var m4 = metric_of(applied, "ipv4");
+            var m6 = metric_of(applied, "ipv6");
+            if (m4 != null && !original_ip4.contains(iface)) original_ip4[iface] = m4;
+            if (m6 != null && !original_ip6.contains(iface)) original_ip6[iface] = m6;
+            yield reapply(device, m4 != null ? (int64?) metric : null, m6 != null ? (int64?) metric : null,
+                cancellable);
+        }
+
+        private async int measure_latency(string device, Cancellable? parent) {
+            string source = client.ip_address(device, false);
             bool ipv6 = false;
-            if (config == null || config.get_addresses().length == 0) {
-                config = device.get_ip6_config();
+            if (source == "") {
+                source = client.ip_address(device, true);
                 ipv6 = true;
             }
-            if (config == null || config.get_addresses().length == 0) return -1;
-            string source = config.get_addresses().get(0).get_address();
+            if (source == "") return -1;
             var source_address = new InetAddress.from_string(source);
             if (source_address == null) return -1;
 
             string target = ipv6
                 ? (probe_target == 0 ? "2606:4700:4700::1111" : "2001:4860:4860::8888")
                 : (probe_target == 0 ? "1.1.1.1" : "8.8.8.8");
-            int latency = yield connect_latency(device.get_iface(), source_address, target, parent);
+            int latency = yield connect_latency(client.device_iface(device), source_address, target, parent);
             if (latency >= 0 || (parent != null && parent.is_cancelled())) return latency;
             target = ipv6
                 ? (probe_target == 0 ? "2001:4860:4860::8888" : "2606:4700:4700::1111")
                 : (probe_target == 0 ? "8.8.8.8" : "1.1.1.1");
-            return yield connect_latency(device.get_iface(), source_address, target, parent);
+            return yield connect_latency(client.device_iface(device), source_address, target, parent);
         }
 
         private async int connect_latency(string interface_name, InetAddress source_address,
@@ -191,32 +205,32 @@ namespace Singularity {
             }
         }
 
-        private static bool is_uplink(NM.Device device) {
-            switch (device.get_device_type()) {
-                case NM.DeviceType.ETHERNET:
-                case NM.DeviceType.WIFI:
-                case NM.DeviceType.MODEM:
-                case NM.DeviceType.BT:
+        private bool is_uplink(string device) {
+            switch (client.device_type(device)) {
+                case NmDeviceType.ETHERNET:
+                case NmDeviceType.WIFI:
+                case NmDeviceType.MODEM:
+                case NmDeviceType.BT:
                     return true;
                 default:
                     return false;
             }
         }
 
-        private static InternetUplinkKind kind_for(NM.DeviceType type) {
+        private static InternetUplinkKind kind_for(uint type) {
             switch (type) {
-                case NM.DeviceType.ETHERNET: return InternetUplinkKind.ETHERNET;
-                case NM.DeviceType.WIFI: return InternetUplinkKind.WIFI;
-                case NM.DeviceType.MODEM:
-                case NM.DeviceType.BT: return InternetUplinkKind.MOBILE;
+                case NmDeviceType.ETHERNET: return InternetUplinkKind.ETHERNET;
+                case NmDeviceType.WIFI: return InternetUplinkKind.WIFI;
+                case NmDeviceType.MODEM:
+                case NmDeviceType.BT: return InternetUplinkKind.MOBILE;
                 default: return InternetUplinkKind.OTHER;
             }
         }
 
-        private static string display_name(NM.Device device, NM.ActiveConnection active) {
-            if (device.get_device_type() == NM.DeviceType.ETHERNET)
-                return "Ethernet (%s)".printf(device.get_iface());
-            return "%s (%s)".printf(active.get_id(), device.get_iface());
+        private string display_name(string device, string active) {
+            if (client.device_type(device) == NmDeviceType.ETHERNET)
+                return "Ethernet (%s)".printf(client.device_iface(device));
+            return "%s (%s)".printf(client.active_id(active), client.device_iface(device));
         }
     }
 }

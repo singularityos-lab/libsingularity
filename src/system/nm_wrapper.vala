@@ -1,5 +1,3 @@
-using NM;
-
 namespace Singularity {
 
     /**
@@ -57,67 +55,44 @@ namespace Singularity {
         public signal void hotspot_state_changed();
         public signal void sharing_action_result(bool success, string message);
 
-        // Fires when a port is added/removed, changes link state, or a
-        // chipset/capability probe completes -- whichever, the settings
-        // page's list needs a full rebuild rather than one row's update.
         public signal void ethernet_ports_changed();
         public signal void wifi_connections_changed();
 
         private const string HOTSPOT_ID = "Singularity Hotspot";
         private const string WIRED_SHARE_ID = "Singularity Wired Sharing";
 
-        // Normalised connection state, shared by OpenVPN-style and WireGuard
-        // connections (which report state differently).
         public enum VpnLinkState { DISCONNECTED, CONNECTING, CONNECTED }
 
-        // NetworkManager connection types we treat as "VPN" in the UI.
         private static bool is_vpn_type(string? t) {
             return t == "vpn" || t == "wireguard";
         }
 
-        private string vpn_failure_message(NM.ActiveConnectionStateReason reason) {
+        private string vpn_failure_message(uint reason) {
             switch (reason) {
-                case NM.ActiveConnectionStateReason.LOGIN_FAILED:
+                case NmActiveReason.LOGIN_FAILED:
                     return "VPN authentication failed";
-                case NM.ActiveConnectionStateReason.NO_SECRETS:
+                case NmActiveReason.NO_SECRETS:
                     return "VPN credentials are missing";
-                case NM.ActiveConnectionStateReason.CONNECT_TIMEOUT:
-                case NM.ActiveConnectionStateReason.SERVICE_START_TIMEOUT:
+                case NmActiveReason.CONNECT_TIMEOUT:
+                case NmActiveReason.SERVICE_START_TIMEOUT:
                     return "VPN connection timed out";
-                case NM.ActiveConnectionStateReason.IP_CONFIG_INVALID:
+                case NmActiveReason.IP_CONFIG_INVALID:
                     return "The VPN returned an invalid network configuration";
-                case NM.ActiveConnectionStateReason.SERVICE_START_FAILED:
-                case NM.ActiveConnectionStateReason.SERVICE_STOPPED:
+                case NmActiveReason.SERVICE_START_FAILED:
+                case NmActiveReason.SERVICE_STOPPED:
                     return "The VPN service could not start";
                 default:
                     return "VPN connection failed";
             }
         }
 
-        private void watch_vpn_connection(NM.ActiveConnection active) {
-            if (!is_vpn_type(active.get_connection_type())) return;
-            active.state_changed.connect((state, reason) => {
-                update_vpn_state();
-                if (state == NM.ActiveConnectionState.ACTIVATED) {
-                    vpn_action_result(true, "VPN connected");
-                } else if (state == NM.ActiveConnectionState.DEACTIVATED
-                    && reason != NM.ActiveConnectionStateReason.NONE
-                    && reason != NM.ActiveConnectionStateReason.USER_DISCONNECTED
-                    && reason != NM.ActiveConnectionStateReason.CONNECTION_REMOVED) {
-                    vpn_action_result(false,
-                        vpn_failure_message((NM.ActiveConnectionStateReason) reason));
-                }
-            });
-            if (active is NM.VpnConnection)
-                active.notify["vpn-state"].connect(() => update_vpn_state());
-        }
-
-        private NM.Client? client;
-        private NM.DeviceWifi? wifi_device;
-        private GenericArray<NM.DeviceWifi> wifi_devices = new GenericArray<NM.DeviceWifi>();
-        private NM.DeviceEthernet? ethernet_device;
-        private GenericArray<NM.DeviceEthernet> ethernet_devices = new GenericArray<NM.DeviceEthernet>();
+        private NmClient? client;
+        private string? wifi_device;
+        private GenericArray<string> wifi_devices = new GenericArray<string>();
+        private string? ethernet_device;
+        private GenericArray<string> ethernet_devices = new GenericArray<string>();
         private GenericArray<EthernetPortInfo> ethernet_ports_list = new GenericArray<EthernetPortInfo>();
+        private HashTable<string, EthernetPortInfo> port_of = new HashTable<string, EthernetPortInfo>(str_hash, str_equal);
         private bool wifi_request_in_flight = false;
         private bool wifi_requested_state = false;
         private GLib.Settings desktop_settings;
@@ -135,167 +110,161 @@ namespace Singularity {
             dynamic_internet.set_active(enabled);
         }
 
+        private static bool listed(GenericArray<string> list, string path, out uint index = null) {
+            for (uint i = 0; i < list.length; i++) {
+                if (list.get(i) == path) {
+                    index = i;
+                    return true;
+                }
+            }
+            index = 0;
+            return false;
+        }
+
         private async void init_client() {
             try {
-                client = (NM.Client) GLib.Object.new(typeof(NM.Client));
-                yield client.init_async(Priority.DEFAULT, null);
-                if (client != null) {
-                    message("NetworkManager Client initialized");
-                    dynamic_internet.set_fallback_backend(
-                        new NetworkManagerDynamicInternetBackend(client));
-                    find_wifi_device();
-                    client.notify["wireless-enabled"].connect(() => {
-                        update_state();
-                    });
-                    client.notify["primary-connection"].connect(() => {
-                        update_state();
-                    });
-                    client.active_connection_added.connect((active) => {
-                        watch_vpn_connection(active);
-                        update_vpn_state();
-                        refresh_sharing_state();
-                    });
-                    client.active_connection_removed.connect((active) => {
-                        update_vpn_state();
-                        refresh_sharing_state();
-                    });
-                    client.connection_added.connect((conn) => {
-                        vpn_connections_changed();
-                        if (conn.get_connection_type() == "802-11-wireless") wifi_connections_changed();
-                    });
-                    client.connection_removed.connect((conn) => {
-                        vpn_connections_changed();
-                        if (conn.get_connection_type() == "802-11-wireless") wifi_connections_changed();
-                    });
-                    foreach (var active in client.get_active_connections())
-                        watch_vpn_connection(active);
+                client = yield NmClient.create();
+            } catch (Error e) {
+                warning("Failed to initialize NetworkManager client: %s", e.message);
+                return;
+            }
+            message("NetworkManager Client initialized");
+            dynamic_internet.set_fallback_backend(new NetworkManagerDynamicInternetBackend(client));
+            foreach (var d in client.devices()) register_device(d);
+            if (wifi_device == null) warning("No WiFi device found!");
+            client.properties_changed.connect(on_properties_changed);
+            client.object_added.connect((path) => {
+                if (client.has_interface(path, NM_DEVICE_IFACE)) {
+                    register_device(path);
                     update_state();
+                } else if (client.has_interface(path, NM_ACTIVE_IFACE)) {
                     update_vpn_state();
                     refresh_sharing_state();
                 }
-            } catch (Error e) {
-                warning("Failed to initialize NetworkManager client: %s", e.message);
+            });
+            client.object_removed.connect(on_object_removed);
+            client.active_state_changed.connect(on_active_state);
+            client.vpn_state_changed.connect((path, state, reason) => update_vpn_state());
+            client.connection_added.connect((conn) => {
+                vpn_connections_changed();
+                if (conn.get_connection_type() == "802-11-wireless") wifi_connections_changed();
+            });
+            client.connection_removed.connect((conn) => {
+                vpn_connections_changed();
+                if (conn.get_connection_type() == "802-11-wireless") wifi_connections_changed();
+            });
+            client.connection_updated.connect((conn) => {
+                if (is_vpn_type(conn.get_connection_type())) vpn_connections_changed();
+                if (conn.get_connection_type() == "802-11-wireless") wifi_connections_changed();
+                refresh_sharing_state();
+            });
+            update_state();
+            update_vpn_state();
+            refresh_sharing_state();
+        }
+
+        private void on_active_state(string path, uint state, uint reason) {
+            update_vpn_state();
+            refresh_sharing_state();
+            if (!is_vpn_type(client.active_type(path))) return;
+            if (state == NmActiveState.ACTIVATED) {
+                vpn_action_result(true, "VPN connected");
+            } else if (state == NmActiveState.DEACTIVATED
+                && reason != NmActiveReason.NONE
+                && reason != NmActiveReason.USER_DISCONNECTED
+                && reason != NmActiveReason.CONNECTION_REMOVED) {
+                vpn_action_result(false, vpn_failure_message(reason));
             }
         }
 
-        private void find_wifi_device() {
-            if (client == null) {
-                warning("NetworkManager Client is null");
+        private void on_properties_changed(string path, string iface) {
+            if (path == NM_PATH) {
+                update_state();
+                update_vpn_state();
+                refresh_sharing_state();
                 return;
             }
-            var devices = client.get_devices();
-            foreach (var device in devices) {
-                if (device is NM.DeviceWifi) {
-                    register_wifi_device((NM.DeviceWifi) device);
-                } else if (device is NM.DeviceEthernet) {
-                    register_ethernet_device((NM.DeviceEthernet) device);
+            if (iface == NM_WIRELESS_IFACE) {
+                access_points_changed();
+                update_state();
+                return;
+            }
+            if (iface == NM_AP_IFACE) {
+                foreach (var d in wifi_devices.data) {
+                    if (client.prop_path(d, NM_WIRELESS_IFACE, "ActiveAccessPoint") == path) update_state();
                 }
+                return;
             }
-            if (wifi_device == null) {
-                warning("No WiFi device found!");
-            }
-
-            // A wired port can appear or disappear long after this initial
-            // enumeration -- a USB-C dock or a USB ethernet adapter is the
-            // common case, and this hardware is docked routinely. Without
-            // these, ethernet_ports() kept reporting a port that had been
-            // unplugged and never showed one that had just been attached,
-            // which directly contradicts what ethernet_ports_changed()
-            // promises its subscribers.
-            client.device_added.connect((device) => {
-                if (device is NM.DeviceWifi) {
-                    register_wifi_device((NM.DeviceWifi) device);
-                    access_points_changed();
-                    update_state();
-                } else if (device is NM.DeviceEthernet) {
-                    register_ethernet_device((NM.DeviceEthernet) device);
+            if (iface == NM_DEVICE_IFACE) {
+                var port = port_of.lookup(path);
+                if (port != null) {
+                    port.mark_connected(client.device_state(path) == NmDeviceState.ACTIVATED);
                     ethernet_ports_changed();
-                    update_state();
                 }
-            });
-            client.device_removed.connect((device) => {
-                if (device is NM.DeviceWifi) {
-                    var gone_wifi = (NM.DeviceWifi) device;
-                    wifi_devices.remove(gone_wifi);
-                    if (wifi_device == gone_wifi)
-                        wifi_device = wifi_devices.length > 0 ? wifi_devices.get(0) : null;
-                    has_wifi = wifi_devices.length > 0;
-                    access_points_changed();
-                    update_state();
-                    return;
-                }
-                if (!(device is NM.DeviceEthernet)) {
-                    return;
-                }
-                var gone = (NM.DeviceEthernet) device;
-                ethernet_devices.remove(gone);
-                string iface = gone.get_iface();
-                for (int i = ethernet_ports_list.length - 1; i >= 0; i--) {
-                    if (ethernet_ports_list.get(i).iface == iface) {
-                        ethernet_ports_list.remove_index(i);
-                    }
+                update_state();
+                return;
+            }
+            if (iface == NM_ACTIVE_IFACE || iface == NM_VPN_IFACE) {
+                update_vpn_state();
+                refresh_sharing_state();
+            }
+        }
+
+        private void on_object_removed(string path) {
+            uint i;
+            if (listed(wifi_devices, path, out i)) {
+                wifi_devices.remove_index(i);
+                if (wifi_device == path)
+                    wifi_device = wifi_devices.length > 0 ? wifi_devices.get(0) : null;
+                has_wifi = wifi_devices.length > 0;
+                access_points_changed();
+                update_state();
+                return;
+            }
+            if (listed(ethernet_devices, path, out i)) {
+                ethernet_devices.remove_index(i);
+                var port = port_of.lookup(path);
+                if (port != null) {
+                    ethernet_ports_list.remove(port);
+                    port_of.remove(path);
                 }
                 has_ethernet = ethernet_devices.length > 0;
-                // ethernet_device is the cached "currently interesting" port
-                // used by is_wired_connected. If the removed device was it,
-                // drop the dangling reference and let update_state() re-pick
-                // from whatever is left rather than reporting link state for
-                // a device that no longer exists.
-                if (ethernet_device == gone) {
-                    ethernet_device = ethernet_devices.length > 0
-                        ? ethernet_devices.get(0) : null;
-                }
+                if (ethernet_device == path)
+                    ethernet_device = ethernet_devices.length > 0 ? ethernet_devices.get(0) : null;
                 ethernet_ports_changed();
                 update_state();
-            });
+                return;
+            }
+            update_vpn_state();
+            refresh_sharing_state();
         }
 
-        private void register_wifi_device(NM.DeviceWifi device) {
-            for (int i = 0; i < wifi_devices.length; i++) {
-                if (wifi_devices.get(i) == device) return;
-            }
-            wifi_devices.add(device);
-            has_wifi = true;
-            if (wifi_device == null) wifi_device = device;
-            device.access_point_added.connect(() => access_points_changed());
-            device.access_point_removed.connect(() => access_points_changed());
-            device.notify["active-access-point"].connect(() => {
-                update_state();
-                var ap = device.get_active_access_point();
-                if (ap != null) ap.notify["strength"].connect(() => update_state());
-            });
-        }
-
-        private void register_ethernet_device(NM.DeviceEthernet ed) {
-            ethernet_devices.add(ed);
-            has_ethernet = true;
-            if (ethernet_device == null) {
-                ethernet_device = ed;
-            }
-            var port = new EthernetPortInfo(ed.get_iface(), ed.state == NM.DeviceState.ACTIVATED);
-            ethernet_ports_list.add(port);
-            probe_ethernet_port.begin(port);
-            // Watch EVERY wired port. Only the first one used to be
-            // watched, so on a machine with more than one NIC a link
-            // coming up on any other port never triggered a refresh.
-            ed.notify["state"].connect(() => {
-                port.mark_connected(ed.state == NM.DeviceState.ACTIVATED);
+        private void register_device(string path) {
+            uint type = client.device_type(path);
+            if (type == NmDeviceType.WIFI) {
+                if (listed(wifi_devices, path)) return;
+                wifi_devices.add(path);
+                has_wifi = true;
+                if (wifi_device == null) wifi_device = path;
+                access_points_changed();
+            } else if (type == NmDeviceType.ETHERNET) {
+                if (listed(ethernet_devices, path)) return;
+                ethernet_devices.add(path);
+                has_ethernet = true;
+                if (ethernet_device == null) ethernet_device = path;
+                var port = new EthernetPortInfo(client.device_iface(path),
+                    client.device_state(path) == NmDeviceState.ACTIVATED);
+                ethernet_ports_list.add(port);
+                port_of.insert(path, port);
+                probe_ethernet_port.begin(port);
                 ethernet_ports_changed();
-                update_state();
-            });
+            }
         }
 
-        /** Every wired port the board has, cable in or out. */
         public GenericArray<EthernetPortInfo> ethernet_ports() {
             return ethernet_ports_list;
         }
 
-        /**
-         * Chipset (from the hardware database) and top supported link mode
-         * (from the ethtool link settings) for one port. Neither changes
-         * while the machine is running, so this runs once per port at
-         * discovery time and caches the result on the EthernetPortInfo.
-         */
         private async void probe_ethernet_port(EthernetPortInfo port) {
             string iface = port.iface;
             string chipset = "";
@@ -328,20 +297,10 @@ namespace Singularity {
                 : "%d Mbps".printf(best_mbps);
         }
 
-        // Setting client.wireless_enabled / wwan_enabled directly is a
-        // synchronous D-Bus call that blocks the GTK main thread for seconds.
-        // Set the documented WirelessEnabled/WwanEnabled property on
-        // org.freedesktop.NetworkManager asynchronously instead; NetworkManager
-        // emits notify::wireless-enabled which update_state() picks up. This is
-        // the public D-Bus surface, so it works against any implementation that
-        // owns the name (NetworkManager or sinty-nm), with no nmcli binary.
         private async bool set_radio_enabled_async(string property, bool value) {
             if (client == null) return false;
             try {
-                yield client.dbus_set_property(
-                "/org/freedesktop/NetworkManager",
-                "org.freedesktop.NetworkManager",
-                property, new GLib.Variant.boolean(value), -1, null);
+                yield client.set_property(NM_PATH, NM_IFACE, property, new GLib.Variant.boolean(value));
                 return true;
             } catch (Error e) {
                 warning("set %s failed: %s", property, e.message);
@@ -381,193 +340,179 @@ namespace Singularity {
         }
 
         public void request_scan() {
-            for (int i = 0; i < wifi_devices.length; i++) {
-                var device = wifi_devices.get(i);
-                try {
-                    device.request_scan_async.begin(null);
-                } catch (Error e) {
-                    warning("Scan failed: %s", e.message);
-                }
+            if (client == null) return;
+            foreach (var device in wifi_devices.data) {
+                client.request_scan.begin(device, (obj, res) => {
+                    try {
+                        client.request_scan.end(res);
+                    } catch (Error e) {
+                        warning("Scan failed: %s", e.message);
+                    }
+                });
             }
         }
 
-        public GenericArray<NM.AccessPoint> get_access_points() {
-            var result = new GenericArray<NM.AccessPoint>();
-            for (int i = 0; i < wifi_devices.length; i++) {
-                foreach (var ap in wifi_devices.get(i).get_access_points().data)
-                    result.add(ap);
+        private GenericArray<NmAccessPoint> device_access_points(string device) {
+            var result = new GenericArray<NmAccessPoint>();
+            foreach (var path in client.prop_paths(device, NM_WIRELESS_IFACE, "AccessPoints")) {
+                var ap = client.access_point(path, device);
+                if (ap != null) result.add(ap);
+            }
+            return result;
+        }
+
+        public GenericArray<NmAccessPoint> get_access_points() {
+            var result = new GenericArray<NmAccessPoint>();
+            if (client == null) return result;
+            foreach (var device in wifi_devices.data) {
+                foreach (var ap in device_access_points(device).data) result.add(ap);
             }
             return result;
         }
 
         public bool has_saved_wifi(string ssid) {
-            if (client == null) return false;
-            foreach (var conn in client.get_connections()) {
-                if (conn.get_connection_type() != "802-11-wireless") continue;
-                var wireless = conn.get_setting_wireless();
-                if (wireless == null || wireless.ssid == null) continue;
-                if (wireless.mode == "ap") continue;
-                if (NM.Utils.ssid_to_utf8(wireless.ssid.get_data()) == ssid) return true;
-            }
-            return false;
+            return saved_wifi_connection(ssid) != null;
         }
 
-        public bool activate_saved_wifi(string ssid, NM.AccessPoint? ap) {
+        public bool activate_saved_wifi(string ssid, NmAccessPoint? ap) {
             if (client == null || wifi_device == null) return false;
-            NM.AccessPoint? target_ap;
+            NmAccessPoint? target_ap;
             var target_device = select_wifi_device(ap, out target_ap);
             if (target_device == null) return false;
-            foreach (var conn in client.get_connections()) {
-                if (conn.get_connection_type() != "802-11-wireless") continue;
-                var wireless = conn.get_setting_wireless();
-                if (wireless == null || wireless.ssid == null || wireless.mode == "ap") continue;
-                if (NM.Utils.ssid_to_utf8(wireless.ssid.get_data()) != ssid) continue;
-                client.activate_connection_async.begin(conn, target_device,
-                    target_ap != null ? target_ap.get_path() : null, null, (obj, res) => {
-                    try {
-                        client.activate_connection_async.end(res);
-                    } catch (Error e) {
-                        warning("Connection failed: %s", e.message);
-                    }
-                });
-                return true;
-            }
-            return false;
+            var conn = saved_wifi_connection(ssid);
+            if (conn == null) return false;
+            client.activate.begin(conn.path, target_device, target_ap != null ? target_ap.path : null, (obj, res) => {
+                try {
+                    client.activate.end(res);
+                } catch (Error e) {
+                    warning("Connection failed: %s", e.message);
+                }
+            });
+            return true;
+        }
+
+        private string? device_ssid(string device) {
+            string? ap = client.prop_path(device, NM_WIRELESS_IFACE, "ActiveAccessPoint");
+            if (ap == null) return null;
+            string ssid = client.ap_ssid(ap);
+            return ssid != "" ? ssid : null;
         }
 
         public string? active_wifi_ssid() {
-            if (wifi_device == null) return null;
-            var ap = wifi_device.get_active_access_point();
-            if (ap == null || ap.ssid == null) return null;
-            return NM.Utils.ssid_to_utf8(ap.ssid.get_data());
+            if (client == null || wifi_device == null) return null;
+            return device_ssid(wifi_device);
         }
 
         public bool is_wifi_connected(string ssid) {
-            for (int i = 0; i < wifi_devices.length; i++) {
-                var ap = wifi_devices.get(i).get_active_access_point();
-                if (ap == null || ap.ssid == null) continue;
-                if (NM.Utils.ssid_to_utf8(ap.ssid.get_data()) == ssid) return true;
+            if (client == null) return false;
+            foreach (var device in wifi_devices.data) {
+                if (device_ssid(device) == ssid) return true;
             }
             return false;
         }
 
-        public GenericArray<NM.RemoteConnection> get_vpn_connections() {
-            var result = new GenericArray<NM.RemoteConnection>();
+        public GenericArray<NmConnection> get_vpn_connections() {
+            var result = new GenericArray<NmConnection>();
             if (client == null) return result;
-            var connections = client.get_connections();
-            foreach (var conn in connections) {
-                if (is_vpn_type(conn.get_connection_type())) {
-                    result.add(conn);
-                }
+            foreach (var conn in client.get_connections()) {
+                if (is_vpn_type(conn.get_connection_type())) result.add(conn);
             }
             return result;
         }
 
-        // Normalised state of a specific VPN connection (works for both
-        // OpenVPN-style NM.VpnConnection and WireGuard ActiveConnection).
-        public VpnLinkState vpn_link_state(NM.RemoteConnection conn) {
+        private VpnLinkState link_state(string active) {
+            if (client.has_interface(active, NM_VPN_IFACE)) {
+                switch (client.prop_uint(active, NM_VPN_IFACE, "VpnState")) {
+                    case NmVpnState.ACTIVATED:
+                        return VpnLinkState.CONNECTED;
+                    case NmVpnState.DISCONNECTED:
+                    case NmVpnState.FAILED:
+                        return VpnLinkState.DISCONNECTED;
+                    default:
+                        return VpnLinkState.CONNECTING;
+                }
+            }
+            switch (client.active_state(active)) {
+                case NmActiveState.ACTIVATED:
+                    return VpnLinkState.CONNECTED;
+                case NmActiveState.ACTIVATING:
+                    return VpnLinkState.CONNECTING;
+                default:
+                    return VpnLinkState.DISCONNECTED;
+            }
+        }
+
+        public VpnLinkState vpn_link_state(NmConnection conn) {
             if (client == null) return VpnLinkState.DISCONNECTED;
             string uuid = conn.get_uuid();
-            foreach (var ac in client.get_active_connections()) {
-                if (ac.get_uuid() != uuid) continue;
-                if (ac is NM.VpnConnection) {
-                    switch (((NM.VpnConnection) ac).vpn_state) {
-                        case NM.VpnConnectionState.ACTIVATED:
-                            return VpnLinkState.CONNECTED;
-                        case NM.VpnConnectionState.DISCONNECTED:
-                        case NM.VpnConnectionState.FAILED:
-                            return VpnLinkState.DISCONNECTED;
-                        default:
-                            return VpnLinkState.CONNECTING;
-                    }
-                } else {
-                    switch (ac.get_state()) {
-                        case NM.ActiveConnectionState.ACTIVATED:
-                            return VpnLinkState.CONNECTED;
-                        case NM.ActiveConnectionState.ACTIVATING:
-                            return VpnLinkState.CONNECTING;
-                        default:
-                            return VpnLinkState.DISCONNECTED;
-                    }
-                }
+            foreach (var ac in client.active_connections()) {
+                if (client.active_uuid(ac) == uuid) return link_state(ac);
             }
             return VpnLinkState.DISCONNECTED;
         }
 
-        private NM.ActiveConnection? get_active_vpn(string uuid) {
+        private string? get_active_vpn(string uuid) {
             if (client == null) return null;
-            foreach (var active in client.get_active_connections()) {
-                if (active.get_uuid() == uuid && is_vpn_type(active.get_connection_type()))
+            foreach (var active in client.active_connections()) {
+                if (client.active_uuid(active) == uuid && is_vpn_type(client.active_type(active)))
                     return active;
             }
             return null;
         }
 
-        private async bool disable_vpn_autoconnect(NM.RemoteConnection conn) {
-            var setting = conn.get_setting_connection();
-            if (setting == null || !setting.autoconnect) return true;
-            setting.autoconnect = false;
+        private async bool disable_vpn_autoconnect(NmConnection conn) {
+            if (!conn.autoconnect) return true;
+            var changes = new HashTable<string, Variant?>(str_hash, str_equal);
+            changes.insert("autoconnect", new Variant.boolean(false));
             try {
-                return yield conn.commit_changes_async(true, null);
+                yield conn.commit(conn.changed("connection", changes));
+                return true;
             } catch (Error e) {
                 vpn_action_result(false, "Could not save VPN state: " + e.message);
                 return false;
             }
         }
 
-        private async bool deactivate_vpn(NM.RemoteConnection conn, bool save_state) {
+        private async bool deactivate_vpn(NmConnection conn, bool save_state) {
             if (client == null) return false;
             if (save_state && !(yield disable_vpn_autoconnect(conn))) return false;
-
             var active = get_active_vpn(conn.get_uuid());
             if (active == null) return true;
             try {
-                return yield client.deactivate_connection_async(active, null);
+                yield client.deactivate(active);
+                return true;
             } catch (Error e) {
                 vpn_action_result(false, "Could not disconnect VPN: " + e.message);
                 return false;
             }
         }
 
-        /**
-         * Returns every saved Wi-Fi profile, hotspots excluded.
-         */
-        public GenericArray<NM.RemoteConnection> saved_wifi_connections() {
-            var result = new GenericArray<NM.RemoteConnection>();
+        public GenericArray<NmConnection> saved_wifi_connections() {
+            var result = new GenericArray<NmConnection>();
             if (client == null) return result;
             foreach (var conn in client.get_connections()) {
-                if (conn.get_connection_type() != "802-11-wireless") continue;
-                var wireless = conn.get_setting_wireless();
-                if (wireless == null || wireless.mode == "ap") continue;
+                if (conn.get_connection_type() != "802-11-wireless" || conn.is_hotspot()) continue;
                 result.add(conn);
             }
             return result;
         }
 
-        /**
-         * Returns the saved profile of a Wi-Fi network, or null if there is none.
-         */
-        public NM.RemoteConnection? saved_wifi_connection(string ssid) {
-            var saved = saved_wifi_connections();
-            for (int i = 0; i < saved.length; i++) {
-                var wireless = saved.get(i).get_setting_wireless();
-                if (wireless.ssid == null) continue;
-                if (NM.Utils.ssid_to_utf8(wireless.ssid.get_data()) == ssid) return saved.get(i);
+        public NmConnection? saved_wifi_connection(string ssid) {
+            foreach (var conn in saved_wifi_connections().data) {
+                if (conn.wifi_ssid() == ssid) return conn;
             }
             return null;
         }
 
-        /**
-         * Returns the profile in use on a wired port, else the first one bound to it.
-         */
-        public NM.RemoteConnection? wired_connection(string iface) {
+        public NmConnection? wired_connection(string iface) {
             if (client == null) return null;
-            var device = client.get_device_by_iface(iface);
-            if (device != null && device.get_active_connection() != null) {
-                var active = device.get_active_connection().get_connection();
-                if (active != null) return active;
+            string? device = client.device_by_iface(iface);
+            if (device != null) {
+                string? active = client.device_active(device);
+                var conn = active != null ? client.connection(client.active_connection(active)) : null;
+                if (conn != null) return conn;
             }
-            NM.RemoteConnection? fallback = null;
+            NmConnection? fallback = null;
             foreach (var conn in client.get_connections()) {
                 if (conn.get_connection_type() != "802-3-ethernet") continue;
                 string? bound = conn.get_interface_name();
@@ -577,28 +522,27 @@ namespace Singularity {
             return fallback;
         }
 
-        /**
-         * Returns the device carrying a profile, or null while it is not active.
-         */
-        public NM.Device? active_device(NM.RemoteConnection conn) {
-            if (client == null) return null;
-            foreach (var active in client.get_active_connections()) {
-                if (active.get_connection() != conn) continue;
-                var devices = active.get_devices();
-                if (devices.length > 0) return devices.get(0);
+        private string? active_of(NmConnection conn) {
+            foreach (var active in client.active_connections()) {
+                if (client.active_connection(active) == conn.path) return active;
             }
             return null;
         }
 
-        /**
-         * Takes a profile down without forgetting it.
-         */
-        public async bool disconnect_connection(NM.RemoteConnection conn) {
+        public NmDeviceInfo? active_device(NmConnection conn) {
+            if (client == null) return null;
+            string? active = active_of(conn);
+            if (active == null) return null;
+            var devices = client.active_devices(active);
+            return devices.length > 0 ? client.device_info(devices[0]) : null;
+        }
+
+        public async bool disconnect_connection(NmConnection conn) {
             if (client == null) return false;
-            foreach (var active in client.get_active_connections()) {
-                if (active.get_connection() != conn) continue;
+            foreach (var active in client.active_connections()) {
+                if (client.active_connection(active) != conn.path) continue;
                 try {
-                    yield client.deactivate_connection_async(active, null);
+                    yield client.deactivate(active);
                 } catch (Error e) {
                     warning("Disconnect failed: %s", e.message);
                     return false;
@@ -607,13 +551,10 @@ namespace Singularity {
             return true;
         }
 
-        /**
-         * Forgets a saved profile, disconnecting it first.
-         */
-        public async bool forget_connection(NM.RemoteConnection conn) {
+        public async bool forget_connection(NmConnection conn) {
             yield disconnect_connection(conn);
             try {
-                yield conn.delete_async(null);
+                yield conn.delete_async();
             } catch (Error e) {
                 warning("Forget failed: %s", e.message);
                 return false;
@@ -622,59 +563,19 @@ namespace Singularity {
             return true;
         }
 
-        /**
-         * Stores the IPv4 choice of a profile and reconnects it if it was active.
-         *
-         * @param manual  Use address and gateway instead of DHCP.
-         * @param address Address in CIDR form, required when manual.
-         * @param gateway Default gateway, or an empty string.
-         * @param dns     Nameservers.
-         * @param only_dns Ignore the nameservers offered by DHCP.
-         * @param autoconnect Join this network automatically.
-         * @return null on success, otherwise the reason.
-         */
-        public async string? save_ipv4(NM.RemoteConnection conn, bool manual, string address,
+        public async string? save_ipv4(NmConnection conn, bool manual, string address,
                                        string gateway, string[] dns, bool only_dns,
                                        bool autoconnect) {
-            var s_ip4 = conn.get_setting_ip4_config();
-            if (s_ip4 == null) {
-                s_ip4 = (NM.SettingIP4Config) GLib.Object.new(typeof(NM.SettingIP4Config));
-                conn.add_setting(s_ip4);
-            }
-            s_ip4.clear_addresses();
-            s_ip4.clear_dns();
-            ((GLib.Object) s_ip4).set("gateway", null);
-            int family = (int) GLib.SocketFamily.IPV4;
-            if (manual) {
-                string[] parts = address.strip().split("/");
-                int prefix = parts.length > 1 ? int.parse(parts[1]) : 24;
-                if (!NM.Utils.ipaddr_valid(family, parts[0]) || prefix < 1 || prefix > 32)
-                    return _("The address is not valid");
-                try {
-                    s_ip4.add_address(new NM.IPAddress(family, parts[0], prefix));
-                } catch (Error e) {
-                    return e.message;
-                }
-                if (gateway.strip() != "") {
-                    if (!NM.Utils.ipaddr_valid(family, gateway.strip()))
-                        return _("The gateway is not valid");
-                    ((GLib.Object) s_ip4).set("gateway", gateway.strip());
-                }
-            }
-            foreach (var server in dns) {
-                if (!NM.Utils.ipaddr_valid(family, server))
-                    return _("The DNS server %s is not valid").printf(server);
-                s_ip4.add_dns(server);
-            }
-            s_ip4.method = manual ? "manual" : "auto";
-            ((GLib.Object) s_ip4).set("ignore-auto-dns", !manual && only_dns);
-            ((GLib.Object) conn.get_setting_connection()).set("autoconnect", autoconnect);
+            string? failure;
+            var updated = NmImport.ipv4_changes(conn, manual, address, gateway, dns, only_dns, autoconnect,
+                out failure);
+            if (failure != null) return failure;
             var device = active_device(conn);
             try {
-                yield conn.commit_changes_async(true, null);
+                yield conn.commit(updated);
                 if (device != null) {
                     yield disconnect_connection(conn);
-                    yield client.activate_connection_async(conn, device, null, null);
+                    yield client.activate(conn.path, device.path, null);
                 }
             } catch (Error e) {
                 return e.message;
@@ -682,16 +583,16 @@ namespace Singularity {
             return null;
         }
 
-        public async void deactivate_connection(NM.RemoteConnection conn) {
+        public async void deactivate_connection(NmConnection conn) {
             bool ok = yield deactivate_vpn(conn, true);
             if (ok) vpn_action_result(true, "VPN disconnected");
             update_vpn_state();
         }
 
-        public async void delete_vpn(NM.RemoteConnection conn) {
+        public async void delete_vpn(NmConnection conn) {
             if (!(yield deactivate_vpn(conn, false))) return;
             try {
-                yield conn.delete_async(null);
+                yield conn.delete_async();
                 vpn_action_result(true, "VPN removed");
                 vpn_connections_changed();
             } catch (Error e) {
@@ -699,240 +600,119 @@ namespace Singularity {
             }
         }
 
-        public async void activate_vpn(NM.RemoteConnection conn) {
+        public async void activate_vpn(NmConnection conn) {
             if (client == null) {
                 vpn_action_result(false, "NetworkManager unavailable");
                 return;
             }
-
-            var active_vpns = new GenericArray<NM.RemoteConnection>();
-            foreach (var active in client.get_active_connections()) {
-                if (!is_vpn_type(active.get_connection_type()) || active.get_uuid() == conn.get_uuid())
+            var active_vpns = new GenericArray<NmConnection>();
+            foreach (var active in client.active_connections()) {
+                if (!is_vpn_type(client.active_type(active)) || client.active_uuid(active) == conn.get_uuid())
                     continue;
-                var remote = active.get_connection() as NM.RemoteConnection;
-                if (remote != null) active_vpns.add(remote);
+                var other = client.connection(client.active_connection(active));
+                if (other != null) active_vpns.add(other);
             }
-            for (int i = 0; i < active_vpns.length; i++) {
-                if (!(yield deactivate_vpn(active_vpns.get(i), true))) return;
+            foreach (var other in active_vpns.data) {
+                if (!(yield deactivate_vpn(other, true))) return;
             }
-
             try {
-                yield client.activate_connection_async(conn, null, null, null);
+                yield client.activate(conn.path, null, null);
             } catch (Error e) {
                 vpn_action_result(false, "Could not connect VPN: " + e.message);
             }
             update_vpn_state();
         }
 
-        // Add a fully-built connection through libnm (same D-Bus/polkit path as
-        // GNOME) and report the outcome.
-        private async bool add_connection(NM.Connection conn, string ok_msg) {
-            if (client == null) { vpn_action_result(false, "NetworkManager unavailable"); return false; }
-            if (is_vpn_type(conn.get_connection_type())) {
-                var setting = conn.get_setting_connection();
-                if (setting != null) setting.autoconnect = false;
+        private async bool add_connection(Variant settings, string ok_msg) {
+            if (client == null) {
+                vpn_action_result(false, "NetworkManager unavailable");
+                return false;
             }
             try {
-                var added = yield client.add_connection_async(conn, true, null);
-                bool ok = (added != null);
-                vpn_action_result(ok, ok ? ok_msg : "Failed to add VPN");
-                if (ok) vpn_connections_changed();
-                return ok;
+                yield client.add_connection(settings);
+                vpn_action_result(true, ok_msg);
+                vpn_connections_changed();
+                return true;
             } catch (Error e) {
                 vpn_action_result(false, "Failed to add VPN: " + e.message);
                 return false;
             }
         }
 
-        // Load the installed OpenVPN editor plugin so we can parse .ovpn files
-        // exactly as GNOME does - no nmcli subprocess.
-        private NM.VpnEditorPlugin? load_openvpn_plugin() {
-            try {
-                var info = new NM.VpnPluginInfo.from_file(
-                    "/usr/lib/NetworkManager/VPN/nm-openvpn-service.name");
-                return info.load_editor_plugin();
-            } catch (Error e) {
-                warning("Cannot load OpenVPN plugin: %s", e.message);
-                return null;
-            }
-        }
-
-        // Import a VPN configuration file using libnm only (no nmcli):
-        //   .nmconnection -> keyfile reader
-        //   .conf         -> WireGuard wg-quick importer
-        //   .ovpn / other -> OpenVPN editor plugin importer
         public async bool import_vpn(string file_path) {
             string lower = file_path.down();
-            NM.Connection? conn = null;
+            string name = Path.get_basename(file_path);
+            int dot = name.last_index_of(".");
+            if (dot > 0) name = name.substring(0, dot);
+            Variant settings;
             try {
                 if (lower.has_suffix(".nmconnection")) {
                     var kf = new GLib.KeyFile();
                     kf.load_from_file(file_path, GLib.KeyFileFlags.NONE);
-                    conn = NM.keyfile_read(kf, GLib.Path.get_dirname(file_path),
-                                           NM.KeyfileHandlerFlags.NONE, null);
-                } else if (lower.has_suffix(".conf")) {
-                    conn = NM.conn_wireguard_import(file_path);
+                    settings = NmImport.keyfile(kf);
                 } else {
-                    var plugin = load_openvpn_plugin();
-                    if (plugin == null) {
-                        vpn_action_result(false, "OpenVPN plugin not available");
-                        return false;
+                    string text;
+                    FileUtils.get_contents(file_path, out text);
+                    if (lower.has_suffix(".conf")) {
+                        settings = NmImport.wireguard_conf(text, name);
+                    } else {
+                        string certs = Path.build_filename(Environment.get_user_data_dir(),
+                            "networkmanagement", "certificates");
+                        settings = NmImport.openvpn(text, name, certs);
                     }
-                    conn = plugin.import(file_path);
                 }
             } catch (Error e) {
                 vpn_action_result(false, "Import failed: " + e.message);
                 return false;
             }
-            if (conn == null) {
-                vpn_action_result(false, "Could not read VPN configuration");
-                return false;
-            }
-            return yield add_connection(conn, "VPN imported");
+            return yield add_connection(settings, "VPN imported");
         }
 
-        // Manually add an OpenVPN connection via libnm.
         public async bool add_openvpn(string name, string gateway, string username,
                                       string password, string? ca_path) {
-            var conn = (NM.SimpleConnection) GLib.Object.new(typeof(NM.SimpleConnection));
-            var s_con = (NM.SettingConnection) GLib.Object.new(typeof(NM.SettingConnection));
-            s_con.id = name;
-            s_con.uuid = NM.Utils.uuid_generate();
-            ((GLib.Object) s_con).set("type", "vpn");
-            conn.add_setting(s_con);
-
-            var s_vpn = (NM.SettingVpn) GLib.Object.new(typeof(NM.SettingVpn));
-            s_vpn.service_type = "org.freedesktop.NetworkManager.openvpn";
-            s_vpn.add_data_item("remote", gateway);
-            s_vpn.add_data_item("connection-type", "password");
-            s_vpn.add_data_item("username", username);
-            if (ca_path != null && ca_path.strip() != "")
-                s_vpn.add_data_item("ca", ca_path);
-            s_vpn.add_secret("password", password);
-            conn.add_setting(s_vpn);
-
-            return yield add_connection(conn, "VPN added");
+            return yield add_connection(NmImport.openvpn_manual(name, gateway, username, password, ca_path),
+                "VPN added");
         }
 
-        // Add one "address/prefix" to the right family's IP setting. Returns the
-        // family added, or -1 on parse failure.
-        private int add_ip_address(string cidr, NM.SettingIP4Config ip4, NM.SettingIP6Config ip6) {
-            bool is6 = cidr.contains(":");
-            string addr = cidr;
-            uint prefix = is6 ? 128 : 32;
-            int slash = cidr.index_of("/");
-            if (slash >= 0) {
-                addr = cidr.substring(0, slash).strip();
-                prefix = (uint) int.parse(cidr.substring(slash + 1).strip());
-            }
-            int family = is6 ? (int) GLib.SocketFamily.IPV6 : (int) GLib.SocketFamily.IPV4;
-            try {
-                var ip = new NM.IPAddress(family, addr, prefix);
-                if (is6) ip6.add_address(ip); else ip4.add_address(ip);
-                return family;
-            } catch (Error e) {
-                warning("Invalid VPN address '%s': %s", cidr, e.message);
-                return -1;
-            }
-        }
-
-        // Manually add a WireGuard connection via libnm typed settings - no
-        // subprocess and no temp file holding the private key.
         public async bool add_wireguard(string name, string private_key, string address,
                                         string dns, string peer_public_key, string endpoint,
                                         string allowed_ips, string? preshared_key) {
-            var conn = (NM.SimpleConnection) GLib.Object.new(typeof(NM.SimpleConnection));
-
-            var s_con = (NM.SettingConnection) GLib.Object.new(typeof(NM.SettingConnection));
-            s_con.id = name;
-            s_con.uuid = NM.Utils.uuid_generate();
-            ((GLib.Object) s_con).set("type", "wireguard");
-            conn.add_setting(s_con);
-
-            var s_wg = (NM.SettingWireGuard) GLib.Object.new(typeof(NM.SettingWireGuard));
-            ((GLib.Object) s_wg).set("private-key", private_key.strip());
-            var peer = new NM.WireGuardPeer();
-            peer.set_public_key(peer_public_key.strip(), false);
-            if (endpoint.strip() != "") peer.set_endpoint(endpoint.strip(), false);
-            if (preshared_key != null && preshared_key.strip() != "")
-                peer.set_preshared_key(preshared_key.strip(), false);
-            string aips = allowed_ips.strip() != "" ? allowed_ips.strip() : "0.0.0.0/0, ::/0";
-            foreach (var ip in aips.split(",")) {
-                string t = ip.strip();
-                if (t != "") peer.append_allowed_ip(t, false);
+            Variant settings;
+            try {
+                settings = NmImport.wireguard_manual(name, private_key, address, dns, peer_public_key,
+                    endpoint, allowed_ips, preshared_key);
+            } catch (Error e) {
+                vpn_action_result(false, "Failed to add VPN: " + e.message);
+                return false;
             }
-            s_wg.append_peer(peer);
-            conn.add_setting(s_wg);
-
-            var s_ip4 = (NM.SettingIP4Config) GLib.Object.new(typeof(NM.SettingIP4Config));
-            var s_ip6 = (NM.SettingIP6Config) GLib.Object.new(typeof(NM.SettingIP6Config));
-            bool has4 = false, has6 = false;
-            foreach (var a in address.split(",")) {
-                string t = a.strip();
-                if (t == "") continue;
-                int fam = add_ip_address(t, s_ip4, s_ip6);
-                if (fam == (int) GLib.SocketFamily.IPV6) has6 = true;
-                else if (fam == (int) GLib.SocketFamily.IPV4) has4 = true;
-            }
-            s_ip4.method = has4 ? "manual" : "disabled";
-            s_ip6.method = has6 ? "manual" : "disabled";
-            if (!has4 && !has6) { s_ip4.method = "auto"; s_ip6.method = "auto"; }
-            foreach (var d in dns.split(",")) {
-                string t = d.strip();
-                if (t == "") continue;
-                if (t.contains(":")) s_ip6.add_dns(t); else s_ip4.add_dns(t);
-            }
-            conn.add_setting(s_ip4);
-            conn.add_setting(s_ip6);
-
-            return yield add_connection(conn, "WireGuard VPN added");
+            return yield add_connection(settings, "WireGuard VPN added");
         }
 
-        public void connect_to_ap(NM.AccessPoint ap, string? password) {
+        public void connect_to_ap(NmAccessPoint ap, string? password) {
             if (client == null || wifi_device == null) return;
-            NM.AccessPoint? target_ap;
+            NmAccessPoint? target_ap;
             var target_device = select_wifi_device(ap, out target_ap);
             if (target_device == null || target_ap == null) return;
-            try {
-                var connection = (NM.SimpleConnection) GLib.Object.new(typeof(NM.SimpleConnection));
-                var s_wifi = (NM.SettingWireless) GLib.Object.new(typeof(NM.SettingWireless));
-                s_wifi.ssid = ap.ssid;
-                connection.add_setting(s_wifi);
-                if (password != null && password != "") {
-                    var s_security = (NM.SettingWirelessSecurity) GLib.Object.new(typeof(NM.SettingWirelessSecurity));
-                    s_security.key_mgmt = "wpa-psk";
-                    s_security.psk = password;
-                    connection.add_setting(s_security);
+            client.add_and_activate.begin(NmImport.wifi(ap.ssid, password), target_device, target_ap.path,
+                (obj, res) => {
+                try {
+                    client.add_and_activate.end(res);
+                } catch (Error e) {
+                    warning("Connection failed: %s", e.message);
                 }
-                client.add_and_activate_connection_async.begin(connection, target_device,
-                    target_ap.get_path(), null, (obj, res) => {
-                    try {
-                        client.add_and_activate_connection_async.end(res);
-                    } catch (Error e) {
-                        warning("Connection failed: %s", e.message);
-                    }
-                });
-            } catch (Error e) {
-                warning("Failed to create connection: %s", e.message);
-            }
+            });
         }
 
-        private NM.DeviceWifi? select_wifi_device(NM.AccessPoint? requested,
-                                                   out NM.AccessPoint? selected_ap) {
+        private string? select_wifi_device(NmAccessPoint? requested, out NmAccessPoint? selected_ap) {
             selected_ap = requested;
             if (requested == null)
                 return dynamic_internet.enabled ? get_free_wifi_device() ?? wifi_device : wifi_device;
-
-            string requested_ssid = requested.ssid != null
-                ? NM.Utils.ssid_to_utf8(requested.ssid.get_data()) : "";
-            NM.DeviceWifi? owner = null;
-            for (int i = 0; i < wifi_devices.length; i++) {
-                var device = wifi_devices.get(i);
-                foreach (var candidate in device.get_access_points().data) {
-                    if (candidate == requested) owner = device;
-                    if (dynamic_internet.enabled && device.get_active_connection() == null
-                            && candidate.ssid != null
-                            && NM.Utils.ssid_to_utf8(candidate.ssid.get_data()) == requested_ssid) {
+            string? owner = null;
+            foreach (var device in wifi_devices.data) {
+                foreach (var candidate in device_access_points(device).data) {
+                    if (candidate.path == requested.path) owner = device;
+                    if (dynamic_internet.enabled && client.device_active(device) == null
+                            && candidate.ssid == requested.ssid) {
                         selected_ap = candidate;
                         return device;
                     }
@@ -943,14 +723,13 @@ namespace Singularity {
 
         public bool wifi_is_upstream() {
             if (client == null) return false;
-            var active = client.primary_connection;
-            return active != null && active.get_connection_type() == "802-11-wireless";
+            string? active = client.primary_connection();
+            return active != null && client.active_type(active) == "802-11-wireless";
         }
 
-        private NM.DeviceWifi? get_free_wifi_device() {
-            for (int i = 0; i < wifi_devices.length; i++) {
-                var d = wifi_devices.get(i);
-                if (d.get_active_connection() == null) return d;
+        private string? get_free_wifi_device() {
+            foreach (var d in wifi_devices.data) {
+                if (client.device_active(d) == null) return d;
             }
             return null;
         }
@@ -967,13 +746,14 @@ namespace Singularity {
             return sb.str;
         }
 
-        private void delete_connections_by_id(string id) {
+        private async void delete_connections_by_id(string id) {
             if (client == null) return;
             foreach (var c in client.get_connections()) {
-                if (c.get_id() == id) {
-                    c.delete_async.begin(null, (o, r) => {
-                        try { c.delete_async.end(r); } catch (Error e) {}
-                    });
+                if (c.get_id() != id) continue;
+                try {
+                    yield c.delete_async();
+                } catch (Error e) {
+                    warning("Cannot remove %s: %s", id, e.message);
                 }
             }
         }
@@ -983,141 +763,96 @@ namespace Singularity {
                 sharing_action_result(false, "No WiFi device available");
                 return;
             }
-            delete_connections_by_id(HOTSPOT_ID);
+            start_wifi_hotspot_async.begin(ssid, password, wpa3);
+        }
 
-            var conn = (NM.SimpleConnection) GLib.Object.new(typeof(NM.SimpleConnection));
-            var s_con = (NM.SettingConnection) GLib.Object.new(typeof(NM.SettingConnection));
-            s_con.id = HOTSPOT_ID;
-            s_con.uuid = NM.Utils.uuid_generate();
-            ((GLib.Object) s_con).set("type", "802-11-wireless");
-            s_con.autoconnect = false;
-            conn.add_setting(s_con);
-
-            var s_wifi = (NM.SettingWireless) GLib.Object.new(typeof(NM.SettingWireless));
-            s_wifi.ssid = new Bytes(ssid.data);
-            ((GLib.Object) s_wifi).set("mode", "ap");
-            ((GLib.Object) s_wifi).set("band", "bg");
-            conn.add_setting(s_wifi);
-
-            var s_sec = (NM.SettingWirelessSecurity) GLib.Object.new(typeof(NM.SettingWirelessSecurity));
-            s_sec.key_mgmt = wpa3 ? "sae" : "wpa-psk";
-            s_sec.psk = password;
-            conn.add_setting(s_sec);
-
-            var s_ip4 = (NM.SettingIP4Config) GLib.Object.new(typeof(NM.SettingIP4Config));
-            s_ip4.method = "shared";
-            conn.add_setting(s_ip4);
-            var s_ip6 = (NM.SettingIP6Config) GLib.Object.new(typeof(NM.SettingIP6Config));
-            s_ip6.method = "ignore";
-            conn.add_setting(s_ip6);
-
-            var host_dev = get_free_wifi_device();
-            if (host_dev == null) host_dev = wifi_device;
-
-            client.add_and_activate_connection_async.begin(conn, host_dev, null, null, (obj, res) => {
-                try {
-                    client.add_and_activate_connection_async.end(res);
-                    sharing_action_result(true, "Hotspot started");
-                } catch (Error e) {
-                    sharing_action_result(false, "Could not start hotspot: " + e.message);
-                }
-            });
+        private async void start_wifi_hotspot_async(string ssid, string password, bool wpa3) {
+            yield delete_connections_by_id(HOTSPOT_ID);
+            var host_dev = get_free_wifi_device() ?? wifi_device;
+            try {
+                yield client.add_and_activate(NmImport.hotspot(HOTSPOT_ID, ssid, password, wpa3), host_dev, null);
+                sharing_action_result(true, "Hotspot started");
+            } catch (Error e) {
+                sharing_action_result(false, "Could not start hotspot: " + e.message);
+            }
         }
 
         public void stop_wifi_hotspot() {
             if (client == null) return;
-            foreach (var ac in client.get_active_connections()) {
-                var rc = ac.get_connection();
-                var sw = rc != null ? rc.get_setting_wireless() : null;
-                if (sw != null && sw.mode == "ap") {
-                    client.deactivate_connection_async.begin(ac, null, (o, r) => {
-                        try { client.deactivate_connection_async.end(r); } catch (Error e) {}
+            foreach (var ac in client.active_connections()) {
+                var conn = client.connection(client.active_connection(ac));
+                if (conn != null && conn.is_hotspot()) {
+                    client.deactivate.begin(ac, (o, r) => {
+                        try {
+                            client.deactivate.end(r);
+                        } catch (Error e) {
+                            warning("Cannot stop the hotspot: %s", e.message);
+                        }
                     });
                 }
             }
-            delete_connections_by_id(HOTSPOT_ID);
+            delete_connections_by_id.begin(HOTSPOT_ID);
         }
 
-        private NM.DeviceEthernet? get_share_ethernet_device() {
+        private string? get_share_ethernet_device() {
             string? up_iface = null;
-            if (client != null) {
-                var primary = client.primary_connection;
-                if (primary != null) {
-                    var devs = primary.get_devices();
-                    if (devs.length > 0) up_iface = devs.get(0).get_iface();
-                }
+            string? primary = client.primary_connection();
+            if (primary != null) {
+                var devs = client.active_devices(primary);
+                if (devs.length > 0) up_iface = client.device_iface(devs[0]);
             }
-            for (int i = 0; i < ethernet_devices.length; i++) {
-                var d = ethernet_devices.get(i);
-                if (up_iface != null && d.get_iface() == up_iface) continue;
+            foreach (var d in ethernet_devices.data) {
+                if (up_iface != null && client.device_iface(d) == up_iface) continue;
                 return d;
             }
             return null;
         }
 
         public void start_ethernet_sharing() {
-            var dev = get_share_ethernet_device();
+            var dev = client != null ? get_share_ethernet_device() : null;
             if (client == null || dev == null) {
                 sharing_action_result(false, "No spare wired port to share on");
                 return;
             }
-            delete_connections_by_id(WIRED_SHARE_ID);
+            start_ethernet_sharing_async.begin(dev);
+        }
 
-            var conn = (NM.SimpleConnection) GLib.Object.new(typeof(NM.SimpleConnection));
-            var s_con = (NM.SettingConnection) GLib.Object.new(typeof(NM.SettingConnection));
-            s_con.id = WIRED_SHARE_ID;
-            s_con.uuid = NM.Utils.uuid_generate();
-            ((GLib.Object) s_con).set("type", "802-3-ethernet");
-            s_con.autoconnect = false;
-            conn.add_setting(s_con);
-
-            var s_eth = (NM.SettingWired) GLib.Object.new(typeof(NM.SettingWired));
-            conn.add_setting(s_eth);
-
-            var s_ip4 = (NM.SettingIP4Config) GLib.Object.new(typeof(NM.SettingIP4Config));
-            s_ip4.method = "shared";
-            conn.add_setting(s_ip4);
-            var s_ip6 = (NM.SettingIP6Config) GLib.Object.new(typeof(NM.SettingIP6Config));
-            s_ip6.method = "ignore";
-            conn.add_setting(s_ip6);
-
-            client.add_and_activate_connection_async.begin(conn, dev, null, null, (obj, res) => {
-                try {
-                    client.add_and_activate_connection_async.end(res);
-                    sharing_action_result(true, "Wired sharing started");
-                } catch (Error e) {
-                    sharing_action_result(false, "Could not start wired sharing: " + e.message);
-                }
-            });
+        private async void start_ethernet_sharing_async(string dev) {
+            yield delete_connections_by_id(WIRED_SHARE_ID);
+            try {
+                yield client.add_and_activate(NmImport.wired_share(WIRED_SHARE_ID), dev, null);
+                sharing_action_result(true, "Wired sharing started");
+            } catch (Error e) {
+                sharing_action_result(false, "Could not start wired sharing: " + e.message);
+            }
         }
 
         public void stop_ethernet_sharing() {
             if (client == null) return;
-            foreach (var ac in client.get_active_connections()) {
-                if (ac.get_connection_type() != "802-3-ethernet") continue;
-                var rc = ac.get_connection();
-                var ip4 = rc != null ? rc.get_setting_ip4_config() : null;
-                if (ip4 != null && ip4.method == "shared") {
-                    client.deactivate_connection_async.begin(ac, null, (o, r) => {
-                        try { client.deactivate_connection_async.end(r); } catch (Error e) {}
+            foreach (var ac in client.active_connections()) {
+                if (client.active_type(ac) != "802-3-ethernet") continue;
+                var conn = client.connection(client.active_connection(ac));
+                if (conn != null && conn.ipv4_method() == "shared") {
+                    client.deactivate.begin(ac, (o, r) => {
+                        try {
+                            client.deactivate.end(r);
+                        } catch (Error e) {
+                            warning("Cannot stop wired sharing: %s", e.message);
+                        }
                     });
                 }
             }
-            delete_connections_by_id(WIRED_SHARE_ID);
+            delete_connections_by_id.begin(WIRED_SHARE_ID);
         }
 
         private void refresh_sharing_state() {
             bool wifi_ap = false, eth_share = false;
             if (client != null) {
-                foreach (var ac in client.get_active_connections()) {
-                    var rc = ac.get_connection();
-                    if (rc == null) continue;
-                    var sw = rc.get_setting_wireless();
-                    if (sw != null && sw.mode == "ap") wifi_ap = true;
-                    if (ac.get_connection_type() == "802-3-ethernet") {
-                        var ip4 = rc.get_setting_ip4_config();
-                        if (ip4 != null && ip4.method == "shared") eth_share = true;
-                    }
+                foreach (var ac in client.active_connections()) {
+                    var conn = client.connection(client.active_connection(ac));
+                    if (conn == null) continue;
+                    if (conn.is_hotspot()) wifi_ap = true;
+                    if (client.active_type(ac) == "802-3-ethernet" && conn.ipv4_method() == "shared") eth_share = true;
                 }
             }
             if (wifi_ap != wifi_hotspot_active || eth_share != ethernet_sharing_active) {
@@ -1128,29 +863,18 @@ namespace Singularity {
         }
 
         private void update_vpn_state() {
-            // Find the first active VPN-like connection (OpenVPN or WireGuard).
-            NM.ActiveConnection? active = null;
+            string? active = null;
             if (client != null) {
-                foreach (var ac in client.get_active_connections()) {
-                    if (is_vpn_type(ac.get_connection_type())) { active = ac; break; }
+                foreach (var ac in client.active_connections()) {
+                    if (is_vpn_type(client.active_type(ac))) {
+                        active = ac;
+                        break;
+                    }
                 }
             }
-
             if (active != null) {
-                vpn_name = active.get_id();
-                VpnLinkState st;
-                if (active is NM.VpnConnection) {
-                    var s = ((NM.VpnConnection) active).vpn_state;
-                    if (s == NM.VpnConnectionState.ACTIVATED) st = VpnLinkState.CONNECTED;
-                    else if (s == NM.VpnConnectionState.DISCONNECTED || s == NM.VpnConnectionState.FAILED)
-                        st = VpnLinkState.DISCONNECTED;
-                    else st = VpnLinkState.CONNECTING;
-                } else {
-                    var s = active.get_state();
-                    if (s == NM.ActiveConnectionState.ACTIVATED) st = VpnLinkState.CONNECTED;
-                    else if (s == NM.ActiveConnectionState.ACTIVATING) st = VpnLinkState.CONNECTING;
-                    else st = VpnLinkState.DISCONNECTED;
-                }
+                vpn_name = client.active_id(active);
+                var st = link_state(active);
                 vpn_active = (st == VpnLinkState.CONNECTED);
                 vpn_icon = vpn_active ? "network-vpn-symbolic"
                          : (st == VpnLinkState.CONNECTING ? "network-vpn-acquiring-symbolic"
@@ -1168,32 +892,26 @@ namespace Singularity {
             wifi_enabled = client.wireless_enabled;
             bool wwan_off = !client.wwan_enabled;
             is_airplane_mode = !wifi_enabled && wwan_off;
-            // Prefer whichever wired port is actually ACTIVATED. Latching onto
-            // the first enumerated NIC reports "not connected" on any machine
-            // with several ethernet ports whenever the live link is not the
-            // first -- measured on cixmini (.66), where enp49s0 (DISCONNECTED)
-            // enumerates ahead of enp1s0, which carries the entire LAN. The
-            // NM state was correct throughout; only this selection was wrong.
-            for (int i = 0; i < ethernet_devices.length; i++) {
-                var cand = ethernet_devices.get(i);
-                if (cand.state == NM.DeviceState.ACTIVATED) {
+            foreach (var cand in ethernet_devices.data) {
+                if (client.device_state(cand) == NmDeviceState.ACTIVATED) {
                     ethernet_device = cand;
                     break;
                 }
             }
             is_wired_connected = (ethernet_device != null &&
-                ethernet_device.state == NM.DeviceState.ACTIVATED);
+                client.device_state(ethernet_device) == NmDeviceState.ACTIVATED);
             if (!wifi_enabled) {
                 wifi_icon = "network-wireless-disabled-symbolic";
                 wifi_ssid = "Wi-Fi Disabled";
             } else {
-                var active = client.primary_connection;
+                string? active = client.primary_connection();
                 if (active != null) {
-                    if (active.get_connection_type() == "802-11-wireless") {
-                        wifi_ssid = active.id;
-                        var ap = wifi_device != null ? wifi_device.get_active_access_point() : null;
+                    if (client.active_type(active) == "802-11-wireless") {
+                        wifi_ssid = client.active_id(active);
+                        string? ap = wifi_device != null
+                            ? client.prop_path(wifi_device, NM_WIRELESS_IFACE, "ActiveAccessPoint") : null;
                         if (ap != null) {
-                            uint8 s = ap.strength;
+                            uint s = client.prop_uint(ap, NM_AP_IFACE, "Strength");
                             if (s < 25)       wifi_icon = "network-wireless-signal-weak-symbolic";
                             else if (s < 50)  wifi_icon = "network-wireless-signal-ok-symbolic";
                             else if (s < 75)  wifi_icon = "network-wireless-signal-good-symbolic";
