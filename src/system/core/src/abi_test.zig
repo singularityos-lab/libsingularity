@@ -27,4 +27,5 @@ test "header layouts match the exported structs" {
     try same(core.firmware.EsrtEntry, c.SintyEsrtEntry);
     try same(core.disk.Partition, c.SintyPartition);
     try same(core.disk.TableInfo, c.SintyDiskTable);
+    try same(core.fs.FsInfo, c.SintyFsInfo);
 }

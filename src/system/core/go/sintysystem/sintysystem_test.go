@@ -119,3 +119,32 @@ func TestPartitionTableOnImage(t *testing.T) {
 		t.Fatalf("remove twice: %v", err)
 	}
 }
+
+func TestFilesystemOnImage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fs.img")
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, 64<<20); err != nil {
+		t.Fatal(err)
+	}
+	if err := MakeVfat(path, "DATA", 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetFilesystemLabel(path, "photos"); err != nil {
+		t.Fatal(err)
+	}
+	info, err := ProbeFilesystem(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Type != "vfat" || info.Version != "FAT16" || info.Label != "PHOTOS" || len(info.UUID) != 9 {
+		t.Fatalf("probe: %+v", info)
+	}
+	if err := MakeSwap(path, "swap"); err != nil {
+		t.Fatal(err)
+	}
+	if info, err = ProbeFilesystem(path); err != nil || info.Type != "swap" || info.Label != "swap" {
+		t.Fatalf("swap: %+v %v", info, err)
+	}
+}

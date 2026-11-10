@@ -575,3 +575,44 @@ func Eject(path string) error {
 	defer C.free(unsafe.Pointer(p))
 	return check(C.sinty_disk_eject(p))
 }
+
+type FsInfo struct {
+	Type      string
+	Usage     string
+	UUID      string
+	Label     string
+	Version   string
+	BlockSize uint32
+	Size      uint64
+}
+
+func ProbeFilesystem(path string) (FsInfo, error) {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	var i C.SintyFsInfo
+	if err := check(C.sinty_fs_probe(p, &i)); err != nil {
+		return FsInfo{}, err
+	}
+	return FsInfo{text(i._type[:]), text(i.usage[:]), text(i.uuid[:]), text(i.label[:]), text(i.version[:]), uint32(i.block_size), uint64(i.size)}, nil
+}
+
+func SetFilesystemLabel(path, label string) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_fs_set_label(p, l))
+}
+
+func MakeSwap(path, label string) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_fs_mkswap(p, l))
+}
+
+func MakeVfat(path, label string, bits uint8) error {
+	p, l := C.CString(path), C.CString(label)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_fs_mkfs_vfat(p, l, C.uint8_t(bits)))
+}

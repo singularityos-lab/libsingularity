@@ -14,6 +14,7 @@ pub const time = @import("v1/time.zig");
 pub const session = @import("v1/session.zig");
 pub const firmware = @import("v1/firmware.zig");
 pub const disk = @import("v1/disk.zig");
+pub const fs = @import("v1/fs.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -516,6 +517,34 @@ export fn sinty_disk_eject(path: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_fs_probe(path: [*:0]const u8, out: *fs.FsInfo) c_int {
+    var d = fs.Dev.open(path, false) catch |e| return sys.code(e);
+    defer d.close();
+    out.* = fs.probe(d) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_fs_set_label(path: [*:0]const u8, label: [*:0]const u8) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    fs.setLabel(d, span(label)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_fs_mkswap(path: [*:0]const u8, label: [*:0]const u8) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    fs.mkswap(d, span(label)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_fs_mkfs_vfat(path: [*:0]const u8, label: [*:0]const u8, bits: u8) c_int {
+    var d = fs.Dev.open(path, true) catch |e| return sys.code(e);
+    defer d.close();
+    fs.mkfsVfat(d, .{ .label = span(label), .bits = bits }) catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -532,6 +561,7 @@ test {
     _ = session;
     _ = firmware;
     _ = disk;
+    _ = fs;
 }
 
 test "a tcp connection shows up with its owner and counters" {
