@@ -3778,6 +3778,10 @@ window.singularity.dialog {
     padding: 5px;
 }
 
+.singularity.run-dialog.dialog-overlay.run-compact {
+    background-color: transparent;
+}
+
 .singularity.run-dialog.dialog-overlay .dialog-content .run-entry {
     background-color: transparent;
     border-color: transparent;
