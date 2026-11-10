@@ -20,6 +20,7 @@ pub const dbus = @import("v1/bus.zig");
 pub const bluetooth = @import("v1/bluetooth.zig");
 pub const notify = @import("v1/notify.zig");
 pub const input = @import("v1/input.zig");
+pub const accounts = @import("v1/accounts.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -747,6 +748,105 @@ export fn sinty_input_configure(name: [*:0]const u8, option: c_int, value: c_int
     var c = dbus.Conn.session() catch |e| return sys.code(e);
     defer c.close();
     input.configure(&c, span(name), opt) catch |e| return sys.code(e);
+    return 0;
+}
+
+fn systemBus() !dbus.Conn {
+    var c = try dbus.Conn.system();
+    c.interactive = true;
+    return c;
+}
+
+export fn sinty_accounts_users(out: *?*accounts.Users) c_int {
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    out.* = accounts.users(&c) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_accounts_users_count(l: *const accounts.Users) usize {
+    return l.count();
+}
+
+export fn sinty_accounts_users_at(l: *const accounts.Users, i: usize) ?*const accounts.User {
+    return l.at(i);
+}
+
+export fn sinty_accounts_users_free(l: ?*accounts.Users) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_accounts_find(name: [*:0]const u8, out: *accounts.User) c_int {
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    out.* = accounts.find(&c, span(name)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_accounts_set_text(path: [*:0]const u8, field: c_int, value: [*:0]const u8) c_int {
+    const f = std.enums.fromInt(accounts.Field, field) orelse return sys.code(error.Invalid);
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    accounts.setText(&c, span(path), f, span(value)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_accounts_set_flag(path: [*:0]const u8, flag: c_int, on: bool) c_int {
+    const f = std.enums.fromInt(accounts.Flag, flag) orelse return sys.code(error.Invalid);
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    accounts.setFlag(&c, span(path), f, on) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_accounts_set_administrator(path: [*:0]const u8, on: bool) c_int {
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    accounts.setAccountType(&c, span(path), on) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_accounts_create(name: [*:0]const u8, real_name: [*:0]const u8, administrator: bool, path: [*]u8, len: usize) c_int {
+    if (len == 0) return sys.code(error.Invalid);
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    const p = accounts.create(&c, span(name), span(real_name), administrator, path[0..len]) catch |e| return sys.code(e);
+    return @intCast(p.len);
+}
+
+export fn sinty_accounts_delete(uid: u64, remove_files: bool) c_int {
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    accounts.delete(&c, uid, remove_files) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_hostname_get(out: *accounts.Names) c_int {
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    out.* = accounts.hostname(&c) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_hostname_set(static: [*:0]const u8, pretty: [*:0]const u8) c_int {
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    accounts.setHostname(&c, span(static), span(pretty)) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_language_get(buf: [*]u8, len: usize) c_int {
+    if (len == 0) return sys.code(error.Invalid);
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    const s = accounts.language(&c, buf[0..len]) catch |e| return sys.code(e);
+    return @intCast(s.len);
+}
+
+export fn sinty_language_set(lang: [*:0]const u8) c_int {
+    var c = systemBus() catch |e| return sys.code(e);
+    defer c.close();
+    accounts.setLanguage(&c, span(lang)) catch |e| return sys.code(e);
     return 0;
 }
 

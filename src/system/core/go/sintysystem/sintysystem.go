@@ -915,3 +915,94 @@ func Notify(n Notification) (uint32, error) {
 func CloseNotification(id uint32) error {
 	return check(C.sinty_notify_close(C.uint32_t(id)))
 }
+
+type User struct {
+	Path           string
+	Name           string
+	RealName       string
+	Home           string
+	Shell          string
+	Icon           string
+	Language       string
+	Email          string
+	UID            uint64
+	Administrator  bool
+	Locked         bool
+	AutomaticLogin bool
+	SystemAccount  bool
+}
+
+func userFrom(u *C.SintyUser) User {
+	return User{
+		Path: text(u.path[:]), Name: text(u.name[:]), RealName: text(u.real_name[:]), Home: text(u.home[:]),
+		Shell: text(u.shell[:]), Icon: text(u.icon[:]), Language: text(u.language[:]), Email: text(u.email[:]),
+		UID: uint64(u.uid), Administrator: u.account_type == 1, Locked: bool(u.locked),
+		AutomaticLogin: bool(u.automatic_login), SystemAccount: bool(u.system_account),
+	}
+}
+
+func Users() ([]User, error) {
+	var l *C.SintyUsers
+	if err := check(C.sinty_accounts_users(&l)); err != nil {
+		return nil, err
+	}
+	defer C.sinty_accounts_users_free(l)
+	var out []User
+	for i := C.size_t(0); i < C.sinty_accounts_users_count(l); i++ {
+		out = append(out, userFrom(C.sinty_accounts_users_at(l, i)))
+	}
+	return out, nil
+}
+
+func FindUser(name string) (User, error) {
+	n := C.CString(name)
+	defer C.free(unsafe.Pointer(n))
+	var u C.SintyUser
+	if err := check(C.sinty_accounts_find(n, &u)); err != nil {
+		return User{}, err
+	}
+	return userFrom(&u), nil
+}
+
+func SetUserLanguage(path, lang string) error {
+	p, l := C.CString(path), C.CString(lang)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_accounts_set_text(p, C.SINTY_USER_LANGUAGE, l))
+}
+
+func SetUserRealName(path, name string) error {
+	p, l := C.CString(path), C.CString(name)
+	defer C.free(unsafe.Pointer(p))
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_accounts_set_text(p, C.SINTY_USER_REAL_NAME, l))
+}
+
+func Hostname() (string, string, error) {
+	var n C.SintyHostNames
+	if err := check(C.sinty_hostname_get(&n)); err != nil {
+		return "", "", err
+	}
+	return text(n.static_name[:]), text(n.pretty[:]), nil
+}
+
+func SetHostname(static, pretty string) error {
+	s, p := C.CString(static), C.CString(pretty)
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(p))
+	return check(C.sinty_hostname_set(s, p))
+}
+
+func SystemLanguage() (string, error) {
+	var buf [64]C.char
+	if err := check(C.sinty_language_get(&buf[0], C.size_t(len(buf)))); err != nil {
+		return "", err
+	}
+	return text(buf[:]), nil
+}
+
+func SetSystemLanguage(lang string) error {
+	l := C.CString(lang)
+	defer C.free(unsafe.Pointer(l))
+	return check(C.sinty_language_set(l))
+}

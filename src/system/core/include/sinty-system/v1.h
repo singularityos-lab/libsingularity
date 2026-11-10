@@ -527,6 +527,48 @@ int sinty_input_select(const char *name);
 int sinty_input_active(char *buf, size_t len);
 int sinty_input_configure(const char *name, int option, int value);
 
+typedef struct SintyUsers SintyUsers;
+
+typedef struct {
+    char path[96];
+    char name[64];
+    char real_name[256];
+    char home[256];
+    char shell[64];
+    char icon[256];
+    char language[64];
+    char email[128];
+    uint64_t uid;
+    int32_t account_type;
+    bool locked;
+    bool automatic_login;
+    bool system_account;
+    uint8_t pad;
+} SintyUser;
+
+typedef struct {
+    char static_name[64];
+    char pretty[256];
+} SintyHostNames;
+
+enum { SINTY_USER_REAL_NAME, SINTY_USER_LANGUAGE, SINTY_USER_ICON, SINTY_USER_EMAIL };
+enum { SINTY_USER_LOCKED, SINTY_USER_AUTOMATIC_LOGIN };
+
+int sinty_accounts_users(SintyUsers **out);
+size_t sinty_accounts_users_count(const SintyUsers *l);
+const SintyUser *sinty_accounts_users_at(const SintyUsers *l, size_t i);
+void sinty_accounts_users_free(SintyUsers *l);
+int sinty_accounts_find(const char *name, SintyUser *out);
+int sinty_accounts_set_text(const char *path, int field, const char *value);
+int sinty_accounts_set_flag(const char *path, int flag, bool on);
+int sinty_accounts_set_administrator(const char *path, bool on);
+int sinty_accounts_create(const char *name, const char *real_name, bool administrator, char *path, size_t len);
+int sinty_accounts_delete(uint64_t uid, bool remove_files);
+int sinty_hostname_get(SintyHostNames *out);
+int sinty_hostname_set(const char *static_name, const char *pretty);
+int sinty_language_get(char *buf, size_t len);
+int sinty_language_set(const char *lang);
+
 #ifdef __cplusplus
 }
 #endif

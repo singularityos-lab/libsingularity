@@ -5,6 +5,7 @@ const sys = @import("../sys.zig");
 pub const Kind = enum(u8) { call = 1, reply = 2, err = 3, signal = 4, _ };
 
 pub const no_reply: u8 = 1;
+pub const allow_interactive: u8 = 4;
 const max_message = 64 << 20;
 const max_array = 64 << 20;
 const max_depth = 64;
@@ -508,6 +509,9 @@ pub fn remoteError(name: []const u8) sys.Error {
         .{ "FileNotFound", error.NotFound },
         .{ "DoesNotExist", error.NotFound },
         .{ "NotAvailable", error.NotFound },
+        .{ "UserDoesNotExist", error.NotFound },
+        .{ "PermissionDenied", error.Access },
+        .{ "UserExists", error.Exists },
         .{ "AccessDenied", error.Access },
         .{ "AuthFailed", error.Access },
         .{ "NotAuthorized", error.Access },
@@ -593,6 +597,7 @@ pub const Conn = struct {
     last_error: [256]u8 = [_]u8{0} ** 256,
     rbuf: std.ArrayList(u8) = .empty,
     queue: std.ArrayList(Message) = .empty,
+    interactive: bool = false,
 
     pub fn system() !Conn {
         if (std.c.getenv("DBUS_SYSTEM_BUS_ADDRESS")) |a| return open(std.mem.span(a));
@@ -743,7 +748,7 @@ pub const Conn = struct {
     }
 
     pub fn call(c: *Conn, dest: []const u8, path: []const u8, iface: []const u8, member: []const u8, sig: []const u8, body: []const u8, timeout_ms: i64) !Message {
-        const serial = try c.send(.{ .kind = .call, .serial = 0, .destination = dest, .path = path, .interface = iface, .member = member, .signature = sig }, body);
+        const serial = try c.send(.{ .kind = .call, .flags = if (c.interactive) allow_interactive else 0, .serial = 0, .destination = dest, .path = path, .interface = iface, .member = member, .signature = sig }, body);
         const deadline = nowMs() + timeout_ms;
         while (true) {
             var m = (try c.receive(deadline - nowMs())) orelse return error.Again;

@@ -232,3 +232,27 @@ func TestNotifyWithoutServer(t *testing.T) {
 		t.Errorf("close without a server: %v", err)
 	}
 }
+
+func TestAccountsDaemon(t *testing.T) {
+	addr := os.Getenv("SINTY_ACCOUNTS_ADDRESS")
+	if addr == "" {
+		t.Skip("SINTY_ACCOUNTS_ADDRESS is not set")
+	}
+	t.Setenv("DBUS_SYSTEM_BUS_ADDRESS", addr)
+	users, err := Users()
+	if err != nil || len(users) != 2 || users[0].Name != "alice" || !users[0].Administrator || users[1].Administrator {
+		t.Fatalf("users: %+v %v", users, err)
+	}
+	if err := SetUserLanguage(users[0].Path, "fr_FR.UTF-8"); err != nil {
+		t.Fatal(err)
+	}
+	if u, err := FindUser("alice"); err != nil || u.Language != "fr_FR.UTF-8" {
+		t.Errorf("find: %+v %v", u, err)
+	}
+	if _, err := FindUser("nobody"); !errors.Is(err, syscall.ENOENT) {
+		t.Errorf("unknown user gave %v", err)
+	}
+	if err := SetHostname("bad name", ""); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("bad host name gave %v", err)
+	}
+}
