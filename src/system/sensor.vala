@@ -350,17 +350,14 @@ namespace Singularity {
      * NVIDIA. Their driver publishes NO hwmon node -- verified on both the
      * proprietary build (595.58) and the open kernel module (595.71); neither
      * creates one under /sys/class/hwmon or the DRM device. So NVIDIA GPUs are
-     * queried through nvidia-smi instead, ASYNCHRONOUSLY and only when the
-     * binary is present. Measured cost is 14-16 ms per query on an RTX 4500,
-     * i.e. under 1% duty cycle at the default 2 s interval, and the call never
-     * blocks the caller's thread. libnvidia-ml is also present on such systems,
-     * so this could move to NVML later without a fork; nvidia-smi is chosen
-     * first because it needs no new link-time dependency.
+     * queried through NVML instead, loaded at run time by the system core and
+     * only when the driver is present, on a worker thread so a slow or wedged
+     * driver never blocks the caller's thread.
      *
      * POWER. Most boards expose no power rail at all (no power*_input,
      * curr*_input or energy*_uj), so no wattage is invented for them and
      * gpu_power_milliwatts stays -1. Where the hardware really does report it
-     * -- NVIDIA via nvidia-smi -- it is passed through as measured.
+     * -- NVIDIA through NVML -- it is passed through as measured.
      */
     public class SensorMonitor : Object {
         // Public because start() uses it as a default argument, and Vala requires
@@ -680,7 +677,7 @@ namespace Singularity {
          *     per channel but no power field. Volts x amps on the SAME channel
          *     is measurement, not synthesis, and it cross-checks: on an IGX
          *     Thor board channel 1 reads 12.08 V and 140 mA = 1.69 W, which is
-         *     exactly what nvidia-smi independently reports for that GPU.
+         *     exactly what NVML independently reports for that GPU.
          *
          * DELIBERATELY NOT INCLUDED: Intel RAPL. /sys/class/powercap/.../
          * energy_uj is root-only on current kernels (restricted after the
@@ -1313,9 +1310,8 @@ namespace Singularity {
 
 
         /**
-         * True when this machine has an NVIDIA driver and nvidia-smi. Checked
-         * once: the answer cannot change without a driver reload, and probing
-         * every tick would spawn a process just to learn "no".
+         * True when this machine has an NVIDIA driver. Checked once: the
+         * answer cannot change without a driver reload.
          */
         private bool nvidia_available() {
             if (_nvidia_checked) {
@@ -1323,23 +1319,75 @@ namespace Singularity {
             }
             _nvidia_checked = true;
             // A fixture root describes a machine that is not this one, so the
-            // host's NVIDIA stack must not leak into it: nvidia-smi would report
+            // host's NVIDIA stack must not leak into it: NVML would report
             // real GPUs on a real NVIDIA box and make the fixture's results
             // depend on where the tests happen to run.
             if (sysfs_root != "") {
                 _nvidia_present = false;
                 return _nvidia_present;
             }
-            _nvidia_present = FileUtils.test("/proc/driver/nvidia", FileTest.IS_DIR)
-                && Environment.find_program_in_path("nvidia-smi") != null;
+            _nvidia_present = FileUtils.test("/proc/driver/nvidia", FileTest.IS_DIR);
             return _nvidia_present;
         }
 
+        internal struct NvidiaSample {
+            public string name;
+            public int celsius;
+            public double watts;
+            public double utilization;
+            public int64 vram_used;
+            public int64 vram_total;
+        }
+
+        internal static NvidiaSample[]? query_nvidia() {
+            SintySystem.NvidiaList list;
+            if (SintySystem.gpu_nvidia(out list) != 0) return null;
+            NvidiaSample[] samples = {};
+            for (size_t i = 0; i < list.count(); i++) {
+                unowned SintySystem.NvidiaGpu? g = list.at(i);
+                NvidiaSample sample = NvidiaSample();
+                sample.name = ((string) g.name).strip();
+                sample.celsius = g.temperature_c;
+                sample.watts = g.power_mw > 0 ? g.power_mw / 1000.0 : 0.0;
+                sample.utilization = g.utilization_pct >= 0 ? g.utilization_pct / 100.0 : -1.0;
+                sample.vram_used = g.memory_used;
+                sample.vram_total = g.memory_total;
+                samples += sample;
+            }
+            return samples;
+        }
+
         internal void parse_nvidia(string? csv) {
+            if (csv == null) {
+                apply_nvidia(null);
+                return;
+            }
+            NvidiaSample[] samples = {};
+            foreach (string line in csv.split("\n")) {
+                if (line.strip() == "") {
+                    continue;
+                }
+                string[] fields = line.split(",");
+                if (fields.length < 2) {
+                    continue;
+                }
+                NvidiaSample sample = NvidiaSample();
+                sample.name = fields[0].strip();
+                sample.celsius = int.parse(fields[1].strip());
+                sample.watts = fields.length >= 4 ? double.parse(fields[3].strip()) : 0.0;
+                sample.utilization = fields.length >= 5 ? double.parse(fields[4].strip()) / 100.0 : -1.0;
+                sample.vram_used = fields.length >= 7 ? int64.parse(fields[5].strip()) * 1024 * 1024 : -1;
+                sample.vram_total = fields.length >= 7 ? int64.parse(fields[6].strip()) * 1024 * 1024 : -1;
+                samples += sample;
+            }
+            apply_nvidia(samples);
+        }
+
+        internal void apply_nvidia(NvidiaSample[]? samples) {
             SensorReading[] found = {};
             int power_milliwatts = -1;
             double utilization = -1.0;
-            if (csv == null) {
+            if (samples == null) {
                 _nvidia_readings = found;
                 gpu_power_milliwatts = -1;
                 _nvidia_gpu_utilization = -1.0;
@@ -1351,51 +1399,28 @@ namespace Singularity {
             }
             int64 vram_used = -1;
             int64 vram_total = -1;
-            foreach (string line in csv.split("\n")) {
-                if (line.strip() == "") {
+            foreach (var sample in samples) {
+                if (sample.vram_total > 0) {
+                    vram_used = (vram_used < 0 ? 0 : vram_used) + (sample.vram_used < 0 ? 0 : sample.vram_used);
+                    vram_total = (vram_total < 0 ? 0 : vram_total) + sample.vram_total;
+                }
+                if (sample.utilization >= 0.0 && sample.utilization > utilization) {
+                    utilization = sample.utilization.clamp(0.0, 1.0);
+                }
+                // The same ceiling as sysfs: the absolute die temperature,
+                // never the distance to the throttle point, which means
+                // different things across GPU generations.
+                if (!plausible(sample.celsius * 1000)) {
                     continue;
                 }
-                string[] fields = line.split(",");
-                if (fields.length >= 7) {
-                    int64 used_mib = int64.parse(fields[5].strip());
-                    int64 total_mib = int64.parse(fields[6].strip());
-                    if (total_mib > 0) {
-                        vram_used = (vram_used < 0 ? 0 : vram_used) + used_mib * 1024 * 1024;
-                        vram_total = (vram_total < 0 ? 0 : vram_total) + total_mib * 1024 * 1024;
-                    }
-                }
-                if (fields.length < 2) {
-                    continue;
-                }
-                string name = fields[0].strip();
-                int celsius = int.parse(fields[1].strip());
-                if (fields.length >= 5) {
-                    double value = double.parse(fields[4].strip()) / 100.0;
-                    if (value >= 0.0 && value > utilization) {
-                        utilization = value.clamp(0.0, 1.0);
-                    }
-                }
-                // The same ceiling as sysfs. nvidia-smi also reports the
-                // absolute die temperature on every generation here -- do NOT
-                // switch this query to temperature.gpu.tlimit, which on Ada is
-                // degrees BELOW the throttle point while Turing reports an
-                // absolute value, so one field would mean two different things
-                // across the fleet.
-                if (!plausible(celsius * 1000)) {
-                    continue;
-                }
-                found += new SensorReading.with_limit(name, celsius * 1000, SensorKind.GPU,
+                found += new SensorReading.with_limit(sample.name, sample.celsius * 1000, SensorKind.GPU,
                                            0, true);
-                if (fields.length >= 4) {
-                    // Fields can read "[N/A]" -- an integrated Thor GPU reports
-                    // no SM clock. double.parse yields 0 there, which the
-                    // guard below discards.
-                    double watts = double.parse(fields[3].strip());
-                    if (watts > 0.0) {
-                        int milliwatts = (int) (watts * 1000.0);
-                        if (milliwatts > power_milliwatts) {
-                            power_milliwatts = milliwatts;
-                        }
+                // Integrated GPUs can report no power at all; a zero or
+                // missing reading is discarded rather than published.
+                if (sample.watts > 0.0) {
+                    int milliwatts = (int) (sample.watts * 1000.0);
+                    if (milliwatts > power_milliwatts) {
+                        power_milliwatts = milliwatts;
                     }
                 }
             }
@@ -1410,45 +1435,27 @@ namespace Singularity {
         }
 
         /**
-         * Query nvidia-smi off-thread. Spawned via Subprocess.newv rather than a
-         * shell, and never waited on: the result lands on a later tick, so a
+         * Query NVML on a worker thread and publish on the main loop, so a
          * slow or wedged driver cannot stall the UI.
          */
         private void refresh_nvidia() {
             if (!nvidia_available() || _nvidia_in_flight) {
                 return;
             }
-            string[] argv = {
-                "nvidia-smi",
-                "--query-gpu=name,temperature.gpu,clocks.sm,power.draw,utilization.gpu,memory.used,memory.total",
-                "--format=csv,noheader,nounits"
-            };
-            try {
-                Subprocess proc = new Subprocess.newv(
-                    argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_SILENCE);
-                _nvidia_in_flight = true;
-                proc.communicate_utf8_async.begin(null, null, (obj, res) => {
-                    string? stdout_text = null;
-                    try {
-                        proc.communicate_utf8_async.end(res, out stdout_text, null);
-                    } catch (Error e) {
-                        stdout_text = null;
+            _nvidia_in_flight = true;
+            new Thread<bool>("nvidia-sensors", () => {
+                NvidiaSample[]? samples = query_nvidia();
+                Idle.add(() => {
+                    if (samples == null) {
+                        _nvidia_present = false;
                     }
-                    parse_nvidia(stdout_text);
+                    apply_nvidia(samples);
                     _nvidia_in_flight = false;
-                    // Publish what just arrived. Without this a one-shot
-                    // refresh() never reports an NVIDIA GPU, and a timer-driven
-                    // caller sees it only on the following tick. This merges the
-                    // cached sysfs readings rather than calling refresh() again,
-                    // so completing a query cannot start another one and does not
-                    // re-walk every hwmon and thermal node.
                     publish_state();
+                    return Source.REMOVE;
                 });
-            } catch (Error e) {
-                // Driver present but the tool failed: stop asking.
-                _nvidia_present = false;
-                _nvidia_in_flight = false;
-            }
+                return true;
+            });
         }
 
         /**
@@ -1663,7 +1670,7 @@ namespace Singularity {
          * Recompute the published properties from the cached reading sets and
          * emit updated().
          *
-         * Split out of refresh_internal() so the asynchronous nvidia-smi
+         * Split out of refresh_internal() so the asynchronous NVML
          * callback can publish its result without re-walking every hwmon and
          * thermal node -- it merges _base_readings with the NVIDIA set instead.
          */

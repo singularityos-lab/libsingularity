@@ -486,6 +486,8 @@ if get_option('system')
     'src/system/core/src/v1/display.zig',
     'src/system/core/src/v1/device.zig',
     'src/system/core/src/v1/net.zig',
+    'src/system/core/src/v1/i18n.zig',
+    'src/system/core/src/v1/gpu.zig',
   )
   system_core_args = []
   if get_option('zig-target') != ''

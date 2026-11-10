@@ -6,6 +6,8 @@ pub const power = @import("v1/power.zig");
 pub const display = @import("v1/display.zig");
 pub const device = @import("v1/device.zig");
 pub const net = @import("v1/net.zig");
+pub const i18n = @import("v1/i18n.zig");
+pub const gpu = @import("v1/gpu.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -257,6 +259,41 @@ export fn sinty_net_link_info(iface: [*:0]const u8, out: *net.LinkInfo) c_int {
     return 0;
 }
 
+export fn sinty_text_list_count(l: *const i18n.TextList) usize {
+    return l.count();
+}
+
+export fn sinty_text_list_at(l: *const i18n.TextList, i: usize) ?[*:0]const u8 {
+    const t = l.at(i) orelse return null;
+    return t.ptr;
+}
+
+export fn sinty_text_list_free(l: ?*i18n.TextList) void {
+    if (l) |p| p.destroy();
+}
+
+export fn sinty_i18n_installed_locales(out: *?*i18n.TextList) c_int {
+    out.* = i18n.installed("/usr/lib/locale") catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_gpu_nvidia(out: *?*gpu.NvidiaList) c_int {
+    out.* = gpu.nvidia() catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_gpu_nvidia_list_count(l: *const gpu.NvidiaList) usize {
+    return l.count();
+}
+
+export fn sinty_gpu_nvidia_list_at(l: *const gpu.NvidiaList, i: usize) ?*const gpu.NvidiaGpu {
+    return l.at(i);
+}
+
+export fn sinty_gpu_nvidia_list_free(l: ?*gpu.NvidiaList) void {
+    if (l) |p| p.destroy();
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = proc;
@@ -265,6 +302,8 @@ test {
     _ = display;
     _ = device;
     _ = net;
+    _ = i18n;
+    _ = gpu;
 }
 
 test "a tcp connection shows up with its owner and counters" {

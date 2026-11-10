@@ -84,21 +84,14 @@ namespace Singularity {
 
         private List<string> installed_locales() {
             var list = new List<string>();
-            string output = "";
-            foreach (string command in new string[] { "localectl list-locales", "locale -a" }) {
-                int status;
-                try {
-                    Process.spawn_command_line_sync(command, out output, null, out status);
-                    if (status == 0 && output.strip() != "") break;
-                } catch (SpawnError e) {
-                    output = "";
-                }
-            }
-            if (output.strip() == "") {
+            SintySystem.TextList installed;
+            if (SintySystem.i18n_installed_locales(out installed) != 0 || installed.count() == 0) {
                 warning("Failed to list installed locales");
                 return list;
             }
-            foreach (string line in output.split("\n")) {
+            string[] names = {};
+            for (size_t i = 0; i < installed.count(); i++) names += installed.at(i);
+            foreach (string line in names) {
                 string name = line.strip();
                 if (name == "" || name == "C" || name == "POSIX" || name.has_prefix("C.")) continue;
                 string[] parts = name.split(".", 2);

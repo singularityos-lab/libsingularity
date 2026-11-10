@@ -251,6 +251,31 @@ typedef struct {
 
 int sinty_net_link_info(const char *iface, SintyLinkInfo *out);
 
+typedef struct SintyTextList SintyTextList;
+
+size_t sinty_text_list_count(const SintyTextList *list);
+const char *sinty_text_list_at(const SintyTextList *list, size_t index);
+void sinty_text_list_free(SintyTextList *list);
+
+int sinty_i18n_installed_locales(SintyTextList **out);
+
+typedef struct {
+    int32_t temperature_c;
+    int32_t sm_clock_mhz;
+    int32_t power_mw;
+    int32_t utilization_pct;
+    int64_t memory_used;
+    int64_t memory_total;
+    char name[96];
+} SintyNvidiaGpu;
+
+typedef struct SintyNvidiaList SintyNvidiaList;
+
+int sinty_gpu_nvidia(SintyNvidiaList **out);
+size_t sinty_gpu_nvidia_list_count(const SintyNvidiaList *list);
+const SintyNvidiaGpu *sinty_gpu_nvidia_list_at(const SintyNvidiaList *list, size_t index);
+void sinty_gpu_nvidia_list_free(SintyNvidiaList *list);
+
 #ifdef __cplusplus
 }
 #endif

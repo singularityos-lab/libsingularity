@@ -303,4 +303,39 @@ namespace SintySystem {
 
     [CCode (cname = "sinty_net_link_info")]
     public int net_link_info (string iface, out LinkInfo info);
+
+    [Compact]
+    [CCode (cname = "SintyTextList", free_function = "sinty_text_list_free")]
+    public class TextList {
+        [CCode (cname = "sinty_text_list_count")]
+        public size_t count ();
+        [CCode (cname = "sinty_text_list_at")]
+        public unowned string? at (size_t index);
+    }
+
+    [CCode (cname = "sinty_i18n_installed_locales")]
+    public int i18n_installed_locales (out TextList list);
+
+    [CCode (cname = "SintyNvidiaGpu", has_type_id = false, destroy_function = "")]
+    public struct NvidiaGpu {
+        public int32 temperature_c;
+        public int32 sm_clock_mhz;
+        public int32 power_mw;
+        public int32 utilization_pct;
+        public int64 memory_used;
+        public int64 memory_total;
+        public char name[96];
+    }
+
+    [Compact]
+    [CCode (cname = "SintyNvidiaList", free_function = "sinty_gpu_nvidia_list_free")]
+    public class NvidiaList {
+        [CCode (cname = "sinty_gpu_nvidia_list_count")]
+        public size_t count ();
+        [CCode (cname = "sinty_gpu_nvidia_list_at")]
+        public unowned NvidiaGpu? at (size_t index);
+    }
+
+    [CCode (cname = "sinty_gpu_nvidia")]
+    public int gpu_nvidia (out NvidiaList list);
 }
