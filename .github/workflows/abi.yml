@@ -17,13 +17,18 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            abigail-tools binutils build-essential ca-certificates gettext git meson ninja-build \
+            abigail-tools binutils build-essential ca-certificates curl gettext git meson ninja-build \
             pkg-config python3 sassc valac libwayland-dev wayland-protocols \
             libgtk-4-dev libgee-0.8-dev libjson-glib-dev libpeas-2-dev libsoup-3.0-dev \
             libgtksourceview-5-dev libenchant-2-dev libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev libcups2-dev liblcms2-dev libgtk4-layer-shell-dev \
             libgnutls28-dev libupower-glib-dev libnm-dev libpulse-dev libgudev-1.0-dev \
-            libxkbcommon-dev zlib1g-dev libharfbuzz-dev libfontconfig-dev
+            libxkbcommon-dev zlib1g-dev libharfbuzz-dev libfontconfig-dev xz-utils
+
+      - name: Install Zig
+        run: |
+          curl -sSfL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz | tar xJ -C /opt
+          ln -s /opt/zig-x86_64-linux-0.16.0/zig /usr/local/bin/zig
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:

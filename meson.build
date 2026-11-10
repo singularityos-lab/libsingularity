@@ -657,8 +657,8 @@ if get_option('system')
     vala_vapi: 'singularity-system-1.0.vapi',
     install: true,
     install_dir: [get_option('libdir'), true, true],
-    soversion: '0',
-    version: meson.project_version(),
+    soversion: '1',
+    version: '1.0.0',
   )
 
   libsingularity_system_dep = declare_dependency(
