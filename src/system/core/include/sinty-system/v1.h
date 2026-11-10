@@ -437,6 +437,7 @@ typedef struct {
 
 int sinty_fs_check(const char *path, bool repair, SintyFsCheck *out);
 int sinty_mount(const char *source, const char *target, const char *fstype, const char *options);
+int sinty_mount_overlay(const char *target, const char *const *lowers, size_t n, const char *upper, const char *work, const char *options, bool readonly);
 int sinty_unmount(const char *target, bool lazy);
 int sinty_mount_find(const char *device, char *target, size_t len);
 

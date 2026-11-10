@@ -594,6 +594,20 @@ export fn sinty_mount(source: [*:0]const u8, target: [*:0]const u8, fstype: [*:0
     return 0;
 }
 
+export fn sinty_mount_overlay(target: [*:0]const u8, lowers: [*]const [*:0]const u8, n: usize, upper: ?[*:0]const u8, work: ?[*:0]const u8, options: ?[*:0]const u8, readonly: bool) c_int {
+    if (n == 0 or n > 64) return sys.code(error.Invalid);
+    var list: [64][]const u8 = undefined;
+    for (0..n) |i| list[i] = span(lowers[i]);
+    const o = mounts.Overlay{
+        .lower = list[0..n],
+        .upper = if (upper) |u| span(u) else null,
+        .work = if (work) |w| span(w) else null,
+        .options = if (options) |p| span(p) else "",
+    };
+    mounts.overlay(target, o, if (readonly) std.os.linux.MS.RDONLY else 0) catch |e| return sys.code(e);
+    return 0;
+}
+
 export fn sinty_unmount(target: [*:0]const u8, lazy: bool) c_int {
     mounts.unmount(target, lazy) catch |e| return sys.code(e);
     return 0;

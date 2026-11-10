@@ -525,6 +525,12 @@ func TestMountHelpers(t *testing.T) {
 	if _, err := GrowExt4(filepath.Join(t.TempDir(), "none"), 0); !errors.Is(err, syscall.ENOENT) {
 		t.Fatalf("missing device: %v", err)
 	}
+	if err := MountOverlay(t.TempDir(), nil, "", "", "", true); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("overlay without layers: %v", err)
+	}
+	if err := MountOverlay(t.TempDir(), []string{t.TempDir()}, t.TempDir(), "", "", false); !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("upper without work: %v", err)
+	}
 	if err := Unmount(t.TempDir(), false); err == nil {
 		t.Fatal("unmount of a plain directory succeeded")
 	}

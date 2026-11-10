@@ -655,6 +655,35 @@ func Mount(source, target, fstype, options string) error {
 	return check(C.sinty_mount(s, t, f, o))
 }
 
+func MountOverlay(target string, lowers []string, upper, work, options string, readonly bool) error {
+	if len(lowers) == 0 {
+		return syscall.EINVAL
+	}
+	t := C.CString(target)
+	defer C.free(unsafe.Pointer(t))
+	arr := C.malloc(C.size_t(len(lowers)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+	defer C.free(arr)
+	ptrs := unsafe.Slice((**C.char)(arr), len(lowers))
+	for i, l := range lowers {
+		ptrs[i] = C.CString(l)
+		defer C.free(unsafe.Pointer(ptrs[i]))
+	}
+	var u, w, o *C.char
+	if upper != "" {
+		u = C.CString(upper)
+		defer C.free(unsafe.Pointer(u))
+	}
+	if work != "" {
+		w = C.CString(work)
+		defer C.free(unsafe.Pointer(w))
+	}
+	if options != "" {
+		o = C.CString(options)
+		defer C.free(unsafe.Pointer(o))
+	}
+	return check(C.sinty_mount_overlay(t, (**C.char)(arr), C.size_t(len(lowers)), u, w, o, C.bool(readonly)))
+}
+
 func Unmount(target string, lazy bool) error {
 	t := C.CString(target)
 	defer C.free(unsafe.Pointer(t))

@@ -158,6 +158,68 @@ pub fn mount(source: [*:0]const u8, target: [*:0]const u8, fstype: [*:0]const u8
     }
 }
 
+pub const Overlay = struct {
+    lower: []const []const u8,
+    upper: ?[]const u8 = null,
+    work: ?[]const u8 = null,
+    options: []const u8 = "",
+};
+
+fn escapePath(out: []u8, pos: *usize, path: []const u8) !void {
+    for (path) |c| {
+        if (c == ':' or c == ',' or c == '\\') {
+            if (pos.* + 1 >= out.len) return error.TooBig;
+            out[pos.*] = '\\';
+            pos.* += 1;
+        }
+        if (pos.* + 1 >= out.len) return error.TooBig;
+        out[pos.*] = c;
+        pos.* += 1;
+    }
+}
+
+fn append(out: []u8, pos: *usize, s: []const u8) !void {
+    if (pos.* + s.len >= out.len) return error.TooBig;
+    @memcpy(out[pos.* .. pos.* + s.len], s);
+    pos.* += s.len;
+}
+
+pub fn overlayData(out: []u8, o: Overlay) ![:0]const u8 {
+    if (o.lower.len == 0) return error.Invalid;
+    if ((o.upper == null) != (o.work == null)) return error.Invalid;
+    var pos: usize = 0;
+    try append(out, &pos, "lowerdir=");
+    for (o.lower, 0..) |l, i| {
+        if (l.len == 0) return error.Invalid;
+        if (i > 0) try append(out, &pos, ":");
+        try escapePath(out, &pos, l);
+    }
+    if (o.upper) |u| {
+        try append(out, &pos, ",upperdir=");
+        try escapePath(out, &pos, u);
+        try append(out, &pos, ",workdir=");
+        try escapePath(out, &pos, o.work.?);
+    }
+    if (o.options.len > 0) {
+        try append(out, &pos, ",");
+        try append(out, &pos, o.options);
+    }
+    out[pos] = 0;
+    return out[0..pos :0];
+}
+
+pub fn overlay(target: [*:0]const u8, o: Overlay, flags: u32) !void {
+    var buf: [4096]u8 = undefined;
+    const data = try overlayData(&buf, o);
+    const rc = linux.mount("overlay", target, "overlay", flags, @intFromPtr(data.ptr));
+    switch (linux.errno(rc)) {
+        .SUCCESS => {},
+        .NODEV => return error.Unsupported,
+        .PERM => return error.Access,
+        else => |e| return sys.fromErrno(e),
+    }
+}
+
 pub fn unmount(target: [*:0]const u8, lazy: bool) !void {
     while (true) {
         const rc = linux.umount2(target, if (lazy) linux.MNT.DETACH else 0);
@@ -257,4 +319,16 @@ test "the live mount table includes the root" {
     defer t.destroy();
     try std.testing.expect(findTarget(t, "/") != null);
     try std.testing.expectError(error.Invalid, devNumber("/proc"));
+}
+
+test "overlay options escape separators" {
+    var buf: [4096]u8 = undefined;
+    const d = try overlayData(&buf, .{ .lower = &.{ "/a", "/b:c", "/d,e" }, .upper = "/u\\x", .work = "/w", .options = "index=off" });
+    try std.testing.expectEqualStrings("lowerdir=/a:/b\\:c:/d\\,e,upperdir=/u\\\\x,workdir=/w,index=off", d);
+    const r = try overlayData(&buf, .{ .lower = &.{"/ro"} });
+    try std.testing.expectEqualStrings("lowerdir=/ro", r);
+    try std.testing.expectError(error.Invalid, overlayData(&buf, .{ .lower = &.{} }));
+    try std.testing.expectError(error.Invalid, overlayData(&buf, .{ .lower = &.{"/a"}, .upper = "/u" }));
+    var small: [16]u8 = undefined;
+    try std.testing.expectError(error.TooBig, overlayData(&small, .{ .lower = &.{"/a/very/long/path"} }));
 }
