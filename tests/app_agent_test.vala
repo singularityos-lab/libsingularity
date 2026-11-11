@@ -54,7 +54,7 @@ async Json.Array? call_list(DBusConnection bus, string intent) {
     }
 }
 
-async void run_checks(Singularity.Application app, DBusConnection bus, Gtk.Window win, RibbonToggle toggle, int[] counters) {
+async void run_checks(Singularity.Application app, DBusConnection bus, Gtk.Window win, RibbonToggle toggle, TextView doc, int[] counters) {
     var actions = yield call_list(bus, "app_actions");
     bool saw_bold = false, saw_hello = false;
     if (actions != null) {
@@ -107,6 +107,24 @@ async void run_checks(Singularity.Application app, DBusConnection bus, Gtk.Windo
     r = yield call(bus, "app_command", "{\"id\":\"missing\"}");
     check(r == null, "app_command refuses an unknown id");
 
+    r = yield call(bus, "app_read", "{\"offset\":6,\"limit\":5}");
+    check(r != null && r.get_string_member("text") == "world" && r.get_int_member("length") == 17 && r.get_boolean_member("more"), "app_read pages the document");
+
+    r = yield call(bus, "app_edit", "{\"find\":\"world\",\"replace\":\"there\"}");
+    check(r != null && r.get_boolean_member("verified") && doc.buffer.text == "hello there, mars", "app_edit replaces and reads back");
+
+    doc.buffer.undo();
+    check(doc.buffer.text == "hello world, mars", "Ctrl+Z undoes an app_edit");
+
+    r = yield call(bus, "app_edit", "{\"find\":\"pluto\",\"replace\":\"x\"}");
+    check(r == null && doc.buffer.text == "hello world, mars", "app_edit refuses a missing match");
+
+    r = yield call(bus, "app_batch", "{\"steps\":[{\"intent\":\"app_action\",\"args\":{\"name\":\"app.hello\"}},{\"intent\":\"app_edit\",\"args\":{\"text\":\"new\"}}]}");
+    check(r != null && r.get_int_member("done") == 2 && r.get_boolean_member("verified") && counters[0] == 2 && doc.buffer.text == "new", "app_batch runs steps in order");
+
+    r = yield call(bus, "app_batch", "{\"steps\":[{\"intent\":\"app_action\",\"args\":{\"name\":\"app.hello\"}},{\"intent\":\"app_action_confirmed\",\"args\":{\"name\":\"app.delete-all\"}}]}");
+    check(r == null && counters[0] == 2 && counters[1] == 1, "app_batch refuses an irreversible step before running anything");
+
     win.destroy();
     app.quit();
 }
@@ -143,14 +161,19 @@ int main(string[] args) {
         var font = home.add_selector("Font", 10);
         font.add_option("sans", "Sans");
         font.add_option("arial", "Arial");
-        win.child = ribbon;
+        var doc = new TextView();
+        doc.buffer.text = "hello world, mars";
+        var box = new Box(Orientation.VERTICAL, 0);
+        box.append(ribbon);
+        box.append(doc);
+        win.child = box;
         win.present();
         Bus.own_name_on_connection(app.get_dbus_connection(), "dev.sinty.Agent", BusNameOwnerFlags.NONE,
-            (c, n) => run_checks.begin(app, c, win, toggle, counters), null);
+            (c, n) => run_checks.begin(app, c, win, toggle, doc, counters), null);
         app.hold();
     });
     app.run(args);
     display.send_signal(Posix.Signal.TERM);
-    print("1..%d\n", failures == 0 ? 11 : failures);
+    print("1..%d\n", failures == 0 ? 17 : failures);
     return failures == 0 ? 0 : 1;
 }

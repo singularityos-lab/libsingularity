@@ -286,7 +286,202 @@ namespace Singularity {
             return n;
         }
 
+        private static void collect_text(Gtk.Widget w, Gee.ArrayList<Gtk.Widget> found) {
+            if (!w.get_mapped()) return;
+            if (w is Gtk.TextView || (w is Gtk.Editable && !(w is Gtk.Text))) {
+                found.add(w);
+                return;
+            }
+            for (var c = w.get_first_child(); c != null; c = c.get_next_sibling()) collect_text(c, found);
+        }
+
+        private static int text_size(Gtk.Widget w) {
+            if (w is Gtk.TextView) return ((Gtk.TextView) w).buffer.get_char_count() + 1000000;
+            return ((Gtk.Editable) w).text.char_count();
+        }
+
+        private Gtk.Widget? document() {
+            var win = app.get_active_window();
+            if (win == null && app.get_windows().length() > 0) win = app.get_windows().nth_data(0);
+            if (win == null) return null;
+            var focus = win.get_focus();
+            for (var f = focus; f != null; f = f.get_parent()) {
+                if (f is Gtk.TextView) return f;
+            }
+            var found = new Gee.ArrayList<Gtk.Widget>();
+            collect_text(win, found);
+            Gtk.Widget? best = null;
+            foreach (var w in found) {
+                if (best == null || text_size(w) > text_size(best)) best = w;
+            }
+            return best;
+        }
+
+        private static string widget_text(Gtk.Widget w) {
+            if (w is Gtk.TextView) {
+                var buf = ((Gtk.TextView) w).buffer;
+                Gtk.TextIter a, b;
+                buf.get_bounds(out a, out b);
+                return buf.get_text(a, b, true);
+            }
+            return ((Gtk.Editable) w).text;
+        }
+
+        private Json.Node read_document(Json.Object args) throws Error {
+            var w = document();
+            if (w == null) throw new IOError.NOT_FOUND("this app shows no text right now");
+            string text = widget_text(w);
+            int total = text.char_count();
+            int offset = args.has_member("offset") ? (int) args.get_int_member("offset") : 0;
+            int limit = args.has_member("limit") ? (int) args.get_int_member("limit") : 20000;
+            offset = offset.clamp(0, total);
+            int end = (offset + limit).clamp(offset, total);
+            var b = new Json.Builder();
+            b.begin_object();
+            b.set_member_name("text").add_string_value(text.substring(text.index_of_nth_char(offset), text.index_of_nth_char(end) - text.index_of_nth_char(offset)));
+            b.set_member_name("offset").add_int_value(offset);
+            b.set_member_name("length").add_int_value(total);
+            b.set_member_name("more").add_boolean_value(end < total);
+            b.set_member_name("editable").add_boolean_value((w is Gtk.TextView) ? ((Gtk.TextView) w).editable : ((Gtk.Editable) w).editable);
+            b.end_object();
+            return b.get_root();
+        }
+
+        private Json.Node edit_document(Json.Object args) throws Error {
+            var w = document();
+            if (w == null) throw new IOError.NOT_FOUND("this app shows no text right now");
+            string find = args.has_member("find") ? args.get_string_member("find") : "";
+            string replace = args.has_member("replace") ? args.get_string_member("replace") : "";
+            bool all = args.has_member("all") && args.get_boolean_member("all");
+            bool whole = args.has_member("text");
+            if (!whole && find == "") throw new IOError.INVALID_ARGUMENT("give find and replace, or text to replace everything");
+            string before = widget_text(w);
+            string expected;
+            int count = 0;
+            if (whole) {
+                expected = args.get_string_member("text");
+                count = 1;
+            } else {
+                int at = before.index_of(find);
+                if (at < 0) throw new IOError.NOT_FOUND("the text has no \"%s\"", find);
+                if (all) {
+                    count = before.split(find).length - 1;
+                    expected = before.replace(find, replace);
+                } else {
+                    count = 1;
+                    expected = before.substring(0, at) + replace + before.substring(at + find.length);
+                }
+            }
+            if (w is Gtk.TextView) {
+                var tv = (Gtk.TextView) w;
+                if (!tv.editable) throw new IOError.PERMISSION_DENIED("this text cannot be edited");
+                var buf = tv.buffer;
+                buf.begin_user_action();
+                if (whole) {
+                    buf.set_text(expected, -1);
+                } else {
+                    int from = 0;
+                    int done = 0;
+                    while (done < count) {
+                        string now = widget_text(w);
+                        int at = now.index_of(find, from);
+                        if (at < 0) break;
+                        Gtk.TextIter s, e;
+                        buf.get_iter_at_offset(out s, now.substring(0, at).char_count());
+                        buf.get_iter_at_offset(out e, now.substring(0, at + find.length).char_count());
+                        buf.delete(ref s, ref e);
+                        buf.insert(ref s, replace, -1);
+                        from = at + replace.length;
+                        done++;
+                    }
+                }
+                buf.end_user_action();
+            } else {
+                var ed = (Gtk.Editable) w;
+                if (!ed.editable) throw new IOError.PERMISSION_DENIED("this text cannot be edited");
+                ed.text = expected;
+            }
+            string after = widget_text(w);
+            var b = new Json.Builder();
+            b.begin_object();
+            b.set_member_name("replaced").add_int_value(count);
+            b.set_member_name("length").add_int_value(after.char_count());
+            b.set_member_name("verified").add_boolean_value(after == expected);
+            b.set_member_name("undo").add_string_value("Ctrl+Z");
+            b.end_object();
+            return b.get_root();
+        }
+
+        private async Json.Node run_batch(Json.Object args) throws Error {
+            if (!args.has_member("steps")) throw new IOError.INVALID_ARGUMENT("give steps, a list of {intent, args}");
+            var steps = args.get_array_member("steps");
+            if (steps.get_length() > 50) throw new IOError.INVALID_ARGUMENT("at most 50 steps");
+            foreach (var n in steps.get_elements()) {
+                var o = n.get_object();
+                string name = o != null && o.has_member("intent") ? o.get_string_member("intent") : "";
+                bool known = false;
+                foreach (var i in intents) {
+                    if (i.name != name) continue;
+                    known = true;
+                    if (i.risk == AppIntentRisk.IRREVERSIBLE || name == "app_batch")
+                        throw new IOError.PERMISSION_DENIED("%s cannot run in a batch: call it on its own", name);
+                }
+                if (!known) throw new IOError.NOT_FOUND("unknown intent %s", name);
+            }
+            var b = new Json.Builder();
+            b.begin_object();
+            b.set_member_name("results");
+            b.begin_array();
+            int ok = 0;
+            bool verified = true;
+            string? failed = null;
+            foreach (var n in steps.get_elements()) {
+                var o = n.get_object();
+                string name = o.get_string_member("intent");
+                string raw = o.has_member("args") ? Json.to_string(o.get_member("args"), false) : "{}";
+                b.begin_object();
+                b.set_member_name("intent").add_string_value(name);
+                try {
+                    string res = yield run(name, raw);
+                    var parsed = Json.from_string(res);
+                    b.set_member_name("result").add_value(parsed);
+                    if (parsed != null && parsed.get_node_type() == Json.NodeType.OBJECT && parsed.get_object().has_member("verified")
+                        && !parsed.get_object().get_boolean_member("verified")) verified = false;
+                    ok++;
+                } catch (Error e) {
+                    b.set_member_name("error").add_string_value(e.message);
+                    failed = name;
+                }
+                b.end_object();
+                if (failed != null) break;
+            }
+            b.end_array();
+            b.set_member_name("done").add_int_value(ok);
+            b.set_member_name("total").add_int_value((int) steps.get_length());
+            if (failed != null) b.set_member_name("stopped_at").add_string_value(failed);
+            b.set_member_name("verified").add_boolean_value(failed == null && verified);
+            b.end_object();
+            return b.get_root();
+        }
+
         private void add_builtin_intents() {
+            add_intent("app_read", "Read the whole text of the document this app shows, in pages: offset and limit count characters. Use it before editing.",
+                "{\"type\":\"object\",\"properties\":{\"offset\":{\"type\":\"integer\"},\"limit\":{\"type\":\"integer\"}}}",
+                AppIntentRisk.READ, (args) => read_document(args));
+            add_intent("app_edit", "Change the document this app shows: replace find with replace (all for every match), or give text to replace everything. It reads the text back and answers verified; Ctrl+Z undoes it.",
+                "{\"type\":\"object\",\"properties\":{\"find\":{\"type\":\"string\"},\"replace\":{\"type\":\"string\"},\"all\":{\"type\":\"boolean\"},\"text\":{\"type\":\"string\"}}}",
+                AppIntentRisk.UNDOABLE, (args) => edit_document(args));
+            add_async_intent("app_batch", "Run several intents of this app in order in one call, stopping at the first error. Steps that cannot be undone are refused here.",
+                "{\"type\":\"object\",\"properties\":{\"steps\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"intent\":{\"type\":\"string\"},\"args\":{\"type\":\"object\"}},\"required\":[\"intent\"]}}},\"required\":[\"steps\"]}",
+                AppIntentRisk.UNDOABLE, (args, reply) => {
+                    run_batch.begin(args, (obj, res) => {
+                        try {
+                            reply(run_batch.end(res), null);
+                        } catch (Error e) {
+                            reply(null, e);
+                        }
+                    });
+                });
             add_intent("app_commands", "List every command of this app's ribbon, tab by tab: buttons, on and off toggles, choices with their options, and menus with their entries. Run one with app_command.",
                 "{\"type\":\"object\",\"properties\":{\"tab\":{\"type\":\"string\"}}}", AppIntentRisk.READ, (args) => {
                     string tab = args.has_member("tab") ? args.get_string_member("tab").down() : "";
