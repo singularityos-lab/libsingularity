@@ -6940,3 +6940,18 @@ glass.glass-bin.glass-native {
 glass.glass-bin.glass-native.lens {
     background-color: alpha(@window_bg_color, 0.06);
 }
+
+window.agent-cursor {
+    background-color: transparent;
+}
+.agent-cursor-arrow {
+    color: @accent_bg_color;
+}
+.agent-cursor-label {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
