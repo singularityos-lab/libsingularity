@@ -13,6 +13,8 @@ namespace Singularity.Widgets {
         private Label _label;
         private Image _icon;
         private Image _submenu_arrow;
+        private Label _subtitle;
+        private Image _check;
 
         /** Text displayed on the row. Safe to set after construction. */
         public string label_text {
@@ -27,6 +29,20 @@ namespace Singularity.Widgets {
                 _icon.icon_name = value;
                 _icon.visible = (value != null && value != "");
             }
+        }
+
+        public string subtitle {
+            get { return _subtitle != null ? _subtitle.label : ""; }
+            set {
+                if (_subtitle == null) return;
+                _subtitle.label = value ?? "";
+                _subtitle.visible = value != null && value != "";
+            }
+        }
+
+        public bool checked {
+            get { return _check != null && _check.visible; }
+            set { if (_check != null) _check.visible = value; }
         }
 
         public bool has_submenu {
@@ -67,9 +83,24 @@ namespace Singularity.Widgets {
             _label = new Label("");
             _label.halign = Align.START;
             _label.valign = Align.CENTER;
-            _label.hexpand = true;
             _label.xalign = 0;
-            box.append(_label);
+            _subtitle = new Label("");
+            _subtitle.halign = Align.START;
+            _subtitle.xalign = 0;
+            _subtitle.add_css_class("caption");
+            _subtitle.add_css_class("dim-label");
+            _subtitle.visible = false;
+            var texts = new Box(Orientation.VERTICAL, 0);
+            texts.hexpand = true;
+            texts.valign = Align.CENTER;
+            texts.append(_label);
+            texts.append(_subtitle);
+            box.append(texts);
+            _check = new Image.from_icon_name("object-select-symbolic");
+            _check.pixel_size = 16;
+            _check.valign = Align.CENTER;
+            _check.visible = false;
+            box.append(_check);
             _submenu_arrow = new Image.from_icon_name("pan-end-symbolic");
             _submenu_arrow.pixel_size = 12;
             _submenu_arrow.valign = Align.CENTER;

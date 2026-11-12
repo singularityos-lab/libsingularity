@@ -7,12 +7,17 @@ namespace Singularity.Widgets {
         private const int MAX_MENU_HEIGHT = 360;
 
         private Label value_label;
+        private Image value_icon;
+        private Image arrow;
         private ListModel? _model = null;
         private uint _selected = INVALID_LIST_POSITION;
         private ulong items_handler = 0;
 
         public Gtk.Expression? expression { get; set; }
         public bool enable_search { get; set; default = false; }
+        public string[] icon_names { get; set; default = {}; }
+        public string[] descriptions { get; set; default = {}; }
+        public bool icon_only { get; set; default = false; }
 
         public ListModel? model {
             get { return _model; }
@@ -48,13 +53,20 @@ namespace Singularity.Widgets {
             value_label.xalign = 0;
             value_label.hexpand = true;
             value_label.ellipsize = Pango.EllipsizeMode.END;
+            value_icon = new Image();
+            value_icon.pixel_size = 16;
+            value_icon.visible = false;
+            arrow = new Image.from_icon_name("pan-down-symbolic");
             var box = new Box(Orientation.HORIZONTAL, 6);
+            box.append(value_icon);
             box.append(value_label);
-            box.append(new Image.from_icon_name("pan-down-symbolic"));
+            box.append(arrow);
             set_child(box);
             clicked.connect(show_menu);
             this.model = model;
             notify["expression"].connect(update_label);
+            notify["icon-names"].connect(update_label);
+            notify["icon-only"].connect(update_label);
         }
 
         public ChoiceButton.from_strings(string[] strings) {
@@ -98,9 +110,23 @@ namespace Singularity.Widgets {
             return "";
         }
 
+        private string item_icon(uint index) {
+            return index < icon_names.length ? icon_names[index] : "";
+        }
+
         private void update_label() {
             if (value_label == null) return;
-            value_label.label = item_label(selected_item);
+            string label = item_label(selected_item);
+            value_label.label = label;
+            string icon = item_icon(_selected);
+            value_icon.icon_name = icon;
+            value_icon.visible = icon != "";
+            bool compact = icon_only && icon != "";
+            value_label.visible = !compact;
+            arrow.visible = !compact;
+            if (compact) add_css_class("icon-only");
+            else remove_css_class("icon-only");
+            update_property(AccessibleProperty.LABEL, label, -1);
         }
 
         private void show_menu() {
@@ -113,9 +139,17 @@ namespace Singularity.Widgets {
             uint n = _model.get_n_items();
             for (uint i = 0; i < n; i++) {
                 uint index = i;
-                var row = new MenuRow(item_label(_model.get_item(i)), "object-select-symbolic");
+                MenuRow row;
+                string icon = item_icon(i);
+                if (icon != "") {
+                    row = new MenuRow(item_label(_model.get_item(i)), icon);
+                    row.checked = i == _selected;
+                    if (i < descriptions.length) row.subtitle = descriptions[i];
+                } else {
+                    row = new MenuRow(item_label(_model.get_item(i)), "object-select-symbolic");
+                    row.add_css_class("check-row");
+                }
                 row.halign = Align.FILL;
-                row.add_css_class("check-row");
                 if (i == _selected) {
                     row.add_css_class("checked");
                     current = row;
