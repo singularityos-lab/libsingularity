@@ -365,7 +365,8 @@ namespace Singularity {
             var result = new GenericArray<NmAccessPoint>();
             if (client == null) return result;
             foreach (var device in wifi_devices.data) {
-                foreach (var ap in device_access_points(device).data) result.add(ap);
+                var aps = device_access_points(device);
+                foreach (var ap in aps.data) result.add(ap);
             }
             return result;
         }
@@ -498,7 +499,8 @@ namespace Singularity {
         }
 
         public NmConnection? saved_wifi_connection(string ssid) {
-            foreach (var conn in saved_wifi_connections().data) {
+            var saved = saved_wifi_connections();
+            foreach (var conn in saved.data) {
                 if (conn.wifi_ssid() == ssid) return conn;
             }
             return null;
@@ -709,7 +711,8 @@ namespace Singularity {
                 return dynamic_internet.enabled ? get_free_wifi_device() ?? wifi_device : wifi_device;
             string? owner = null;
             foreach (var device in wifi_devices.data) {
-                foreach (var candidate in device_access_points(device).data) {
+                var aps = device_access_points(device);
+                foreach (var candidate in aps.data) {
                     if (candidate.path == requested.path) owner = device;
                     if (dynamic_internet.enabled && client.device_active(device) == null
                             && candidate.ssid == requested.ssid) {
