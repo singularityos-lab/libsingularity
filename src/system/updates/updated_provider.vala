@@ -9,6 +9,8 @@ namespace Singularity.Updates {
         private string consent_token = "";
         private uint poll_id = 0;
 
+        public string live_class { get; private set; default = ""; }
+
         public override string kind {
             get { return "image"; }
         }
@@ -100,6 +102,7 @@ namespace Singularity.Updates {
             string product_version = status.get_string_member_with_default("product_version", "");
             string token = status.get_string_member_with_default("consent_token", "");
             consent_token = valid_token(token) ? token : "";
+            live_class = value == "ready" ? live_class_of(status) : "";
             name = HardwareInfo.os_name();
             current_version = HardwareInfo.os_name();
             last_error = "";
@@ -134,6 +137,16 @@ namespace Singularity.Updates {
             last_check = get_real_time() / 1000000;
             changed();
             follow();
+        }
+
+        internal static string live_class_of(Json.Object status) {
+            if (!status.has_member("live")) return "";
+            var node = status.get_member("live");
+            if (node.get_node_type() != Json.NodeType.OBJECT) return "";
+            var live = node.get_object();
+            if (!live.get_boolean_member_with_default("eligible", false)) return "";
+            string klass = live.get_string_member_with_default("class", "");
+            return klass == "silent" || klass == "reload" || klass == "relogin" ? klass : "";
         }
 
         internal static bool valid_token(string token) {
@@ -198,6 +211,22 @@ namespace Singularity.Updates {
         }
 
         public override async void schedule() throws Error {
+            yield refresh();
+        }
+
+        public async void apply_live() throws Error {
+            if (live_class == "") {
+                var error = new IOError.FAILED(_("This update cannot be applied without a restart"));
+                fail(error);
+                throw error;
+            }
+            try {
+                yield request("POST", "/apply-live", 300);
+            } catch (Error e) {
+                live_class = "";
+                fail(e);
+                throw e;
+            }
             yield refresh();
         }
 

@@ -232,6 +232,7 @@ private void test_device_security() {
 
 private class FakeUpdated : Object {
     public string state = "available";
+    public string live = "";
     public string last_request = "";
     private SocketService service;
 
@@ -254,7 +255,16 @@ private class FakeUpdated : Object {
             }
             string body;
             string status = "200 OK";
-            if (last_request.has_prefix("POST /download?token=") && state == "available") {
+            if (last_request.has_prefix("POST /apply-live") && state == "ready" && live != "") {
+                state = "idle";
+                live = "";
+                body = "{\"message\":\"applied\"}";
+            } else if (last_request.has_prefix("POST /apply-live")) {
+                status = "409 Conflict";
+                body = "{\"error\":\"not applicable live\"}";
+            } else if (state == "ready" && live != "") {
+                body = "{\"state\":\"ready\",\"live\":{\"class\":\"%s\",\"eligible\":true}}".printf(live);
+            } else if (last_request.has_prefix("POST /download?token=") && state == "available") {
                 state = "downloading";
                 body = "{\"state\":\"downloading\",\"percent\":40}";
             } else if (last_request.has_prefix("POST /download")) {
@@ -328,6 +338,43 @@ private void test_updated_provider() {
     loop.run();
     assert(failure == null);
     assert(provider.state == State.SCHEDULED);
+    assert(provider.live_class == "");
+    provider.apply_live.begin((obj, res) => {
+        try {
+            provider.apply_live.end(res);
+        } catch (Error e) {
+            failure = e;
+        }
+        loop.quit();
+    });
+    loop.run();
+    assert(failure != null);
+    failure = null;
+    fake.state = "ready";
+    fake.live = "reload";
+    provider.schedule.begin((obj, res) => {
+        try {
+            provider.schedule.end(res);
+        } catch (Error e) {
+            failure = e;
+        }
+        loop.quit();
+    });
+    loop.run();
+    assert(provider.live_class == "reload");
+    provider.apply_live.begin((obj, res) => {
+        try {
+            provider.apply_live.end(res);
+        } catch (Error e) {
+            failure = e;
+        }
+        loop.quit();
+    });
+    loop.run();
+    assert(failure == null);
+    assert(fake.last_request.has_prefix("GET /status"));
+    assert(provider.state == State.UP_TO_DATE);
+    assert(provider.live_class == "");
     fake.state = "idle";
     provider.download.begin((obj, res) => {
         try {
