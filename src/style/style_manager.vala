@@ -493,6 +493,14 @@ namespace Singularity.Style {
                 hex_color = accent;
             } else if (accent == "wallpaper" && wall != null) {
                 string? known = primary_by_path.lookup(wall);
+                if (known == null) {
+                    string? key = primary_color_key(wall);
+                    known = key != null ? read_primary_color(key) : null;
+                    if (known != null) {
+                        primary_by_path.insert(wall, known);
+                        primary_colors.insert(key, known);
+                    }
+                }
                 if (known != null) {
                     hex_color = known;
                 } else {
