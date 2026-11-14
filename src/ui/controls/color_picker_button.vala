@@ -81,6 +81,13 @@ namespace Singularity.Widgets {
                 color_changed(c);
                 _popover.popdown();
             });
+            _chooser.notify["rgba"].connect(() => {
+                var c = _chooser.rgba;
+                if (c.equal(_color)) return;
+                _color = c;
+                _swatch.queue_draw();
+                color_changed(c);
+            });
             var box = new Box(Orientation.VERTICAL, 6);
             box.append(_chooser);
             var recent = new RecentColorsRow(10);
