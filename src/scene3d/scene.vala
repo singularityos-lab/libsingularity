@@ -105,7 +105,9 @@ namespace Singularity.Scene {
     }
 
     public class Material : Object {
+        [GIR (visible = false)]
         public Gdk.RGBA color = Gdk.RGBA () { red = 0.8f, green = 0.8f, blue = 0.8f, alpha = 1 };
+        [GIR (visible = false)]
         public Gdk.RGBA? back_color;
         public double roughness = 0.7;
         public double metallic;

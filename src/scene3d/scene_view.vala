@@ -9,7 +9,9 @@ namespace Singularity.Scene {
         public bool wireframe;
         public int shading_override = -1;
         public bool auto_background = true;
+        [GIR (visible = false)]
         public Gdk.RGBA background_top = Gdk.RGBA () { red = 0.93f, green = 0.94f, blue = 0.96f, alpha = 1 };
+        [GIR (visible = false)]
         public Gdk.RGBA background_bottom = Gdk.RGBA () { red = 0.76f, green = 0.78f, blue = 0.82f, alpha = 1 };
         public bool auto_floor = true;
         public double floor_y;
