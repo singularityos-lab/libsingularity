@@ -18,6 +18,13 @@ namespace Singularity.Scene {
         public double min_distance = 20;
         public double max_distance = 200000;
         public double frame_ms { get; private set; }
+        public bool adaptive_quality = true;
+        public int quality_level { get; private set; }
+        private double frame_average;
+        private int frames_at_level;
+        private int active_level;
+        private int64 last_frame;
+        private uint settle_id;
 
         public signal void overlay (Overlay o);
         public signal bool pressed (double x, double y, uint button, Gdk.ModifierType state);
@@ -302,6 +309,8 @@ namespace Singularity.Scene {
         }
 
         public override void unrealize () {
+            if (settle_id != 0) Source.remove (settle_id);
+            settle_id = 0;
             make_current ();
             renderer = null;
             gpu.remove_all ();
@@ -433,18 +442,18 @@ namespace Singularity.Scene {
             }
             f.ramp_min = (float) ramp_min;
             f.ramp_max = (float) ramp_max;
-            f.shadow = shadows ? 1 : 0;
+            f.shadow = shadows && (transparent || !with_overlay || active_level < 3) ? 1 : 0;
             f.grid = grid ? 1 : 0;
             f.wire = wireframe ? 1 : 0;
             f.transparent = transparent ? 1 : 0;
-            f.samples = 4;
+            f.samples = with_overlay && active_level > 0 ? 0 : 4;
             renderer.begin (f, w, h);
             if (!with_overlay) return;
             var o = new Overlay ();
             overlay (o);
             for (int i = 0; i < o.batches.length; i++) {
                 var b = o.batches[i];
-                renderer.overlay (b.data, b.used / 7, b.prim, b.size * get_scale_factor (), b.depth ? 1 : 0);
+                renderer.overlay (b.data, b.used / 7, b.prim, (float) (b.size * get_scale_factor () * (active_level >= 3 ? 0.5 : (active_level == 2 ? 0.7 : 1))), b.depth ? 1 : 0);
             }
         }
 
@@ -454,9 +463,35 @@ namespace Singularity.Scene {
             int scale = get_scale_factor ();
             int w = int.max (1, get_width () * scale), h = int.max (1, get_height () * scale);
             int target = SgScene.Render.bound_fbo ();
-            draw_scene (camera, w, h, false, true);
-            renderer.end (target);
-            frame_ms = (get_monotonic_time () - t0) / 1000.0;
+            bool still = t0 - last_frame > 300000;
+            active_level = still ? 0 : quality_level;
+            double shrink = active_level >= 3 ? 0.5 : (active_level == 2 ? 0.7 : 1);
+            draw_scene (camera, int.max (1, (int) (w * shrink)), int.max (1, (int) (h * shrink)), false, true);
+            renderer.end (target, w, h);
+            last_frame = get_monotonic_time ();
+            frame_ms = (last_frame - t0) / 1000.0;
+            if (adaptive_quality && !still) {
+                frame_average = frames_at_level == 0 ? frame_ms : frame_average * 0.7 + frame_ms * 0.3;
+                frames_at_level++;
+                if (frames_at_level >= 3 && frame_average > 30 && quality_level < 3) {
+                    quality_level++;
+                    frames_at_level = 0;
+                } else if (frames_at_level >= 90 && frame_average < 5 && quality_level > 0) {
+                    quality_level--;
+                    frames_at_level = 0;
+                }
+            } else if (adaptive_quality && frame_ms > 30 && quality_level == 0) {
+                quality_level = 1;
+                frames_at_level = 0;
+            }
+            if (active_level > 0) {
+                if (settle_id != 0) Source.remove (settle_id);
+                settle_id = Timeout.add (360, () => {
+                    settle_id = 0;
+                    queue_render ();
+                    return Source.REMOVE;
+                });
+            }
             return true;
         }
 

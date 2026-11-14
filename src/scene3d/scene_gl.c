@@ -660,6 +660,7 @@ static void resize (SgRender *r, int w, int h, int samples) {
     GLint max_samples = 0;
     glGetIntegerv (GL_MAX_SAMPLES, &max_samples);
     if (samples > max_samples) samples = max_samples;
+    if (samples < 2) samples = 0;
     glBindRenderbuffer (GL_RENDERBUFFER, r->rb_color);
     glRenderbufferStorageMultisample (GL_RENDERBUFFER, samples, GL_RGBA8, w, h);
     glBindRenderbuffer (GL_RENDERBUFFER, r->rb_depth);
@@ -687,7 +688,7 @@ static void draw_tris (RMesh *m) {
 
 void sg_render_begin (SgRender *r, const SgFrame *f, int w, int h) {
     r->frame = *f;
-    resize (r, w, h, f->samples > 0 ? f->samples : 4);
+    resize (r, w, h, f->samples >= 0 ? f->samples : 4);
     sg_frame_matrices (f, w, h, r->view, r->proj);
     mat_mul (r->vp, r->proj, r->view);
     float key[3] = { -0.42f, 0.78f, 0.46f };
@@ -959,10 +960,14 @@ void sg_render_overlay (SgRender *r, const float *v, int count, int prim, float 
     glEnable (GL_DEPTH_TEST);
 }
 
-void sg_render_end (SgRender *r, int target_fbo) {
+void sg_render_end (SgRender *r, int target_fbo, int dw, int dh) {
     glBindFramebuffer (GL_READ_FRAMEBUFFER, r->fbo_ms);
     glBindFramebuffer (GL_DRAW_FRAMEBUFFER, (GLuint) target_fbo);
-    glBlitFramebuffer (0, 0, r->w, r->h, 0, 0, r->w, r->h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    if (dw <= 0 || dh <= 0 || r->samples > 1) {
+        dw = r->w;
+        dh = r->h;
+    }
+    glBlitFramebuffer (0, 0, r->w, r->h, 0, 0, dw, dh, GL_COLOR_BUFFER_BIT, dw == r->w && dh == r->h ? GL_NEAREST : GL_LINEAR);
     glBindFramebuffer (GL_FRAMEBUFFER, (GLuint) target_fbo);
     glUseProgram (0);
 }
@@ -974,7 +979,7 @@ int sg_render_bound_fbo (void) {
 }
 
 void sg_render_read (SgRender *r, unsigned char *rgba) {
-    sg_render_end (r, (int) r->fbo_resolve);
+    sg_render_end (r, (int) r->fbo_resolve, 0, 0);
     glBindFramebuffer (GL_READ_FRAMEBUFFER, r->fbo_resolve);
     glPixelStorei (GL_PACK_ALIGNMENT, 1);
     glReadPixels (0, 0, r->w, r->h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);

@@ -62,7 +62,7 @@ void sg_render_texture_free (SgRender *r, int tex);
 
 void sg_render_begin (SgRender *r, const SgFrame *f, int w, int h);
 void sg_render_overlay (SgRender *r, const float *xyzrgba, int count, int prim, float size, int depth);
-void sg_render_end (SgRender *r, int target_fbo);
+void sg_render_end (SgRender *r, int target_fbo, int dw, int dh);
 void sg_render_read (SgRender *r, unsigned char *rgba);
 
 int sg_render_bound_fbo (void);

@@ -52,7 +52,7 @@ namespace SgScene {
         public void texture_free (int tex);
         public void begin (Frame f, int w, int h);
         public void overlay ([CCode (array_length = false)] float[] xyzrgba, int count, int prim, float size, int depth);
-        public void end (int target_fbo);
+        public void end (int target_fbo, int dw, int dh);
         public void read ([CCode (array_length = false)] uint8[] rgba);
         [CCode (cname = "sg_render_bound_fbo")]
         public static int bound_fbo ();
