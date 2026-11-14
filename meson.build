@@ -29,11 +29,12 @@ introspection_dep = dependency('gobject-introspection-1.0', required: get_option
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required: false)
+epoxy_dep = cc.find_library('epoxy')
 
 gst_dep        = dependency('gstreamer-1.0')
 gst_video_dep  = dependency('gstreamer-video-1.0')
 gst_app_dep    = dependency('gstreamer-app-1.0')
-libsingularity_deps = [gtk4_dep, wayland_dep, gee_dep, json_dep, peas_dep, gmodule_dep, gio_unix_dep, soup_dep, gtksource_dep, enchant_dep, m_dep]
+libsingularity_deps = [gtk4_dep, wayland_dep, gee_dep, json_dep, peas_dep, gmodule_dep, gio_unix_dep, soup_dep, gtksource_dep, enchant_dep, m_dep, epoxy_dep]
 libsingularity_deps += [gst_dep, gst_video_dep, gst_app_dep]
 cups_dep       = dependency('cups')
 libsingularity_deps += [cups_dep]
@@ -371,7 +372,11 @@ parental_c_args = [
   '-DSINGULARITY_PARENTAL_DIR="@0@"'.format(parental_policy_dir),
 ]
 
-libsingularity_vala_args = ['--vapidir', meson.current_source_dir() / 'src/vapi', '--pkg', 'gdkextra']
+libsingularity_vala_args = ['--vapidir', meson.current_source_dir() / 'src/vapi', '--pkg', 'gdkextra', '--pkg', 'scenerender']
+libsingularity_sources += files(
+  'src/scene3d/scene.vala',
+  'src/scene3d/scene_view.vala',
+)
 libsingularity_sources += files(
   'src/vapi/lcms2.vapi',
   'src/imaging/parallel.vala',
@@ -406,6 +411,7 @@ libsingularity = shared_library('singularity',
     'src/print/ipp_transport.c',
     'src/share/live_tls.c',
     'src/util/qr_decode.c',
+    'src/scene3d/scene_gl.c',
     effect_protocol_c,
     effect_protocol_h,
     snap_protocol_c,
