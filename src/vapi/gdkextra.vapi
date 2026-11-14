@@ -21,4 +21,7 @@ namespace GdkExtra {
         [CCode (cname = "gdk_memory_texture_builder_build")]
         public Gdk.Texture build ();
     }
+
+    [CCode (cname = "gtk_drag_icon_get_for_drag")]
+    public static unowned Gtk.Widget drag_icon_for_drag (Gdk.Drag drag);
 }
