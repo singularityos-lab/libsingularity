@@ -7099,3 +7099,73 @@ window.watch-face {
     font-weight: 700;
     color: white;
 }
+
+.watch-face-notice {
+    font-size: 14px;
+    color: alpha(white, 0.7);
+    margin-top: 6px;
+}
+
+.watch-face-hint {
+    color: alpha(white, 0.5);
+}
+
+.watch-apps flowboxchild {
+    padding: 4px;
+    border-radius: 999px;
+    background: none;
+    outline: none;
+}
+
+.watch-apps flowboxchild:focus-visible {
+    box-shadow: inset 0 0 0 3px @accent_bg_color;
+}
+
+window.watch-face button.watch-back {
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 999px;
+    color: white;
+    background-color: alpha(white, 0.12);
+}
+
+window.recents {
+    background-color: alpha(black, 0.55);
+}
+
+.recents-page {
+    padding: 32px 0 40px 0;
+}
+
+.recents-cards {
+    padding: 0 24px;
+}
+
+.recents-card {
+    padding: 10px;
+    border-radius: 24px;
+    background-color: alpha(@panel_bg, 0.85);
+}
+
+.recents-title {
+    font-weight: 600;
+    color: @panel_fg;
+}
+
+.recents-shot {
+    border-radius: 16px;
+    background-color: alpha(@panel_fg, 0.08);
+}
+
+.recents-empty {
+    font-size: 18px;
+    color: alpha(white, 0.75);
+}
+
+window.recents button.recents-close-all {
+    margin-top: 16px;
+    padding: 8px 22px;
+    border-radius: 999px;
+    color: white;
+    background-color: alpha(white, 0.16);
+}
