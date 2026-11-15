@@ -2459,6 +2459,11 @@ window.singularity .panel-window,
     color: @accent_fg_color;
 }
 
+.singularity entry:not(:focus-within) selection {
+    background-color: transparent;
+    color: inherit;
+}
+
 .singularity spinbutton {
     background-color: alpha(@text_color, 0.06);
     color: @text_color;
