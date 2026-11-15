@@ -50,6 +50,14 @@ namespace Singularity {
         public const string KEY = "form-factor";
         public const string ENV = "SINTY_FORM_FACTOR";
         public const string AUTO = "auto";
+        public const string OUTPUTS_KEY = "output-form-factors";
+        public const string OUTPUTS_ENV = "SINTY_OUTPUT_FORM_FACTORS";
+        public const string SHELL_MONITOR_KEY = "shell-monitor";
+
+        private const double WATCH_MAX_INCHES = 2.2;
+        private const double PHONE_MAX_INCHES = 7.5;
+        private const double TABLET_MAX_INCHES = 13.5;
+        private const double TV_MIN_INCHES = 32.0;
 
         private static FormFactor? _default = null;
 
@@ -65,7 +73,13 @@ namespace Singularity {
             get { return _settings != null && !forced; }
         }
 
+        private HashTable<string, string> _outputs = new HashTable<string, string>(str_hash, str_equal);
+        private bool _outputs_forced = false;
+        private bool _watching_monitors = false;
+
         public signal void changed(FormFactorKind previous);
+
+        public signal void outputs_changed();
 
         public static FormFactor get_default() {
             if (_default == null) _default = new FormFactor();
@@ -73,20 +87,140 @@ namespace Singularity {
         }
 
         construct {
+            string? env_outputs = GLib.Environment.get_variable(OUTPUTS_ENV);
+            if (env_outputs != null) {
+                _outputs_forced = true;
+                foreach (string pair in env_outputs.split(",")) {
+                    string[] kv = pair.split("=", 2);
+                    if (kv.length == 2) _outputs.insert(kv[0].strip(), kv[1].strip());
+                }
+            }
             FormFactorKind env_kind;
-            if (FormFactorKind.try_parse(GLib.Environment.get_variable(ENV), out env_kind)) {
+            bool env_forced = FormFactorKind.try_parse(GLib.Environment.get_variable(ENV), out env_kind);
+            if (env_forced) {
                 forced = true;
                 preference = env_kind.to_id();
                 kind = env_kind;
-                return;
             }
             var source = GLib.SettingsSchemaSource.get_default();
             string schema_id = Runtime.desktop_settings_schema;
             var schema = source != null ? source.lookup(schema_id, true) : null;
             if (schema == null || !schema.has_key(KEY)) return;
             _settings = new GLib.Settings(schema_id);
-            _settings.changed[KEY].connect(() => reload());
-            reload();
+            if (!env_forced) {
+                _settings.changed[KEY].connect(() => reload());
+                reload();
+            }
+            if (!_outputs_forced && schema.has_key(OUTPUTS_KEY)) {
+                _settings.changed[OUTPUTS_KEY].connect(() => {
+                    reload_outputs();
+                    outputs_changed();
+                });
+                reload_outputs();
+            }
+            if (schema.has_key(SHELL_MONITOR_KEY)) {
+                _settings.changed[SHELL_MONITOR_KEY].connect(() => outputs_changed());
+            }
+        }
+
+        private void reload_outputs() {
+            _outputs.remove_all();
+            var iter = _settings.get_value(OUTPUTS_KEY).iterator();
+            string connector;
+            string id;
+            while (iter.next("{ss}", out connector, out id)) _outputs.insert(connector, id);
+        }
+
+        private void watch_monitors() {
+            if (_watching_monitors) return;
+            var display = Gdk.Display.get_default();
+            if (display == null) return;
+            _watching_monitors = true;
+            display.get_monitors().items_changed.connect(() => outputs_changed());
+        }
+
+        public bool outputs_configurable {
+            get { return _settings != null && !_outputs_forced && _settings.settings_schema.has_key(OUTPUTS_KEY); }
+        }
+
+        public static bool is_main(Gdk.Monitor monitor) {
+            var main = main_monitor();
+            return main == null || main == monitor;
+        }
+
+        public static Gdk.Monitor? main_monitor() {
+            var display = Gdk.Display.get_default();
+            if (display == null) return null;
+            var monitors = display.get_monitors();
+            uint n = monitors.get_n_items();
+            if (n == 0) return null;
+            var ff = get_default();
+            string wanted = "";
+            if (ff._settings != null && ff._settings.settings_schema.has_key(SHELL_MONITOR_KEY)) {
+                wanted = ff._settings.get_string(SHELL_MONITOR_KEY);
+            }
+            for (uint i = 0; i < n; i++) {
+                var m = (Gdk.Monitor) monitors.get_item(i);
+                if (wanted != "" && m.get_connector() == wanted) return m;
+            }
+            return (Gdk.Monitor) monitors.get_item(0);
+        }
+
+        private static bool is_internal_connector(string connector) {
+            return connector.has_prefix("eDP") || connector.has_prefix("LVDS") || connector.has_prefix("DSI");
+        }
+
+        public static FormFactorKind detect(Gdk.Monitor monitor) {
+            string connector = monitor.get_connector() ?? "";
+            if (is_internal_connector(connector)) return FormFactorKind.DESKTOP;
+            int w = monitor.get_width_mm();
+            int h = monitor.get_height_mm();
+            if (w <= 0 || h <= 0) return FormFactorKind.DESKTOP;
+            double inches = Math.sqrt((double) w * w + (double) h * h) / 25.4;
+            if (inches < WATCH_MAX_INCHES) return FormFactorKind.WATCH;
+            if (inches < PHONE_MAX_INCHES) return FormFactorKind.PHONE;
+            if (inches < TABLET_MAX_INCHES) return FormFactorKind.TABLET;
+            if (inches >= TV_MIN_INCHES && connector.has_prefix("HDMI")) return FormFactorKind.TV;
+            return FormFactorKind.DESKTOP;
+        }
+
+        public string output_preference(string connector) {
+            return _outputs.lookup(connector) ?? AUTO;
+        }
+
+        public FormFactorKind for_monitor(Gdk.Monitor? monitor) {
+            watch_monitors();
+            if (monitor == null || is_main(monitor)) return kind;
+            FormFactorKind chosen;
+            if (FormFactorKind.try_parse(output_preference(monitor.get_connector() ?? ""), out chosen)) return chosen;
+            return detect(monitor);
+        }
+
+        public bool choose_for_output(string connector, string id) {
+            if (!outputs_configurable || connector == "") return false;
+            FormFactorKind parsed;
+            if (id != AUTO && !FormFactorKind.try_parse(id, out parsed)) return false;
+            var builder = new VariantBuilder(new VariantType("a{ss}"));
+            _outputs.foreach((k, v) => {
+                if (k != connector) builder.add("{ss}", k, v);
+            });
+            if (id != AUTO) builder.add("{ss}", connector, id);
+            return _settings.set_value(OUTPUTS_KEY, builder.end());
+        }
+
+        public static FormFactorKind at(Gdk.Monitor? monitor) {
+            return get_default().for_monitor(monitor);
+        }
+
+        public static Gdk.Monitor? monitor_of(Gtk.Widget widget) {
+            var native = widget.get_native();
+            var surface = native != null ? native.get_surface() : null;
+            if (surface == null) return null;
+            return surface.get_display().get_monitor_at_surface(surface);
+        }
+
+        public static FormFactorKind of_widget(Gtk.Widget widget) {
+            return at(monitor_of(widget));
         }
 
         private void reload() {
@@ -111,11 +245,30 @@ namespace Singularity {
             return get_default().kind;
         }
 
-        public static void apply_css_class(Gtk.Widget widget) {
+        public static void apply_css_class(Gtk.Widget widget, Gdk.Monitor? monitor = null) {
             var ff = get_default();
-            sync_css_class(widget, ff.kind);
-            ulong id = ff.changed.connect(() => sync_css_class(widget, ff.kind));
-            widget.destroy.connect(() => ff.disconnect(id));
+            Gdk.Monitor? fixed_monitor = monitor;
+            Gdk.Surface? watched = null;
+            ulong enter_id = 0;
+            sync_css_class(widget, ff.for_monitor(fixed_monitor ?? monitor_of(widget)));
+            ulong changed_id = ff.changed.connect(() => sync_css_class(widget, ff.for_monitor(fixed_monitor ?? monitor_of(widget))));
+            ulong outputs_id = ff.outputs_changed.connect(() => sync_css_class(widget, ff.for_monitor(fixed_monitor ?? monitor_of(widget))));
+            if (fixed_monitor == null) {
+                widget.realize.connect_after(() => {
+                    var native = widget.get_native();
+                    var surface = native != null ? native.get_surface() : null;
+                    if (surface == null || surface == watched) return;
+                    if (watched != null && enter_id != 0) watched.disconnect(enter_id);
+                    watched = surface;
+                    enter_id = surface.enter_monitor.connect((m) => sync_css_class(widget, ff.for_monitor(m)));
+                    sync_css_class(widget, ff.for_monitor(monitor_of(widget)));
+                });
+            }
+            widget.destroy.connect(() => {
+                ff.disconnect(changed_id);
+                ff.disconnect(outputs_id);
+                if (watched != null && enter_id != 0) watched.disconnect(enter_id);
+            });
         }
 
         private static void sync_css_class(Gtk.Widget widget, FormFactorKind kind) {
