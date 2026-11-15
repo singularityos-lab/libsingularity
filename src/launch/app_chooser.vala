@@ -59,6 +59,9 @@ namespace Singularity.Widgets {
 
         private void populate() {
             var listed = new GenericSet<string>(str_hash, str_equal);
+            var self_app = GLib.Application.get_default();
+            if (self_app != null && self_app.application_id != null)
+                listed.add(self_app.application_id + ".desktop");
             var suggested = new PreferencesGroup(_("Suggested Apps"));
             int count = 0;
             foreach (var info in AppInfo.get_recommended_for_type(content_type)) {
