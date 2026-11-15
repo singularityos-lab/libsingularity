@@ -7029,6 +7029,25 @@ window.phone-nav button.phone-nav-button:hover {
     background-color: @panel_fg;
 }
 
+window.split-divider {
+    background: none;
+}
+
+window.split-divider .split-pill {
+    min-width: 6px;
+    min-height: 64px;
+    box-shadow: 0 0 0 1px alpha(black, 0.18), 0 2px 8px alpha(black, 0.25);
+}
+
+window.split-divider .split-guide {
+    border-radius: 999px;
+    background-color: alpha(@panel_fg, 0.35);
+}
+
+window.split-divider .split-guide.active {
+    background-color: @accent_color;
+}
+
 window.tv-home {
     background-color: alpha(black, 0.45);
 }
