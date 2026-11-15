@@ -7185,6 +7185,38 @@ window.watch-face button.watch-back {
     background-color: alpha(white, 0.12);
 }
 
+window.watch-face .watch-picker-card {
+    border-radius: 36px;
+    box-shadow: 0 0 0 1px alpha(white, 0.14), 0 8px 24px alpha(black, 0.5);
+}
+
+window.watch-face .watch-picker-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: white;
+}
+
+window.watch-face .watch-customize {
+    margin: 22px 30px 30px 30px;
+    color: white;
+}
+
+window.watch-face .watch-option-caption {
+    font-size: 13px;
+    font-weight: 600;
+    color: alpha(white, 0.6);
+}
+
+window.watch-face .watch-option-row {
+    min-height: 40px;
+}
+
+window.watch-face button.watch-swatch {
+    padding: 0;
+    min-width: 30px;
+    min-height: 30px;
+}
+
 .sidebar.phone-shade {
     border-radius: 28px 28px 0 0;
     border-bottom-width: 0;
