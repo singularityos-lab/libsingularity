@@ -7230,16 +7230,19 @@ window.companion {
 }
 
 window.tv-home button.tv-home-gear {
-    min-width: 56px;
-    min-height: 56px;
     margin-left: 20px;
+    padding: 6px;
     border-radius: 999px;
-    color: white;
-    background-color: alpha(white, 0.12);
+    background: none;
+    box-shadow: none;
+}
+
+window.tv-home button.tv-home-gear:hover {
+    background-color: alpha(white, 0.10);
 }
 
 window.tv-home button.tv-home-gear:focus-visible {
-    box-shadow: inset 0 0 0 4px @accent_bg_color;
+    box-shadow: 0 0 0 4px @accent_bg_color;
 }
 
 window.tv-settings {
@@ -7257,22 +7260,89 @@ window.tv-settings {
     padding: 64px 96px;
 }
 
-.tv-settings-hero image {
-    -gtk-icon-shadow: 0 10px 28px alpha(@shadow_color, 0.45);
+.tv-settings-grid flowboxchild {
+    padding: 18px 8px;
+    border-radius: 28px;
+    background: none;
+    outline: none;
+}
+
+.tv-settings-grid flowboxchild:focus,
+.tv-settings-grid flowboxchild:focus-visible {
+    background: none;
+    box-shadow: none;
+    outline: none;
+}
+
+.tv-settings-tile .tv-tile-label {
+    font-size: 20px;
+    font-weight: 600;
+    color: alpha(@text_color, 0.72);
+}
+
+.tv-settings-grid flowboxchild:focus .tv-tile-label,
+.tv-settings-grid flowboxchild:focus-visible .tv-tile-label {
+    color: @accent_color;
+}
+
+.tv-settings-tile image {
+    -gtk-icon-shadow: 0 8px 22px alpha(@shadow_color, 0.40);
 }
 
 window.tv-settings .tv-home-title {
     color: @text_color;
 }
 
-.tv-settings-hero-subtitle {
-    font-size: 20px;
-    color: alpha(@text_color, 0.6);
+.tv-settings-hero image {
+    -gtk-icon-shadow: 0 12px 32px alpha(@shadow_color, 0.45);
+}
+
+.tv-settings-back-hint {
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 18px;
+    color: alpha(@text_color, 0.65);
+    background-color: alpha(@text_color, 0.06);
+}
+
+.tv-settings-back-hint image {
+    -gtk-icon-shadow: none;
 }
 
 .tv-settings-card {
     padding: 12px 20px;
+    font-size: 21px;
+}
+
+window.tv-settings .tv-settings-card label,
+window.tv-settings .tv-settings-card .preferences-row .title {
+    font-size: 21px;
+}
+
+window.tv-settings .tv-settings-card .dim-label,
+window.tv-settings .tv-settings-card .caption,
+window.tv-settings .tv-settings-card .preferences-row .subtitle,
+window.tv-settings .tv-settings-card .preferences-group .group-description {
     font-size: 17px;
+}
+
+window.tv-settings .tv-settings-card .preferences-group .heading {
+    font-size: 19px;
+}
+
+.tv-settings-card row.preferences-row {
+    min-height: 68px;
+}
+
+.tv-settings-card row.preferences-row image {
+    -gtk-icon-size: 24px;
+}
+
+.tv-settings-card row.preferences-row:focus-within,
+.tv-settings-card row.preferences-row:focus-visible,
+.tv-settings-card row:focus-visible {
+    background-color: alpha(@accent_bg_color, 0.20);
+    box-shadow: inset 0 0 0 3px @accent_bg_color;
 }
 
 window.recents {
