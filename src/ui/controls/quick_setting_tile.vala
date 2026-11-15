@@ -26,6 +26,8 @@ namespace Singularity.Widgets {
         private Box _main_box;
         private Box _text_box;
 
+        private uint _pop_id = 0;
+        private bool _pop_b = false;
         private int _state = 0;
         private int _n_states = 2;
         private bool _auto_toggle = true;
@@ -159,6 +161,24 @@ namespace Singularity.Widgets {
                 if (_auto_toggle) {
                     state = (_state + 1) % _n_states;
                 }
+                _pop();
+            });
+        }
+
+        private void _pop() {
+            Widget target = this;
+            var group = get_parent();
+            if (group != null && group.has_css_class("quick-setting-group")) target = group;
+            target.remove_css_class("tile-pop-a");
+            target.remove_css_class("tile-pop-b");
+            _pop_b = !_pop_b;
+            target.add_css_class(_pop_b ? "tile-pop-b" : "tile-pop-a");
+            if (_pop_id != 0) Source.remove(_pop_id);
+            _pop_id = Timeout.add(600, () => {
+                target.remove_css_class("tile-pop-a");
+                target.remove_css_class("tile-pop-b");
+                _pop_id = 0;
+                return Source.REMOVE;
             });
         }
 

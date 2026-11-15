@@ -6955,3 +6955,23 @@ window.agent-cursor {
     font-size: 12px;
     font-weight: 600;
 }
+
+@keyframes tile-pop-a {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes tile-pop-b {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.tile-pop-a {
+  animation: tile-pop-a 550ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.tile-pop-b {
+  animation: tile-pop-b 550ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
