@@ -247,6 +247,7 @@ namespace Singularity.Widgets {
             append(scroll);
 
             map.connect(ensure_actions_built);
+            notify["parent"].connect(release_stack_size);
         }
 
         // -- Window integration --------------------------------------------
@@ -383,6 +384,13 @@ namespace Singularity.Widgets {
         }
 
         // -- Private helpers -----------------------------------------------
+
+        private void release_stack_size() {
+            var stack = get_parent() as Stack;
+            if (stack == null) return;
+            stack.hhomogeneous = false;
+            stack.vhomogeneous = false;
+        }
 
         private void ensure_actions_built() {
             if (_actions_built) return;
