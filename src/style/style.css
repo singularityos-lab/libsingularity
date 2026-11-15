@@ -250,6 +250,9 @@ label.error,
 image.error {
     color: @error_color;
 }
+entry.search {
+    border-spacing: 8px;
+}
 entry image.left,
 entry > image.left {
     margin-right: 6px;
