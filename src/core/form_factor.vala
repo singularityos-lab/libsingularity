@@ -59,6 +59,9 @@ namespace Singularity {
         private const double TABLET_MAX_INCHES = 13.5;
         private const double TV_MIN_INCHES = 32.0;
 
+        private const string CORE_NAME = "dev.sinty.Core1";
+        private const string CORE_PATH = "/dev/sinty/Core1";
+
         private static FormFactor? _default = null;
 
         private GLib.Settings? _settings = null;
@@ -76,6 +79,8 @@ namespace Singularity {
         private HashTable<string, string> _outputs = new HashTable<string, string>(str_hash, str_equal);
         private bool _outputs_forced = false;
         private bool _watching_monitors = false;
+        private DBusConnection? _core_bus = null;
+        private string _core_form = "";
 
         public signal void changed(FormFactorKind previous);
 
@@ -110,6 +115,7 @@ namespace Singularity {
             if (!env_forced) {
                 _settings.changed[KEY].connect(() => reload());
                 reload();
+                watch_core.begin();
             }
             if (!_outputs_forced && schema.has_key(OUTPUTS_KEY)) {
                 _settings.changed[OUTPUTS_KEY].connect(() => {
@@ -223,11 +229,36 @@ namespace Singularity {
             return at(monitor_of(widget));
         }
 
+        private async void watch_core() {
+            try {
+                _core_bus = yield Bus.get(BusType.SYSTEM);
+            } catch (Error e) {
+                return;
+            }
+            _core_bus.signal_subscribe(CORE_NAME, "org.freedesktop.DBus.Properties", "PropertiesChanged", CORE_PATH, null,
+                DBusSignalFlags.NONE, () => read_core_form.begin());
+            yield read_core_form();
+        }
+
+        private async void read_core_form() {
+            Variant reply;
+            try {
+                reply = yield _core_bus.call(CORE_NAME, CORE_PATH, "org.freedesktop.DBus.Properties", "Get",
+                    new Variant("(ss)", CORE_NAME, "Form"), new VariantType("(v)"), DBusCallFlags.NO_AUTO_START, -1);
+            } catch (Error e) {
+                return;
+            }
+            var value = reply.get_child_value(0).get_variant();
+            if (!value.is_of_type(VariantType.STRING) || value.get_string() == _core_form) return;
+            _core_form = value.get_string();
+            if (_settings != null) reload();
+        }
+
         private void reload() {
             string value = _settings.get_string(KEY);
             preference = value;
             FormFactorKind next;
-            if (!FormFactorKind.try_parse(value, out next)) next = FormFactorKind.DESKTOP;
+            if (!FormFactorKind.try_parse(value, out next)) next = _core_form == "tv" ? FormFactorKind.TV : FormFactorKind.DESKTOP;
             if (next == kind) return;
             var previous = kind;
             kind = next;
