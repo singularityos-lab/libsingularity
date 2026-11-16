@@ -514,6 +514,7 @@ namespace Singularity.Style {
             }
             // Expose the resolved accent hex so callers (e.g. the shell's labwc
             // theming) can derive their own accent-tinted colours.
+            hex_color = readable_accent(hex_color, current_dark_mode);
             accent_hex = hex_color;
             accent_fg_hex = contrast_fg_for(hex_color);
             update_material_style();
@@ -1123,6 +1124,37 @@ namespace Singularity.Style {
             double on_white = contrast_ratio(bg, white);
             if (on_white >= 3.0) return "#ffffff";
             return contrast_ratio(bg, dark) > on_white ? ACCENT_DARK_FG : "#ffffff";
+        }
+
+        /**
+         * Keeps an accent visible against the window surface of the current
+         * scheme: an accent below 3:1 there is moved towards black on light
+         * surfaces or towards white on dark ones until it reaches 3:1, so a
+         * near white accent never leaves toggles and pills blank.
+         *
+         * @param hex Accent as "#rrggbb".
+         * @param dark Whether the dark scheme is active.
+         * @return The accent itself, or the nearest readable shade of it.
+         */
+        public static string readable_accent(string hex, bool dark) {
+            if (!hex.has_prefix("#") || hex.length < 7) return hex;
+            string color = hex.substring(0, 7);
+            var surface = Gdk.RGBA();
+            surface.parse(dark ? "#242424" : "#f6f5f4");
+            uint8 r, g, b;
+            _parse_hex(color, out r, out g, out b);
+            double target = dark ? 255.0 : 0.0;
+            for (int step = 0; step <= 20; step++) {
+                double f = step / 20.0;
+                string shade = "#%02x%02x%02x".printf(
+                    (uint8)(r + (target - r) * f + 0.5),
+                    (uint8)(g + (target - g) * f + 0.5),
+                    (uint8)(b + (target - b) * f + 0.5));
+                var candidate = Gdk.RGBA();
+                candidate.parse(shade);
+                if (contrast_ratio(candidate, surface) >= 3.0) return step == 0 ? hex : shade;
+            }
+            return dark ? "#ffffff" : "#000000";
         }
 
         public bool crossfade_scheme_changes { get; set; default = true; }
