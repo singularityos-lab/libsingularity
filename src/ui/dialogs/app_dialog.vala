@@ -40,6 +40,7 @@ namespace Singularity.Widgets {
         private GLib.Settings? _desktop_settings;
         private ulong _effect_handler = 0;
         private Singularity.Style.BackgroundEffectMode _effect_mode;
+        private Singularity.Widgets.TvTextKeys? _tv_keys = null;
 
         /** Toggle the close button at runtime. Same as `show_close_button`. */
         public bool closable {
@@ -138,6 +139,7 @@ namespace Singularity.Widgets {
             var key = new EventControllerKey();
             key.propagation_phase = PropagationPhase.CAPTURE;
             key.key_pressed.connect((keyval, _kc, _st) => {
+                if (_tv_keys != null && _tv_keys.key(this, keyval)) return true;
                 if (keyval != Gdk.Key.Escape) return false;
                 if (_cancel_btn != null) {
                     if (_cancel_btn.is_sensitive()) _cancel_btn.clicked();
@@ -151,6 +153,7 @@ namespace Singularity.Widgets {
             });
             ((Gtk.Widget)this).add_controller(key);
             ((Gtk.Widget)this).map.connect(() => {
+                sync_tv();
                 detect_cancel_button();
                 _closing = false;
                 _card_motion.can_target = true;
@@ -162,6 +165,19 @@ namespace Singularity.Widgets {
             sync_titlebar();
 
             set_default_size(400, 500);
+        }
+
+        private void sync_tv() {
+            var parent = get_transient_for() as Singularity.Widgets.Window;
+            if (parent == null && application != null) parent = application.get_active_window() as Singularity.Widgets.Window;
+            bool tv = parent != null && parent.form_factor == FormFactorKind.TV && !parent.form_factor_compat;
+            _tv_keys = tv ? new Singularity.Widgets.TvTextKeys() : null;
+            if (tv) {
+                add_css_class("ff-tv");
+                set_focus_visible(true);
+            } else {
+                remove_css_class("ff-tv");
+            }
         }
 
         private void update_background_effect() {

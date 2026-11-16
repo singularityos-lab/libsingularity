@@ -86,6 +86,7 @@ namespace Singularity.Widgets {
         private Widget? _ok_target = null;
         private bool _ok_long = false;
         private uint _ok_source = 0;
+        private TvTextKeys _text_keys = new TvTextKeys();
         private int _start_tries = 0;
         private Fixed? _pointer_layer = null;
         private Box? _pointer = null;
@@ -457,6 +458,7 @@ namespace Singularity.Widgets {
             bool editing = editable != null;
             bool at_start = editing && editable.get_position() <= 0;
             bool at_end = editing && editable.get_position() >= editable.get_text().char_count();
+            if (editing && _text_keys.key(_win, keyval)) return true;
             bool custom = focus != null && !editing && !is_target(focus) && !in_head(focus) && !in_chrome(focus) && is_candidate(focus);
             if (custom && (keyval == Gdk.Key.Up || keyval == Gdk.Key.Down || keyval == Gdk.Key.Left || keyval == Gdk.Key.Right)) return false;
             switch (keyval) {
