@@ -7162,7 +7162,8 @@ window.tv-home {
 
 .tv-home-row .tv-tile-label {
     font-size: 19px;
-    color: alpha(white, 0.62);
+    color: alpha(white, 0.78);
+    text-shadow: 0 1px 6px alpha(black, 0.6);
     transition: color 200ms ease-out;
 }
 
