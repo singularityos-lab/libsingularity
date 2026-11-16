@@ -7359,13 +7359,6 @@ window.tv-home button.tv-home-gear:focus-visible {
 
 window.tv-settings {
     background-color: @window_bg_color;
-    background-image: linear-gradient(160deg, alpha(@accent_color, 0.12), alpha(@accent_color, 0.03) 55%, alpha(@shadow_color, 0.35));
-}
-
-.tv-settings-glow {
-    background-image:
-        radial-gradient(circle at 18% 30%, alpha(@accent_color, 0.30), transparent 45%),
-        radial-gradient(circle at 85% 90%, alpha(mix(@accent_color, white, 0.35), 0.16), transparent 50%);
 }
 
 .tv-settings-page {
@@ -7397,16 +7390,8 @@ window.tv-settings {
     color: @accent_color;
 }
 
-.tv-settings-tile image {
-    -gtk-icon-shadow: 0 8px 22px alpha(@shadow_color, 0.40);
-}
-
 window.tv-settings .tv-home-title {
     color: @text_color;
-}
-
-.tv-settings-hero image {
-    -gtk-icon-shadow: 0 12px 32px alpha(@shadow_color, 0.45);
 }
 
 .tv-settings-back-hint {
