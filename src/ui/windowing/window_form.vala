@@ -75,6 +75,7 @@ namespace Singularity.Widgets {
         private ulong _leave_id = 0;
         private ulong _ff_id = 0;
         private ulong _outputs_id = 0;
+        private ulong _visible_id = 0;
         private GenericArray<Gdk.Monitor> _entered = new GenericArray<Gdk.Monitor>();
         private Gdk.Monitor? _monitor = null;
         private bool _we_fullscreened = false;
@@ -82,6 +83,9 @@ namespace Singularity.Widgets {
         private Box? _tabs = null;
         private EventControllerKey? _keys = null;
         private bool _user_moved = false;
+        private Widget? _ok_target = null;
+        private bool _ok_long = false;
+        private uint _ok_source = 0;
         private int _start_tries = 0;
         private Fixed? _pointer_layer = null;
         private Box? _pointer = null;
@@ -116,6 +120,10 @@ namespace Singularity.Widgets {
             untrack_surface();
             if (_rebuild_source != 0) Source.remove(_rebuild_source);
             _rebuild_source = 0;
+            if (_ok_source != 0) Source.remove(_ok_source);
+            _ok_source = 0;
+            if (_visible_id != 0) _win.disconnect(_visible_id);
+            _visible_id = 0;
         }
 
         private void track_surface() {
@@ -220,10 +228,16 @@ namespace Singularity.Widgets {
             }
             apply_scale();
             _win.set_focus_visible(true);
+            if (_visible_id == 0) {
+                _visible_id = _win.notify["focus-visible"].connect(() => {
+                    if (!_win.focus_visible && kind == FormFactorKind.TV && !compat) _win.focus_visible = true;
+                });
+            }
             if (_keys == null) {
                 _keys = new EventControllerKey();
                 _keys.propagation_phase = PropagationPhase.CAPTURE;
                 _keys.key_pressed.connect(on_key);
+                _keys.key_released.connect(on_key_up);
                 ((Widget) _win).add_controller(_keys);
             }
             if (compat) {
@@ -246,6 +260,15 @@ namespace Singularity.Widgets {
         }
 
         private void leave_tv() {
+            if (_ok_source != 0) {
+                Source.remove(_ok_source);
+                _ok_source = 0;
+            }
+            _ok_target = null;
+            if (_visible_id != 0) {
+                _win.disconnect(_visible_id);
+                _visible_id = 0;
+            }
             if (_keys != null) {
                 ((Widget) _win).remove_controller(_keys);
                 _keys = null;
@@ -381,7 +404,9 @@ namespace Singularity.Widgets {
                 return;
             }
             if (best == null && all.length > 0) best = all[0];
-            if (best != null) best.grab_focus();
+            if (best == null) return;
+            best.grab_focus();
+            _win.focus_visible = true;
         }
 
         private static bool in_chrome(Widget w) {
@@ -432,6 +457,8 @@ namespace Singularity.Widgets {
             bool editing = editable != null;
             bool at_start = editing && editable.get_position() <= 0;
             bool at_end = editing && editable.get_position() >= editable.get_text().char_count();
+            bool custom = focus != null && !editing && !is_target(focus) && !in_head(focus) && !in_chrome(focus) && is_candidate(focus);
+            if (custom && (keyval == Gdk.Key.Up || keyval == Gdk.Key.Down || keyval == Gdk.Key.Left || keyval == Gdk.Key.Right)) return false;
             switch (keyval) {
                 case Gdk.Key.Up:
                     return move(0, -1);
@@ -447,8 +474,44 @@ namespace Singularity.Widgets {
                     return editing ? false : go_back();
                 case Gdk.Key.Menu:
                     return _win.popup_app_menu();
+                case Gdk.Key.Return:
+                case Gdk.Key.KP_Enter:
+                    return editing ? false : ok_down(focus);
                 default:
                     return false;
+            }
+        }
+
+        private bool ok_down(Widget? focus) {
+            if (_ok_target != null) return true;
+            if (focus == null || !(focus is Button || focus is ListBoxRow || focus is FlowBoxChild)) return false;
+            _ok_target = focus;
+            _ok_long = false;
+            _ok_source = Timeout.add(600, () => {
+                _ok_source = 0;
+                _ok_long = true;
+                if (_ok_target != null && !_ok_target.activate_action("menu.popup", null)) _win.popup_app_menu();
+                return Source.REMOVE;
+            });
+            return true;
+        }
+
+        private void on_key_up(uint keyval, uint keycode, Gdk.ModifierType state) {
+            if (keyval != Gdk.Key.Return && keyval != Gdk.Key.KP_Enter) return;
+            var target = _ok_target;
+            _ok_target = null;
+            if (_ok_source != 0) {
+                Source.remove(_ok_source);
+                _ok_source = 0;
+            }
+            if (target == null || _ok_long || !target.get_mapped()) return;
+            bool content = !in_head(target) && !in_chrome(target);
+            target.activate();
+            if (content) {
+                Timeout.add(300, () => {
+                    if (kind == FormFactorKind.TV && !compat) focus_start();
+                    return Source.REMOVE;
+                });
             }
         }
 
