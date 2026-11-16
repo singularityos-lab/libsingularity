@@ -41,6 +41,9 @@ namespace Singularity.Widgets {
         private ulong _effect_handler = 0;
         private Singularity.Style.BackgroundEffectMode _effect_mode;
         private Singularity.Widgets.TvTextKeys? _tv_keys = null;
+        private ScaleBin _scale;
+        private int _base_width = 400;
+        private int _base_height = 500;
 
         /** Toggle the close button at runtime. Same as `show_close_button`. */
         public bool closable {
@@ -118,7 +121,8 @@ namespace Singularity.Widgets {
             _card_motion = new Singularity.Animation.MotionBin(card);
             _card_motion.hexpand = true;
             _card_motion.vexpand = true;
-            outer.append(_card_motion);
+            _scale = new ScaleBin(_card_motion);
+            outer.append(_scale);
             set_child(outer);
 
             _desktop_settings = Singularity.Core.safe_settings(
@@ -152,6 +156,7 @@ namespace Singularity.Widgets {
                 return false;
             });
             ((Gtk.Widget)this).add_controller(key);
+            ((Gtk.Widget)this).realize.connect(() => sync_tv());
             ((Gtk.Widget)this).map.connect(() => {
                 sync_tv();
                 detect_cancel_button();
@@ -165,6 +170,27 @@ namespace Singularity.Widgets {
             sync_titlebar();
 
             set_default_size(400, 500);
+            notify["default-width"].connect(() => remember_size());
+            notify["default-height"].connect(() => remember_size());
+        }
+
+        private bool _scaling = false;
+
+        private void remember_size() {
+            if (_scaling) return;
+            int w, h;
+            get_default_size(out w, out h);
+            double f = _scale.factor;
+            _base_width = w < 0 ? w : (int) (w / f);
+            _base_height = h < 0 ? h : (int) (h / f);
+        }
+
+        private void apply_scale(double f) {
+            if (f == _scale.factor) return;
+            _scale.factor = f;
+            _scaling = true;
+            set_default_size(_base_width < 0 ? -1 : (int) (_base_width * f), _base_height < 0 ? -1 : (int) (_base_height * f));
+            _scaling = false;
         }
 
         private void sync_tv() {
@@ -175,8 +201,10 @@ namespace Singularity.Widgets {
             if (tv) {
                 add_css_class("ff-tv");
                 set_focus_visible(true);
+                apply_scale(parent.scale_bin != null ? parent.scale_bin.factor : 1.0);
             } else {
                 remove_css_class("ff-tv");
+                apply_scale(1.0);
             }
         }
 
