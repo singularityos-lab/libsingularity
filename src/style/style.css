@@ -7564,6 +7564,12 @@ window.ff-tv button:focus:focus-visible {
     outline: none;
 }
 
+window.ff-tv.singularity-focus-ring-motion button.singularity-focus-ringed:focus:focus-visible:not(.tv-app-tab) {
+    outline: 3px solid @accent_color;
+    outline-offset: 3px;
+    background-color: alpha(@accent_color, 0.16);
+}
+
 window.ff-tv .singularity-hover-on-content {
     opacity: 1;
 }

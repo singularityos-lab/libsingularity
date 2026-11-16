@@ -81,6 +81,8 @@ namespace Singularity.Widgets {
         private Box? _head = null;
         private Box? _tabs = null;
         private EventControllerKey? _keys = null;
+        private bool _user_moved = false;
+        private int _start_tries = 0;
         private Fixed? _pointer_layer = null;
         private Box? _pointer = null;
         private int _px = 200;
@@ -235,6 +237,8 @@ namespace Singularity.Widgets {
             _win.tv_sidebar_hidden = true;
             build_head();
             schedule_rebuild();
+            _user_moved = false;
+            _start_tries = 0;
             Timeout.add(200, () => {
                 focus_start(true);
                 return Source.REMOVE;
@@ -349,26 +353,40 @@ namespace Singularity.Widgets {
 
         private void focus_start(bool force = false) {
             var current = _win.get_focus();
-            if (!force && current != null && is_candidate(current) && !in_head(current)) return;
+            if (!force && current != null && is_candidate(current) && !in_head(current) && !in_chrome(current)) return;
             var all = new GenericArray<Widget>();
             collect_focusable(_win, ref all);
             Widget? best = null;
+            Graphene.Rect best_rect = Graphene.Rect.zero();
             foreach (var w in all) {
-                if (w.has_css_class("suggested-action") && !in_head(w)) {
-                    best = w;
-                    break;
+                if (in_head(w) || in_chrome(w)) continue;
+                Graphene.Rect b;
+                if (!w.compute_bounds(_win, out b)) continue;
+                bool primary = w.has_css_class("suggested-action");
+                if (best != null && !primary) {
+                    if (best.has_css_class("suggested-action")) continue;
+                    if (b.origin.y > best_rect.origin.y + 4) continue;
+                    if (Math.fabsf(b.origin.y - best_rect.origin.y) <= 4 && b.origin.x >= best_rect.origin.x) continue;
                 }
+                best = w;
+                best_rect = b;
+                if (primary) break;
             }
-            if (best == null) {
-                foreach (var w in all) {
-                    if (!in_head(w)) {
-                        best = w;
-                        break;
-                    }
-                }
+            if (best == null && force && !_user_moved && _start_tries < 20) {
+                _start_tries++;
+                Timeout.add(500, () => {
+                    if (!_user_moved && kind == FormFactorKind.TV && !compat) focus_start(true);
+                    return Source.REMOVE;
+                });
+                return;
             }
             if (best == null && all.length > 0) best = all[0];
             if (best != null) best.grab_focus();
+        }
+
+        private static bool in_chrome(Widget w) {
+            if (w.has_css_class("singularity-hover-btn")) return true;
+            return w.get_ancestor(typeof(SearchBubble)) != null;
         }
 
         private bool in_head(Widget w) {
@@ -404,17 +422,25 @@ namespace Singularity.Widgets {
             var held = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SUPER_MASK;
             if ((state & held) != 0) return false;
             if (compat) return pointer_key(keyval);
+            if (keyval == Gdk.Key.Up || keyval == Gdk.Key.Down || keyval == Gdk.Key.Left || keyval == Gdk.Key.Right) {
+                _win.focus_visible = true;
+                _user_moved = true;
+            }
             var focus = _win.get_focus();
-            bool editing = focus is Editable || (focus != null && focus.get_ancestor(typeof(Editable)) != null);
+            Editable? editable = focus as Editable;
+            if (editable == null && focus != null) editable = focus.get_ancestor(typeof(Editable)) as Editable;
+            bool editing = editable != null;
+            bool at_start = editing && editable.get_position() <= 0;
+            bool at_end = editing && editable.get_position() >= editable.get_text().char_count();
             switch (keyval) {
                 case Gdk.Key.Up:
                     return move(0, -1);
                 case Gdk.Key.Down:
                     return move(0, 1);
                 case Gdk.Key.Left:
-                    return editing ? false : move(-1, 0);
+                    return editing && !at_start ? false : move(-1, 0);
                 case Gdk.Key.Right:
-                    return editing ? false : move(1, 0);
+                    return editing && !at_end ? false : move(1, 0);
                 case Gdk.Key.Escape:
                     return go_back();
                 case Gdk.Key.BackSpace:
@@ -440,8 +466,10 @@ namespace Singularity.Widgets {
             float acy = a.origin.y + a.size.height / 2;
             Widget? best = null;
             float best_score = float.MAX;
+            bool from_head = in_head(focus);
             foreach (var w in all) {
                 if (w == focus || focus.is_ancestor(w) || w.is_ancestor(focus)) continue;
+                if (from_head && dy > 0 && in_chrome(w)) continue;
                 Graphene.Rect b;
                 w.compute_bounds(_win, out b);
                 float bcx = b.origin.x + b.size.width / 2;
@@ -452,7 +480,8 @@ namespace Singularity.Widgets {
                     if ((bcx - acx) * dx <= 1) continue;
                     along = float.max(edge, 0);
                     float overlap = float.min(a.origin.y + a.size.height, b.origin.y + b.size.height) - float.max(a.origin.y, b.origin.y);
-                    across = overlap > 0 ? 0 : Math.fabsf(bcy - acy);
+                    if (overlap <= 0) continue;
+                    across = 0;
                 } else {
                     float edge = dy > 0 ? b.origin.y - (a.origin.y + a.size.height) : a.origin.y - (b.origin.y + b.size.height);
                     if ((bcy - acy) * dy <= 1) continue;
