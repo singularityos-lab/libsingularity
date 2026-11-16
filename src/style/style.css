@@ -7125,7 +7125,7 @@ window.tv-home {
 }
 
 .tv-home-row flowboxchild {
-    padding: 14px 10px 10px 10px;
+    padding: 24px 22px 12px 22px;
     background: none;
     outline: none;
     box-shadow: none;
@@ -7142,16 +7142,6 @@ window.tv-home {
 .tv-banner {
     border-radius: 22px;
     box-shadow: 0 6px 18px alpha(black, 0.32);
-    transition: box-shadow 220ms ease-out;
-}
-
-.tv-home-row flowboxchild:hover .tv-banner {
-    box-shadow: 0 12px 28px alpha(black, 0.42);
-}
-
-.tv-home-row flowboxchild:focus .tv-banner,
-.tv-home-row flowboxchild:focus-visible .tv-banner {
-    box-shadow: 0 22px 46px alpha(black, 0.55), 0 0 0 1px alpha(white, 0.06);
 }
 
 .tv-tile-label {
@@ -7167,6 +7157,7 @@ window.tv-home {
     transition: color 200ms ease-out;
 }
 
+.tv-home-row flowboxchild:hover .tv-tile-label,
 .tv-home-row flowboxchild:focus .tv-tile-label,
 .tv-home-row flowboxchild:focus-visible .tv-tile-label {
     color: white;
