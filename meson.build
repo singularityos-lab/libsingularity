@@ -99,6 +99,7 @@ libsingularity_sources = files(
   'src/ui/navigation/tabbar.vala',
   'src/ui/navigation/tab_container.vala',
   'src/ui/windowing/window.vala',
+  'src/ui/windowing/window_form.vala',
   'src/ui/controls/icon_button.vala',
   'src/ui/controls/read_aloud_button.vala',
   'src/ui/controls/circular_button.vala',

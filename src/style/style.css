@@ -7037,6 +7037,23 @@ window.phone-nav button.phone-nav-button:hover {
     background-color: @panel_fg;
 }
 
+window.phone-nav.handle-only .phone-nav-bar {
+    min-height: 18px;
+    padding: 0;
+    background: none;
+}
+
+window.phone-nav.handle-only button.phone-nav-home {
+    min-width: 220px;
+    min-height: 18px;
+}
+
+window.phone-nav.handle-only .phone-nav-pill {
+    min-width: 160px;
+    background-color: alpha(@panel_fg, 0.7);
+    box-shadow: 0 0 6px alpha(black, 0.35);
+}
+
 window.phone-home {
     background: none;
 }
@@ -7481,4 +7498,99 @@ window.recents button.recents-close-all {
     border-radius: 999px;
     color: white;
     background-color: alpha(white, 0.16);
+}
+
+window.ff-tv .tv-app-head {
+    padding: 28px 48px 12px 48px;
+}
+
+window.ff-tv .tv-app-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-right: 16px;
+}
+
+window.ff-tv .tv-app-tabs {
+    margin-left: 8px;
+}
+
+window.ff-tv button.tv-app-tab,
+window.ff-tv menubutton.tv-app-tab > button {
+    min-height: 40px;
+    padding: 0 20px;
+    border-radius: 999px;
+    font-size: 17px;
+    font-weight: 600;
+    background: none;
+    color: alpha(@text_color, 0.7);
+    box-shadow: none;
+}
+
+window.ff-tv button.tv-app-tab.active {
+    background-color: alpha(@text_color, 0.12);
+    color: @text_color;
+}
+
+window.ff-tv button.tv-app-tab:focus:focus-visible,
+window.ff-tv menubutton.tv-app-tab > button:focus:focus-visible {
+    background-color: @accent_color;
+    color: white;
+    outline: none;
+    box-shadow: 0 4px 18px alpha(@accent_color, 0.45);
+}
+
+window.ff-tv button.tv-app-tab:focus:focus-visible label,
+window.ff-tv menubutton.tv-app-tab > button:focus:focus-visible label {
+    color: white;
+}
+
+window.ff-tv :focus:focus-visible {
+    outline: 3px solid @accent_color;
+    outline-offset: 2px;
+}
+
+window.ff-tv listboxrow:focus:focus-visible,
+window.ff-tv flowboxchild:focus:focus-visible,
+window.ff-tv gridview > child:focus:focus-visible,
+window.ff-tv listview > row:focus:focus-visible {
+    background-color: alpha(@accent_color, 0.18);
+    outline: 3px solid @accent_color;
+    outline-offset: -3px;
+    border-radius: 12px;
+}
+
+window.ff-tv button:focus:focus-visible {
+    box-shadow: 0 0 0 3px @accent_color, 0 6px 24px alpha(@accent_color, 0.45);
+    outline: none;
+}
+
+window.ff-tv .singularity-hover-on-content {
+    opacity: 1;
+}
+
+window.ff-tv .tv-pointer {
+    border-radius: 999px;
+    border: 3px solid white;
+    background-color: alpha(@accent_color, 0.35);
+    box-shadow: 0 2px 8px alpha(black, 0.55);
+}
+
+window.ff-tablet button,
+window.ff-tablet menubutton > button {
+    min-height: 40px;
+    min-width: 40px;
+}
+
+window.ff-tablet .singularity-sidebar-row {
+    min-height: 44px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+window.ff-tablet listboxrow {
+    min-height: 52px;
+}
+
+window.ff-tablet entry {
+    min-height: 40px;
 }

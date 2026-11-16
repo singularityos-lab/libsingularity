@@ -231,6 +231,32 @@ namespace Singularity.Widgets {
         }
         private MenuModel?       _classic_menubar_model = null;
 
+        private ScaleBin? _scale_bin = null;
+        private WindowForm? _form = null;
+
+        internal ScaleBin? scale_bin { get { return _scale_bin; } }
+
+        internal Overlay? root_overlay { get { return _root_overlay; } }
+
+        internal bool tv_sidebar_hidden {
+            set {
+                sidebar_revealer.visible = !value;
+                if (value && _drawer_open) _set_drawer_open(false);
+            }
+        }
+
+        /**
+         * Form factor of the output this window is on. It follows the window
+         * when it moves to another screen, and the window carries the matching
+         * `ff-desktop`, `ff-tablet`, `ff-phone`, `ff-tv` or `ff-watch` class.
+         */
+        public FormFactorKind form_factor { get { return _form != null ? _form.kind : FormFactorKind.DESKTOP; } }
+
+        /** True on a TV when the application does not declare TV support. */
+        public bool form_factor_compat { get { return _form != null && _form.compat; } }
+
+        public signal void form_factor_changed(FormFactorKind previous);
+
         public Window(Gtk.Application app) {
             Object(application: app);
         }
@@ -294,7 +320,8 @@ namespace Singularity.Widgets {
             var overlay = new Overlay();
             overlay.hexpand = true;
             overlay.vexpand = true;
-            app_frame.append(overlay);
+            _scale_bin = new ScaleBin(overlay);
+            app_frame.append(_scale_bin);
             _root_overlay = overlay;
 
             var outer_box = new Box(Orientation.VERTICAL, 0);
@@ -451,6 +478,13 @@ namespace Singularity.Widgets {
                 () => { _shell_present = false; _sync_app_menu(); });
             notify["application"].connect(_track_menubar);
             _track_menubar();
+
+            add_css_class("ff-desktop");
+            _form = new WindowForm(this);
+            _form.changed.connect((previous) => {
+                notify_property("form-factor");
+                form_factor_changed(previous);
+            });
         }
 
         private void _update_shadow_margin() {
@@ -462,6 +496,10 @@ namespace Singularity.Widgets {
         // -- Window state persistence -----------------------------------
 
         public override void dispose() {
+            if (_form != null) {
+                _form.release();
+                _form = null;
+            }
             if (_background_effect_handler != 0 && desktop_settings != null) {
                 desktop_settings.disconnect(_background_effect_handler);
                 _background_effect_handler = 0;

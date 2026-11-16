@@ -26,6 +26,14 @@ namespace Singularity {
         public bool force_dark { get; set; default = false; }
 
         /**
+         * Form factors this application is made for, as ids such as
+         * `desktop`, `tablet`, `phone` and `tv`. Null means all of them. When
+         * null, the `X-Sinty-FormFactors` key of the desktop entry is used.
+         * On a TV an application without `tv` runs in compatibility mode.
+         */
+        public string[]? form_factors { get; set; default = null; }
+
+        /**
          * Name shown in the About dialog and in the automatic Help menu.
          * Defaults to the application name, then to the name in the
          * application's desktop entry.
