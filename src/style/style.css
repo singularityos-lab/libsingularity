@@ -7653,6 +7653,11 @@ window.ff-tv.singularity-focus-ring-motion button.suggested-action.singularity-f
     background-color: alpha(@text_color, 0.06);
 }
 
+.media-art.bare {
+    background: none;
+    box-shadow: none;
+}
+
 .media-art.round {
     border-radius: 999px;
 }
@@ -7736,6 +7741,11 @@ window.ff-tv.singularity-focus-ring-motion button.media-shelf-tile.singularity-f
 
 window.ff-tv button.media-shelf-tile:focus:focus-visible .media-art {
     box-shadow: 0 10px 30px alpha(@accent_color, 0.35);
+}
+
+button.media-shelf-tile:hover .media-art.bare,
+window.ff-tv button.media-shelf-tile:focus:focus-visible .media-art.bare {
+    box-shadow: none;
 }
 
 window.ff-tv .media-shelf-row {

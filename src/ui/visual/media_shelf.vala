@@ -33,6 +33,19 @@ namespace Singularity.Widgets {
             _stack.visible_child_name = "icon";
         }
 
+        public Image icon {
+            get { return _icon; }
+        }
+
+        public void set_bare(bool bare) {
+            if (bare) add_css_class("bare");
+            else remove_css_class("bare");
+            int w, h;
+            get_size_request(out w, out h);
+            int side = int.min(w, h);
+            _icon.pixel_size = bare ? side * 3 / 4 : int.max(32, side / 2);
+        }
+
         public Gdk.Paintable? paintable {
             get { return _picture.paintable; }
             set {
@@ -75,6 +88,7 @@ namespace Singularity.Widgets {
         private bool _round;
 
         public int tile_height { get; set; default = -1; }
+        public bool bare { get; set; default = false; }
 
         public MediaShelf(string title, int tile_size = 148, bool round = false) {
             Object(orientation: Orientation.VERTICAL, spacing: 8);
@@ -121,9 +135,11 @@ namespace Singularity.Widgets {
             var box = new Box(Orientation.VERTICAL, 4);
             box.width_request = _tile_size;
             var art = new MediaArt(_tile_size, icon_name, _round, tile_height);
+            if (bare) art.set_bare(true);
             box.append(art);
+            bool center = _round || bare;
             var name = new Label(title);
-            name.xalign = _round ? 0.5f : 0;
+            name.xalign = center ? 0.5f : 0;
             name.ellipsize = Pango.EllipsizeMode.END;
             name.max_width_chars = 1;
             name.hexpand = true;
@@ -132,7 +148,7 @@ namespace Singularity.Widgets {
             box.append(name);
             if (subtitle != null && subtitle != "") {
                 var sub = new Label(subtitle);
-                sub.xalign = _round ? 0.5f : 0;
+                sub.xalign = center ? 0.5f : 0;
                 sub.ellipsize = Pango.EllipsizeMode.END;
                 sub.max_width_chars = 1;
                 sub.add_css_class("dim-label");

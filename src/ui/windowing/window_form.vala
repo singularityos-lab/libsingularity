@@ -635,11 +635,20 @@ namespace Singularity.Widgets {
             return true;
         }
 
-        private static Button? find_back(Widget root) {
+        private static bool in_controls(Widget w) {
+            for (Widget? p = w.get_parent(); p != null; p = p.get_parent()) {
+                if (p.has_css_class("singularity-hover-controls")) return true;
+            }
+            return false;
+        }
+
+        private static Button? find_back(Widget root, bool controls) {
             for (var c = root.get_first_child(); c != null; c = c.get_next_sibling()) {
                 var b = c as Button;
-                if (b != null && b.get_mapped() && b.is_sensitive() && b.icon_name == "go-previous-symbolic") return b;
-                var deep = find_back(c);
+                if (b != null && b.is_sensitive() && b.icon_name == "go-previous-symbolic") {
+                    if (controls ? b.visible && in_controls(b) : b.get_mapped()) return b;
+                }
+                var deep = find_back(c, controls);
                 if (deep != null) return deep;
             }
             return null;
@@ -647,7 +656,7 @@ namespace Singularity.Widgets {
 
         private bool go_back() {
             if (close_tv_search()) return true;
-            var back = find_back(_win);
+            var back = find_back(_win, true) ?? find_back(_win, false);
             if (back != null) {
                 back.clicked();
                 Idle.add(() => {
