@@ -482,6 +482,7 @@ namespace Singularity.Widgets {
             add_css_class("ff-desktop");
             _form = new WindowForm(this);
             _form.changed.connect((previous) => {
+                if (_bubble_bar != null) _bubble_bar.set_tv(form_factor == FormFactorKind.TV);
                 notify_property("form-factor");
                 form_factor_changed(previous);
             });
@@ -769,6 +770,7 @@ namespace Singularity.Widgets {
         // ===================================================================
 
         private Singularity.Widgets.HoverControls? _bubble_bar = null;
+        internal Singularity.Widgets.HoverControls? bubble_bar { get { return _bubble_bar; } }
 
         public delegate void BubbleAction ();
         public delegate void BubbleSearchAction (string text);
@@ -777,6 +779,7 @@ namespace Singularity.Widgets {
             if (_bubble_bar == null) {
                 _bubble_bar = Singularity.Widgets.HoverControls.with_window_bubbles (this);
                 _bubble_bar.set_compact_controls (_phone);
+                _bubble_bar.set_tv (form_factor == FormFactorKind.TV);
                 _bubble_bar.set_welcome (_welcome_pages > 0);
                 // If set_content ran before the first bubble was registered,
                 // re-wrap the user content now so the bar overlays it.

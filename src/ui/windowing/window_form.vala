@@ -63,7 +63,7 @@ namespace Singularity.Widgets {
 
     internal class WindowForm : Object {
         public const string DESKTOP_KEY = "X-Sinty-FormFactors";
-        private const int TV_LOGICAL_WIDTH = 1280;
+        private const int TV_LOGICAL_WIDTH = 960;
         private const int TV_MAX_TABS = 6;
         private const int POINTER_STEP = 24;
         private const int POINTER_STEP_MAX = 96;
@@ -96,6 +96,10 @@ namespace Singularity.Widgets {
         private int64 _last_press = 0;
         private uint _rebuild_source = 0;
         private bool _hinted = false;
+        private bool _dark_held = false;
+        private Button? _search_tab = null;
+        private Gtk.SearchEntry? _search_entry = null;
+        private SearchBubble? _search_target = null;
 
         public FormFactorKind kind { get; private set; default = FormFactorKind.DESKTOP; }
         public bool compat { get; private set; default = false; }
@@ -228,6 +232,7 @@ namespace Singularity.Widgets {
                 _win.fullscreen();
             }
             apply_scale();
+            hold_dark(true);
             _win.set_focus_visible(true);
             if (_visible_id == 0) {
                 _visible_id = _win.notify["focus-visible"].connect(() => {
@@ -275,10 +280,13 @@ namespace Singularity.Widgets {
                 _keys = null;
             }
             hide_pointer();
+            hold_dark(false);
             if (_head != null) {
                 _head.unparent();
                 _head = null;
                 _tabs = null;
+                _search_entry = null;
+                _search_tab = null;
             }
             _win.tv_sidebar_hidden = false;
             if (_win.scale_bin != null) _win.scale_bin.factor = 1.0;
@@ -286,6 +294,14 @@ namespace Singularity.Widgets {
                 _we_fullscreened = false;
                 _win.unfullscreen();
             }
+        }
+
+        private void hold_dark(bool on) {
+            if (_dark_held == on) return;
+            var sapp = _win.application as Singularity.Application;
+            if (sapp == null) return;
+            _dark_held = on;
+            sapp.tv_window(on);
         }
 
         private void schedule_rebuild() {
@@ -318,7 +334,7 @@ namespace Singularity.Widgets {
             if (sapp != null && sapp.about_icon != null) icon = sapp.about_icon;
             if (icon != null) {
                 var img = new Image.from_icon_name(icon);
-                img.pixel_size = 40;
+                img.pixel_size = 32;
                 _head.append(img);
             }
             var title = new Label(_win.title ?? "");
@@ -339,7 +355,20 @@ namespace Singularity.Widgets {
             while ((w = _tabs.get_first_child()) != null) _tabs.remove(w);
             var rows = new GenericArray<SidebarRow>();
             collect_rows(_win.sidebar_area, ref rows);
-            _tabs.visible = rows.length > 0;
+            _search_target = find_search(_win);
+            bool searchable = _search_target != null;
+            _tabs.visible = rows.length > 0 || searchable;
+            _search_tab = null;
+            if (searchable) {
+                _search_tab = new Button();
+                var sbox = new Box(Orientation.HORIZONTAL, 8);
+                sbox.append(new Image.from_icon_name("system-search-symbolic"));
+                sbox.append(new Label(_("Search")));
+                _search_tab.child = sbox;
+                _search_tab.add_css_class("tv-app-tab");
+                _search_tab.add_css_class("tv-app-search");
+                _search_tab.clicked.connect(() => open_tv_search());
+            }
             Box? more_box = null;
             for (int i = 0; i < rows.length; i++) {
                 var row = rows[i];
@@ -368,6 +397,48 @@ namespace Singularity.Widgets {
                 });
                 more_box.append(tab);
             }
+            if (_search_tab != null) _tabs.append(_search_tab);
+            if (_search_entry == null && _head != null) {
+                _search_entry = new Gtk.SearchEntry();
+                _search_entry.add_css_class("tv-app-search-entry");
+                _search_entry.hexpand = true;
+                _search_entry.visible = false;
+                _search_entry.search_changed.connect(() => {
+                    if (_search_target != null) _search_target.text = _search_entry.text;
+                });
+                _search_entry.stop_search.connect(() => close_tv_search());
+                _head.append(_search_entry);
+            }
+            if (_search_entry != null && _search_target != null) _search_entry.placeholder_text = _search_target.placeholder;
+        }
+
+        private static SearchBubble? find_search(Widget root) {
+            if (root is SearchBubble) return (SearchBubble) root;
+            for (var c = root.get_first_child(); c != null; c = c.get_next_sibling()) {
+                var found = find_search(c);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private void open_tv_search() {
+            if (_search_entry == null || _search_target == null) return;
+            _search_entry.text = _search_target.text;
+            _search_entry.visible = true;
+            if (_search_tab != null) _search_tab.visible = false;
+            _search_entry.grab_focus();
+        }
+
+        private bool close_tv_search() {
+            if (_search_entry == null || !_search_entry.visible) return false;
+            _search_entry.visible = false;
+            _search_entry.text = "";
+            if (_search_target != null) _search_target.text = "";
+            if (_search_tab != null) {
+                _search_tab.visible = true;
+                _search_tab.grab_focus();
+            }
+            return true;
         }
 
         private static void sync_tab(Button tab, SidebarRow row) {
@@ -575,6 +646,7 @@ namespace Singularity.Widgets {
         }
 
         private bool go_back() {
+            if (close_tv_search()) return true;
             var back = find_back(_win);
             if (back != null) {
                 back.clicked();

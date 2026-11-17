@@ -23,6 +23,7 @@ namespace Singularity.Widgets {
         private BubbleBox _custom_box;
         private Button?  _sidebar_toggle = null;
         private bool     _compact_controls = false;
+        private bool     _no_window_controls = false;
         private Gtk.Window? _bubble_window = null;
         private bool _bubble_with_drag = true;
         private bool _bubble_with_close = true;
@@ -209,6 +210,22 @@ namespace Singularity.Widgets {
             }
         }
 
+        internal void set_tv (bool tv) {
+            if (_no_window_controls == tv) return;
+            _no_window_controls = tv;
+            if (!tv && _custom_box.expanded) _close_search (false);
+            _apply_controls_visibility ();
+            _sync_tv_row ();
+        }
+
+        private void _sync_tv_row () {
+            if (_row == null) return;
+            bool show = !_no_window_controls || _custom_box.expanded;
+            _row.visible = show;
+            _row.can_target = show;
+            _row.opacity = 1.0;
+        }
+
         internal void set_compact_controls (bool compact) {
             if (_compact_controls == compact) return;
             _compact_controls = compact;
@@ -242,6 +259,7 @@ namespace Singularity.Widgets {
             _custom_box.set_expanded (null, 0);
             _apply_controls_visibility ();
             if (clear) search.clear ();
+            _sync_tv_row ();
         }
 
         private void _apply_controls_visibility () {
@@ -252,8 +270,13 @@ namespace Singularity.Widgets {
             _custom_box.hexpand = expanded;
             foreach (var box in new Box[] { _left_box, _right_box }) {
                 for (var c = box.get_first_child (); c != null; c = c.get_next_sibling ()) {
-                    if (c == _custom_box || c == _sidebar_toggle) continue;
-                    c.visible = !expanded && (!_compact_controls || c == _close_btn || c == _max_btn);
+                    if (c == _custom_box) continue;
+                    if (c == _sidebar_toggle) {
+                        if (_no_window_controls) c.visible = false;
+                        continue;
+                    }
+                    c.visible = !expanded && (!_compact_controls || c == _close_btn || c == _max_btn)
+                        && !(_no_window_controls && c.has_css_class ("singularity-window-control"));
                 }
             }
         }
@@ -383,6 +406,7 @@ namespace Singularity.Widgets {
             drag_btn.set_size_request (20, 20);
             drag_btn.valign = Align.CENTER;
             drag_btn.tooltip_text = _("Drag Window");
+            drag_btn.add_css_class ("singularity-window-control");
             var grip = new Image.from_icon_name ("list-drag-handle-symbolic");
             grip.pixel_size = -1;
             drag_btn.set_child (grip);
@@ -405,6 +429,7 @@ namespace Singularity.Widgets {
             btn.set_size_request (20, 20);
             btn.valign = Align.CENTER;
             btn.tooltip_text = _("Minimize Window");
+            btn.add_css_class ("singularity-window-control");
             btn.clicked.connect (() => window.minimize ());
             target.append (btn);
         }
@@ -416,6 +441,7 @@ namespace Singularity.Widgets {
             btn.set_size_request (20, 20);
             btn.valign = Align.CENTER;
             btn.tooltip_text = _("Maximize Window");
+            btn.add_css_class ("singularity-window-control");
             btn.clicked.connect (() => {
                 if (window.maximized) window.unmaximize ();
                 else                  window.maximize ();
@@ -432,6 +458,7 @@ namespace Singularity.Widgets {
             _close_btn.set_size_request (20, 20);
             _close_btn.valign = Align.CENTER;
             _close_btn.tooltip_text = _("Close Window");
+            _close_btn.add_css_class ("singularity-window-control");
             _close_btn.clicked.connect (_on_close_clicked);
             target.append (_close_btn);
         }

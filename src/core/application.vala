@@ -25,6 +25,27 @@ namespace Singularity {
          */
         public bool force_dark { get; set; default = false; }
 
+        private int _tv_windows = 0;
+
+        internal void tv_window(bool entering) {
+            int before = _tv_windows;
+            _tv_windows = int.max(0, _tv_windows + (entering ? 1 : -1));
+            if ((before > 0) == (_tv_windows > 0)) return;
+            bool dark = _tv_windows > 0;
+            if (!dark) {
+                if (has_desktop_settings) {
+                    update_theme_mode();
+                    return;
+                }
+                if (iface_settings != null) {
+                    apply_color_scheme(iface_settings.get_string("color-scheme"));
+                    return;
+                }
+            }
+            Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark || force_dark;
+            Singularity.Style.StyleManager.get_default().apply_color_scheme(dark || force_dark);
+        }
+
         /**
          * Form factors this application is made for, as ids such as
          * `desktop`, `tablet`, `phone` and `tv`. Null means all of them. When
@@ -521,7 +542,7 @@ namespace Singularity {
         private void update_theme_mode() {
             // Applications follow the app tone: light unless the effective mode
             // is full Dark. The shell chrome follows a different (shell) tone.
-            bool dark = force_dark || Singularity.Style.ThemeMode.get_default().app_dark();
+            bool dark = force_dark || _tv_windows > 0 || Singularity.Style.ThemeMode.get_default().app_dark();
             Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark;
             Singularity.Style.StyleManager.get_default().apply_color_scheme(dark);
             // Re-apply accent so base tint colors use the correct light/dark base.
@@ -529,7 +550,7 @@ namespace Singularity {
         }
 
         private void apply_color_scheme(string scheme) {
-            bool dark = force_dark || (scheme == "prefer-dark");
+            bool dark = force_dark || _tv_windows > 0 || (scheme == "prefer-dark");
             Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark;
             Singularity.Style.StyleManager.get_default().apply_color_scheme(dark);
             if (has_desktop_settings) {

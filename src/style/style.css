@@ -7555,11 +7555,11 @@ window.recents button.recents-close-all {
 }
 
 window.ff-tv .tv-app-head {
-    padding: 28px 48px 12px 48px;
+    padding: 18px 32px 8px 32px;
 }
 
 window.ff-tv .tv-app-title {
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 700;
     margin-right: 16px;
 }
@@ -7570,10 +7570,10 @@ window.ff-tv .tv-app-tabs {
 
 window.ff-tv button.tv-app-tab,
 window.ff-tv menubutton.tv-app-tab > button {
-    min-height: 40px;
-    padding: 0 20px;
+    min-height: 28px;
+    padding: 0 14px;
     border-radius: 999px;
-    font-size: 17px;
+    font-size: 13px;
     font-weight: 600;
     background: none;
     color: alpha(@text_color, 0.7);
@@ -7606,7 +7606,18 @@ window.ff-tv :focus:focus-visible {
 
 window.ff-tv listboxrow,
 window.ff-tv listview > row {
-    min-height: 48px;
+    min-height: 40px;
+}
+
+window.ff-tv .tv-app-search-entry {
+    min-height: 28px;
+    border-radius: 999px;
+    font-size: 13px;
+    padding: 0 12px;
+}
+
+window.ff-tv button.tv-app-search image {
+    -gtk-icon-size: 13px;
 }
 
 window.ff-tv listboxrow:focus:focus-visible,
@@ -7633,6 +7644,83 @@ window.ff-tv.singularity-focus-ring-motion button.suggested-action.singularity-f
     outline-offset: -5px;
     background-color: mix(@accent_color, black, 0.12);
     color: @accent_fg;
+}
+
+.media-art {
+    border-radius: 12px;
+    background-color: alpha(@text_color, 0.06);
+}
+
+.media-art.round {
+    border-radius: 999px;
+}
+
+.media-art image {
+    color: alpha(@text_color, 0.45);
+}
+
+.media-shelf-title {
+    font-weight: 700;
+    font-size: 1.15em;
+}
+
+button.media-shelf-tile {
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    border-radius: 14px;
+    transition: transform 160ms ease-out;
+}
+
+.singularity-focus-ring-motion button.media-shelf-tile:focus:focus-visible {
+    outline-style: none;
+}
+
+button.media-shelf-tile:hover .media-art {
+    box-shadow: 0 6px 18px alpha(black, 0.25);
+}
+
+.media-shelf-name {
+    font-weight: 600;
+}
+
+.media-hero {
+    padding: 4px 0 8px 0;
+}
+
+.media-hero .media-art {
+    border-radius: 18px;
+    box-shadow: 0 14px 40px alpha(black, 0.35);
+}
+
+.media-hero-eyebrow {
+    font-weight: 700;
+    font-size: 0.85em;
+    color: @accent_color;
+}
+
+.media-hero-title {
+    font-weight: 800;
+    font-size: 2em;
+}
+
+.media-hero-subtitle {
+    font-size: 1.1em;
+}
+
+window.ff-tv button.media-shelf-tile:focus:focus-visible:not(.tv-app-tab),
+window.ff-tv.singularity-focus-ring-motion button.media-shelf-tile.singularity-focus-ringed:focus:focus-visible:not(.tv-app-tab) {
+    outline: none;
+    background: none;
+    box-shadow: none;
+}
+
+window.ff-tv button.media-shelf-tile:focus:focus-visible .media-art {
+    box-shadow: 0 10px 30px alpha(@accent_color, 0.35);
+}
+
+window.ff-tv .media-shelf-row {
+    padding: 10px 6px 12px 6px;
 }
 
 window.ff-tv .singularity-hover-on-content {
@@ -7664,4 +7752,130 @@ window.ff-tablet listboxrow {
 
 window.ff-tablet entry {
     min-height: 40px;
+}
+
+window.game-overlay {
+    background: none;
+}
+
+window.game-overlay .game-overlay-stage {
+    background-image: linear-gradient(to bottom, alpha(black, 0.0), alpha(black, 0.0));
+    transition: background-image 260ms ease;
+}
+
+window.game-overlay.shown .game-overlay-stage {
+    background-image:
+        radial-gradient(ellipse at 12% 110%, alpha(@accent_color, 0.38), transparent 55%),
+        linear-gradient(to bottom, alpha(black, 0.82) 0%, alpha(black, 0.35) 24%, alpha(black, 0.05) 46%, alpha(black, 0.45) 66%, alpha(black, 0.9) 100%);
+}
+
+.game-overlay-top {
+    padding: 40px 56px 0 56px;
+}
+
+.game-overlay-app {
+    font-size: 30px;
+    font-weight: 800;
+    color: white;
+}
+
+.game-overlay-sub {
+    font-size: 16px;
+    font-weight: 500;
+    color: alpha(white, 0.7);
+}
+
+.game-overlay-clock {
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: white;
+    font-feature-settings: "tnum";
+}
+
+.game-overlay-notes {
+    margin-top: 6px;
+}
+
+.game-overlay-note {
+    min-width: 340px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    background-color: alpha(black, 0.55);
+    border: 1px solid alpha(white, 0.1);
+}
+
+.game-overlay-note-title {
+    font-weight: 700;
+    color: white;
+}
+
+.game-overlay-note-body {
+    color: alpha(white, 0.7);
+}
+
+.game-overlay-bottom {
+    padding: 0 56px 40px 56px;
+}
+
+.game-overlay-tile {
+    min-width: 172px;
+    min-height: 120px;
+    padding: 18px 20px;
+    border-radius: 24px;
+    background-color: alpha(black, 0.5);
+    background-image: none;
+    border: 1px solid alpha(white, 0.12);
+    color: white;
+    box-shadow: none;
+    transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.game-overlay-tile:hover {
+    background-color: alpha(white, 0.12);
+}
+
+.game-overlay-tile:focus-visible,
+.game-overlay-tile:focus {
+    outline: none;
+    border-color: @accent_color;
+    box-shadow: 0 0 0 3px alpha(@accent_color, 0.55), 0 12px 40px alpha(@accent_color, 0.35);
+    transform: scale(1.06);
+}
+
+.game-overlay-tile.on {
+    background-color: alpha(@accent_color, 0.85);
+    border-color: alpha(white, 0.25);
+}
+
+.game-overlay-tile:disabled {
+    opacity: 0.45;
+}
+
+.game-overlay-tile-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: white;
+}
+
+.game-overlay-tile-sub {
+    font-size: 14px;
+    color: alpha(white, 0.75);
+}
+
+.game-overlay-sliders {
+    padding: 14px 24px;
+    border-radius: 999px;
+    background-color: alpha(black, 0.5);
+    border: 1px solid alpha(white, 0.12);
+    color: white;
+}
+
+.game-overlay-slider image {
+    color: white;
+}
+
+.game-overlay-hint {
+    font-size: 14px;
+    color: alpha(white, 0.55);
 }

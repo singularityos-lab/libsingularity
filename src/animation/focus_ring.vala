@@ -15,6 +15,7 @@ namespace Singularity.Animation {
         public const float WIDTH = 2.0f;
         public const float GAP = 2.0f;
         public const string RINGED_CLASS = "singularity-focus-ringed";
+        public const string TARGET_KEY = "singularity-focus-ring-target";
 
         private unowned Gtk.Window? _window = null;
         private Gtk.Widget? _target = null;
@@ -67,6 +68,8 @@ namespace Singularity.Animation {
         }
 
         public static Gtk.Widget ring_target(Gtk.Widget focus) {
+            var custom = focus.get_data<Gtk.Widget>(TARGET_KEY);
+            if (custom != null && custom.get_mapped()) return custom;
             var parent = focus.get_parent();
             if (focus is Gtk.Text && parent != null
                     && (parent is Gtk.Entry || parent is Gtk.SearchEntry || parent is Gtk.PasswordEntry
@@ -198,7 +201,7 @@ namespace Singularity.Animation {
 
         private float radius_for(Graphene.Rect rect) {
             float half = float.min(rect.get_width(), rect.get_height()) / 2.0f;
-            if (_target != null && (_target.has_css_class("circular") || _target.has_css_class("pill")
+            if (_target != null && (_target.has_css_class("circular") || _target.has_css_class("pill") || _target.has_css_class("round")
                     || _target is Gtk.Switch)) {
                 return half + GAP;
             }
