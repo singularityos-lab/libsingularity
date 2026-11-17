@@ -552,7 +552,9 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
 .panel-window .panel popover,
 .panel-window .panel popover *,
 .panel-window.flat-panel .panel popover,
-.panel-window.flat-panel .panel popover * {
+.panel-window.flat-panel .panel popover *,
+.panel-window.light-bg:not(.flat-panel) .panel popover,
+.panel-window.light-bg:not(.flat-panel) .panel popover * {
     color: @text_color;
 }
 

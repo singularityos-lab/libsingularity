@@ -48,6 +48,7 @@ namespace Singularity.Shell {
          */
         public void update_model(MenuModel? model) {
             open_index = -1;
+            prefetch.clear();
             var child = get_first_child();
             while (child != null) {
                 var next = child.get_next_sibling();
@@ -56,6 +57,7 @@ namespace Singularity.Shell {
             }
 
             if (model == null) return;
+            prefetch_model(model, 0);
 
             int n = model.get_n_items();
             for (int i = 0; i < n; i++) {
@@ -69,6 +71,26 @@ namespace Singularity.Shell {
                 var btn = make_top_button(label, submenu, captured_idx);
                 append(btn);
             }
+        }
+
+        private MenuWatch prefetch = new MenuWatch();
+
+        private void prefetch_model(MenuModel model, int depth) {
+            if (depth > 3) return;
+            foreach (var m in prefetch.models) if (m == model) return;
+            prefetch.models += model;
+            prefetch.ids += model.items_changed.connect((pos, removed, added) => {
+                for (int i = pos; i < pos + added; i++) prefetch_links(model, i, depth);
+            });
+            int n = model.get_n_items();
+            for (int i = 0; i < n; i++) prefetch_links(model, i, depth);
+        }
+
+        private void prefetch_links(MenuModel model, int i, int depth) {
+            var section = model.get_item_link(i, Menu.LINK_SECTION);
+            if (section != null) prefetch_model(section, depth + 1);
+            var submenu = model.get_item_link(i, Menu.LINK_SUBMENU);
+            if (submenu != null) prefetch_model(submenu, depth + 1);
         }
 
         private Button make_top_button(string label, MenuModel? submenu, int index) {
@@ -111,7 +133,7 @@ namespace Singularity.Shell {
                 popover.disconnect(handler_id);
                 popover.unparent();
             });
-            popup_when_ready(popover, submenu);
+            popover.popup();
         }
 
         private void close_active() {
@@ -136,7 +158,6 @@ namespace Singularity.Shell {
         private class MenuWatch {
             public MenuModel[] models = {};
             public ulong[] ids = {};
-            public bool pending;
 
             public void clear() {
                 for (int i = 0; i < models.length; i++) models[i].disconnect(ids[i]);
@@ -175,27 +196,6 @@ namespace Singularity.Shell {
                         return GLib.Source.REMOVE;
                     });
                 });
-            });
-            if (watch.pending && box.get_first_child() != null && popover.get_parent() != null) {
-                watch.pending = false;
-                popover.popup();
-            }
-        }
-
-        private void popup_when_ready(Popover popover, MenuModel model) {
-            var box = popover.get_child() as Box;
-            var watch = popover.get_data<MenuWatch>("menu-watch");
-            if (box == null || watch == null || box.get_first_child() != null) {
-                popover.popup();
-                return;
-            }
-            watch.pending = true;
-            GLib.Timeout.add(400, () => {
-                if (watch.pending && popover.get_parent() != null) {
-                    watch.pending = false;
-                    popover.popup();
-                }
-                return GLib.Source.REMOVE;
             });
         }
 
@@ -334,7 +334,7 @@ namespace Singularity.Shell {
                         sub.unparent();
                         sub = null;
                     });
-                    popup_when_ready(sub, submenu);
+                    sub.popup();
                     return GLib.Source.REMOVE;
                 });
             });
