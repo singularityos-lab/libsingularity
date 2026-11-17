@@ -6,19 +6,25 @@ namespace Singularity.Widgets {
         private Stack _stack;
         private Image _icon;
         private Picture _picture;
+        private ProgressBar? _progress = null;
+        private Overlay _overlay;
 
-        public MediaArt(int size, string icon_name, bool round = false) {
+        public MediaArt(int size, string icon_name, bool round = false, int height = -1) {
             Object(orientation: Orientation.VERTICAL, spacing: 0);
             add_css_class("media-art");
             if (round) add_css_class("round");
             overflow = Overflow.HIDDEN;
-            set_size_request(size, size);
+            int h = height > 0 ? height : size;
+            set_size_request(size, h);
             halign = Align.START;
             valign = Align.START;
+            _overlay = new Overlay();
+            _overlay.vexpand = true;
+            append(_overlay);
             _stack = new Stack();
-            append(_stack);
+            _overlay.child = _stack;
             _icon = new Image.from_icon_name(icon_name);
-            _icon.pixel_size = int.max(32, size / 2);
+            _icon.pixel_size = int.max(32, int.min(size, h) / 2);
             _stack.add_named(_icon, "icon");
             _picture = new Picture();
             _picture.content_fit = ContentFit.COVER;
@@ -34,6 +40,28 @@ namespace Singularity.Widgets {
                 _stack.visible_child_name = value != null ? "art" : "icon";
             }
         }
+
+        public double progress {
+            get { return _progress != null && _progress.visible ? _progress.fraction : -1; }
+            set {
+                if (value < 0) {
+                    if (_progress != null) _progress.visible = false;
+                    return;
+                }
+                if (_progress == null) {
+                    _progress = new ProgressBar();
+                    _progress.add_css_class("media-art-progress");
+                    _progress.valign = Align.END;
+                    _progress.margin_start = 10;
+                    _progress.margin_end = 10;
+                    _progress.margin_bottom = 8;
+                    _progress.can_target = false;
+                    _overlay.add_overlay(_progress);
+                }
+                _progress.fraction = value.clamp(0, 1);
+                _progress.visible = true;
+            }
+        }
     }
 
     public class MediaShelf : Box {
@@ -45,6 +73,8 @@ namespace Singularity.Widgets {
         private uint _count = 0;
         private int _tile_size;
         private bool _round;
+
+        public int tile_height { get; set; default = -1; }
 
         public MediaShelf(string title, int tile_size = 148, bool round = false) {
             Object(orientation: Orientation.VERTICAL, spacing: 8);
@@ -86,10 +116,11 @@ namespace Singularity.Widgets {
             var button = new Button();
             button.add_css_class("media-shelf-tile");
             button.add_css_class("flat");
+            button.hexpand = false;
             button.tooltip_text = subtitle != null && subtitle != "" ? "%s\n%s".printf(title, subtitle) : title;
             var box = new Box(Orientation.VERTICAL, 4);
             box.width_request = _tile_size;
-            var art = new MediaArt(_tile_size, icon_name, _round);
+            var art = new MediaArt(_tile_size, icon_name, _round, tile_height);
             box.append(art);
             var name = new Label(title);
             name.xalign = _round ? 0.5f : 0;
@@ -134,10 +165,10 @@ namespace Singularity.Widgets {
         private Button _primary;
         private Button _secondary;
 
-        public MediaHero(string icon_name, int art_size = 168) {
+        public MediaHero(string icon_name, int art_size = 168, int art_height = -1) {
             Object(orientation: Orientation.HORIZONTAL, spacing: 28);
             add_css_class("media-hero");
-            _art = new MediaArt(art_size, icon_name);
+            _art = new MediaArt(art_size, icon_name, false, art_height);
             _art.valign = Align.CENTER;
             append(_art);
             var text = new Box(Orientation.VERTICAL, 6);

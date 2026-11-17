@@ -7661,6 +7661,23 @@ window.ff-tv.singularity-focus-ring-motion button.suggested-action.singularity-f
     color: alpha(@text_color, 0.45);
 }
 
+.media-art-progress trough {
+    min-height: 4px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 999px;
+    background-color: alpha(black, 0.45);
+}
+
+.media-art-progress progress {
+    min-height: 4px;
+    min-width: 4px;
+    margin: 0;
+    border-radius: 999px;
+    background-color: @accent_color;
+}
+
 .media-shelf-title {
     font-weight: 700;
     font-size: 1.15em;
