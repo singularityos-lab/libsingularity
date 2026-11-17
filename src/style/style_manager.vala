@@ -381,8 +381,8 @@ namespace Singularity.Style {
             string base_bg = _mix_hex(current_dark_mode ? "#242424" : "#f6f5f4", accent_hex, tint);
             uint8 red, green, blue;
             _parse_hex(base_bg, out red, out green, out blue);
-            string panel_glass = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, tint * 1.25, 0.14);
-            string panel_blur = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, tint * 1.25, 0.26);
+            string panel_glass = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, 0.0, 0.14);
+            string panel_blur = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, 0.0, 0.26);
             string background = "rgba(%u, %u, %u, %d.%02d)".printf(
                 red, green, blue, opacity / 100, opacity % 100);
             int liquid_opacity = int.min(opacity, 65);
