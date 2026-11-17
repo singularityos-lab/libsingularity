@@ -1346,7 +1346,7 @@ popover.dock-window-previews > contents {
 .window-preview-label {
     font-weight: 600;
     font-size: 13px;
-    color: white;
+    color: @text_color;
 }
 
 .window-preview-icon {
