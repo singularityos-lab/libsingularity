@@ -4733,6 +4733,11 @@ window.ff-tv .singularity-view-edge {
     border-top: none;
 }
 
+window.ff-tv label > selection {
+    background: none;
+    color: inherit;
+}
+
 .file-view {
     padding-top: 0px;
 }

@@ -84,6 +84,7 @@ namespace Singularity.Widgets {
         private EventControllerKey? _keys = null;
         private bool _user_moved = false;
         private Widget? _ok_target = null;
+        private GenericArray<Widget> _origins = new GenericArray<Widget>();
         private bool _ok_long = false;
         private uint _ok_source = 0;
         private TvTextKeys _text_keys = new TvTextKeys();
@@ -492,7 +493,7 @@ namespace Singularity.Widgets {
 
         private bool is_candidate(Widget w) {
             if (!w.get_mapped() || !w.focusable || !w.can_focus || !w.is_sensitive()) return false;
-            if (w is Window) return false;
+            if (w is Window || w is Label) return false;
             Graphene.Rect r;
             if (!w.compute_bounds(_win, out r)) return false;
             return r.size.width > 1 && r.size.height > 1;
@@ -579,6 +580,10 @@ namespace Singularity.Widgets {
             }
             if (target == null || _ok_long || !target.get_mapped()) return;
             bool content = !in_head(target) && !in_chrome(target);
+            if (content) {
+                _origins.add(target);
+                if (_origins.length > 16) _origins.remove_index(0);
+            }
             target.activate();
             if (content) {
                 Timeout.add(300, () => {
@@ -660,7 +665,7 @@ namespace Singularity.Widgets {
             if (back != null) {
                 back.clicked();
                 Idle.add(() => {
-                    focus_start();
+                    if (!return_to_origin()) focus_start();
                     return Source.REMOVE;
                 });
                 return true;
@@ -681,6 +686,18 @@ namespace Singularity.Widgets {
             }
             _win.minimize();
             return true;
+        }
+
+        private bool return_to_origin() {
+            while (_origins.length > 0) {
+                var w = _origins[_origins.length - 1];
+                _origins.remove_index(_origins.length - 1);
+                if (is_candidate(w) && !in_head(w) && !in_chrome(w)) {
+                    w.grab_focus();
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void show_pointer() {
