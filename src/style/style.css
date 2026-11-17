@@ -5963,6 +5963,44 @@ button.disk-card.selected {
     background-color: alpha(@accent_color, 0.35);
 }
 
+.osk.remote {
+    padding: 16px 20px 22px;
+    border-radius: 24px 24px 0 0;
+}
+
+.osk.remote button.osk-key {
+    border-radius: 14px;
+    font-size: 1.6em;
+    font-weight: 600;
+}
+
+.osk.remote button.osk-key-special {
+    font-size: 1.2em;
+}
+
+.osk.remote button.osk-key.remote-focus {
+    outline: 3px solid @accent_color;
+    outline-offset: -3px;
+    background-color: alpha(@accent_color, 0.22);
+}
+
+.osk-preview {
+    min-height: 64px;
+    margin-bottom: 8px;
+    padding: 0 20px;
+    border-radius: 14px;
+    background-color: alpha(mix(@text_color, @accent_color, 0.3), 0.08);
+    color: @text_color;
+    font-size: 1.6em;
+}
+
+.osk-caret {
+    min-width: 3px;
+    min-height: 30px;
+    border-radius: 2px;
+    background-color: @accent_color;
+}
+
 popover.osk-accents > contents {
     padding: 6px;
     border-radius: 14px;
@@ -7583,42 +7621,6 @@ window.ff-tv.singularity-focus-ring-motion button.suggested-action.singularity-f
 
 window.ff-tv .singularity-hover-on-content {
     opacity: 1;
-}
-
-popover.tv-keyboard > contents {
-    padding: 20px;
-    border-radius: 24px;
-}
-
-popover.tv-keyboard button.tv-key {
-    min-width: 64px;
-    min-height: 64px;
-    padding: 0;
-    border-radius: 14px;
-    font-size: 24px;
-    font-weight: 600;
-}
-
-popover.tv-keyboard button.tv-key-wide {
-    min-width: 132px;
-    font-size: 18px;
-}
-
-popover.tv-keyboard button.tv-key-space {
-    min-width: 336px;
-    font-size: 18px;
-}
-
-popover.tv-keyboard button.tv-key:focus:focus-visible {
-    outline: 3px solid @accent_color;
-    outline-offset: -3px;
-    background-color: alpha(@accent_color, 0.16);
-}
-
-popover.tv-keyboard button.tv-key.suggested-action:focus:focus-visible {
-    outline: 3px solid alpha(@accent_fg, 0.9);
-    outline-offset: -5px;
-    background-color: mix(@accent_color, black, 0.12);
 }
 
 window.ff-tv .tv-pointer {

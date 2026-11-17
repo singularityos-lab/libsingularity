@@ -2,11 +2,43 @@ using Gtk;
 
 namespace Singularity.Widgets {
 
+    [DBus (name = "dev.sinty.ScreenKeyboard")]
+    internal interface ScreenKeyboardBus : Object {
+        public signal void closed(bool accepted);
+        public abstract void open(string text, int cursor) throws GLib.Error;
+        public abstract void set_text(string text, int cursor) throws GLib.Error;
+        public abstract void navigate(string direction) throws GLib.Error;
+        public abstract void activate() throws GLib.Error;
+        public abstract void close() throws GLib.Error;
+    }
+
     internal class TvTextKeys : Object {
+        private static ScreenKeyboardBus? _bus = null;
+
         private unowned Widget? _typed_on = null;
         private bool _typed = false;
+        private Gtk.Window? _win = null;
+        private Widget? _focus = null;
+        private Editable? _editable = null;
+        private ulong _closed_handler = 0;
+        private ulong _changed_handler = 0;
+        private ulong _cursor_handler = 0;
+        private ulong _focus_handler = 0;
+
+        private static ScreenKeyboardBus? bus() {
+            if (_bus != null) return _bus;
+            try {
+                _bus = Bus.get_proxy_sync<ScreenKeyboardBus>(BusType.SESSION, "dev.sinty.ScreenKeyboard",
+                    "/dev/sinty/ScreenKeyboard", DBusProxyFlags.DO_NOT_AUTO_START | DBusProxyFlags.DO_NOT_LOAD_PROPERTIES);
+                ((DBusProxy) _bus).set_default_timeout(1000);
+            } catch (GLib.Error e) {
+                return null;
+            }
+            return _bus;
+        }
 
         public bool key(Gtk.Window win, uint keyval) {
+            if (_editable != null) return remote_key(keyval);
             var focus = win.get_focus();
             Editable? editable = focus as Editable;
             if (editable == null && focus != null) editable = focus.get_ancestor(typeof(Editable)) as Editable;
@@ -18,125 +50,104 @@ namespace Singularity.Widgets {
             if (Gdk.keyval_to_unicode(keyval) > 31) _typed = true;
             if (keyval != Gdk.Key.Return && keyval != Gdk.Key.KP_Enter) return false;
             if (_typed) return false;
-            TvKeyboard.open(focus, editable);
+            return open(win, focus, editable);
+        }
+
+        private bool remote_key(uint keyval) {
+            var keyboard = bus();
+            if (keyboard == null) {
+                release();
+                return false;
+            }
+            try {
+                switch (keyval) {
+                    case Gdk.Key.Up:
+                        keyboard.navigate("up");
+                        return true;
+                    case Gdk.Key.Down:
+                        keyboard.navigate("down");
+                        return true;
+                    case Gdk.Key.Left:
+                        keyboard.navigate("left");
+                        return true;
+                    case Gdk.Key.Right:
+                        keyboard.navigate("right");
+                        return true;
+                    case Gdk.Key.Return:
+                    case Gdk.Key.KP_Enter:
+                        keyboard.activate();
+                        return true;
+                    case Gdk.Key.Escape:
+                    case Gdk.Key.Back:
+                        keyboard.close();
+                        return true;
+                    default:
+                        return false;
+                }
+            } catch (GLib.Error e) {
+                release();
+                return false;
+            }
+        }
+
+        private bool open(Gtk.Window win, Widget focus, Editable editable) {
+            var keyboard = bus();
+            if (keyboard == null) return false;
+            try {
+                keyboard.open(editable.get_text(), editable.get_position());
+            } catch (GLib.Error e) {
+                return false;
+            }
+            _win = win;
+            _focus = focus;
+            _editable = editable;
+            _closed_handler = keyboard.closed.connect(on_closed);
+            _changed_handler = editable.changed.connect(send_text);
+            _cursor_handler = editable.notify["cursor-position"].connect(send_text);
+            _focus_handler = win.notify["focus-widget"].connect(() => {
+                if (_win != null && _win.get_focus() != _focus) {
+                    try {
+                        bus().close();
+                    } catch (GLib.Error e) {
+                        release();
+                    }
+                }
+            });
             return true;
         }
-    }
 
-    internal class TvKeyboard : Popover {
-        private const string[] ROWS = { "1234567890", "qwertyuiop", "asdfghjkl@", "zxcvbnm.-_" };
-
-        private unowned Editable _target;
-        private bool _upper = false;
-        private GenericArray<Button> _letters = new GenericArray<Button>();
-        private Button? _first = null;
-
-        public signal void done();
-
-        public TvKeyboard(Widget anchor, Editable target) {
-            _target = target;
-            has_arrow = false;
-            autohide = true;
-            position = PositionType.BOTTOM;
-            add_css_class("tv-keyboard");
-            set_parent(anchor);
-
-            var rows = new Box(Orientation.VERTICAL, 8);
-            rows.add_css_class("tv-keyboard-rows");
-            foreach (string row in ROWS) {
-                var line = new Box(Orientation.HORIZONTAL, 8);
-                line.halign = Align.CENTER;
-                for (int i = 0; i < row.length; i++) {
-                    string ch = row.substring(i, 1);
-                    var key = make_key(ch);
-                    key.clicked.connect(() => type(_upper ? ch.up() : ch));
-                    if (ch.get_char().isalpha()) _letters.add(key);
-                    if (_first == null && ch == "q") _first = key;
-                    line.append(key);
-                }
-                rows.append(line);
+        private void send_text() {
+            if (_editable == null || _bus == null) return;
+            try {
+                _bus.set_text(_editable.get_text(), _editable.get_position());
+            } catch (GLib.Error e) {
+                release();
             }
-
-            var last = new Box(Orientation.HORIZONTAL, 8);
-            last.halign = Align.CENTER;
-            var shift = make_key(_("Shift"));
-            shift.add_css_class("tv-key-wide");
-            shift.clicked.connect(() => toggle_shift());
-            var space = make_key(_("Space"));
-            space.add_css_class("tv-key-space");
-            space.clicked.connect(() => type(" "));
-            var erase = new Button.from_icon_name("edit-clear-symbolic");
-            erase.add_css_class("tv-key");
-            erase.add_css_class("tv-key-wide");
-            erase.tooltip_text = _("Delete");
-            erase.update_property(Gtk.AccessibleProperty.LABEL, _("Delete"), -1);
-            erase.clicked.connect(() => erase_one());
-            var ok = make_key(_("Done"));
-            ok.add_css_class("tv-key-wide");
-            ok.add_css_class("suggested-action");
-            ok.clicked.connect(() => {
-                popdown();
-                done();
-            });
-            last.append(shift);
-            last.append(space);
-            last.append(erase);
-            last.append(ok);
-            rows.append(last);
-            child = rows;
-
-            map.connect(() => {
-                if (_first != null) _first.grab_focus();
-            });
-            closed.connect(() => {
-                Idle.add(() => {
-                    unparent();
-                    return Source.REMOVE;
-                });
-            });
         }
 
-        public static void open(Widget focus, Editable editable) {
-            Widget anchor = focus.get_ancestor(typeof(Entry)) ?? focus.get_ancestor(typeof(SearchEntry)) ?? focus;
-            var keyboard = new TvKeyboard(anchor, editable);
-            keyboard.done.connect(() => anchor.activate());
-            keyboard.closed.connect(() => {
-                focus.grab_focus();
-                Idle.add(() => {
-                    editable.set_position(-1);
-                    return Source.REMOVE;
-                });
-            });
-            keyboard.popup();
-        }
-
-        private static Button make_key(string text) {
-            var key = new Button.with_label(text);
-            key.add_css_class("tv-key");
-            key.can_shrink = false;
-            return key;
-        }
-
-        private void type(string text) {
-            int pos = _target.get_position();
-            _target.insert_text(text, -1, ref pos);
-            _target.set_position(pos);
-            if (_upper && text.get_char().isalpha()) toggle_shift();
-        }
-
-        private void erase_one() {
-            int pos = _target.get_position();
-            if (pos <= 0) return;
-            _target.delete_text(pos - 1, pos);
-            _target.set_position(pos - 1);
-        }
-
-        private void toggle_shift() {
-            _upper = !_upper;
-            foreach (var key in _letters) {
-                string label = key.label;
-                key.label = _upper ? label.up() : label.down();
+        private void on_closed(bool accepted) {
+            Widget? focus = _focus;
+            release();
+            if (accepted && focus != null) {
+                Widget target = focus.get_ancestor(typeof(Entry)) ?? focus.get_ancestor(typeof(SearchEntry)) ?? focus;
+                target.activate();
             }
+        }
+
+        private void release() {
+            if (_bus != null && _closed_handler != 0) _bus.disconnect(_closed_handler);
+            if (_editable != null) {
+                _editable.disconnect(_changed_handler);
+                _editable.disconnect(_cursor_handler);
+            }
+            if (_win != null) _win.disconnect(_focus_handler);
+            _closed_handler = 0;
+            _changed_handler = 0;
+            _cursor_handler = 0;
+            _focus_handler = 0;
+            _win = null;
+            _focus = null;
+            _editable = null;
         }
     }
 }
