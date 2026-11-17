@@ -91,7 +91,9 @@ namespace Singularity.Animation {
             }
             var target = ring_target(focus);
             Graphene.Rect bounds;
-            if (!measure_target(target, out bounds)) {
+            double area = (double) get_width() * get_height();
+            if (!measure_target(target, out bounds)
+                    || (area > 0 && bounds.size.width * bounds.size.height > area * 0.5)) {
                 set_target(null);
                 hide_ring();
                 return;
