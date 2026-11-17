@@ -1167,11 +1167,14 @@ namespace Singularity.Widgets {
             _sync_sidebar_toggle();
         }
 
+        public bool sidebar_toggle_shown { get; private set; default = false; }
+
         private void _sync_sidebar_toggle() {
             if (_bubble_bar == null) return;
             bool show = _has_sidebar() && _welcome_pages == 0
                 && !_bubble_bar.has_own_sidebar_toggle()
                 && (_narrow ? (_sidebar_wanted || _sidebar_user_hidden) : _sidebar_user_hidden);
+            if (sidebar_toggle_shown != show) sidebar_toggle_shown = show;
             if (!show && _auto_sidebar_toggle == null) return;
             if (_auto_sidebar_toggle == null) {
                 _auto_sidebar_toggle = new Button.from_icon_name("sidebar-show-symbolic");
