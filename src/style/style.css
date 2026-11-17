@@ -6715,11 +6715,11 @@ window.stage-strip-window, window.stage-strip-window > scrolledwindow { backgrou
 }
 .context-ribbon button.context-ribbon-item:checked {
     background-color: alpha(@accent_color, 0.18);
-    color: @accent_color;
+    color: mix(@accent_color, @text_color, 0.7);
 }
 .context-ribbon button.context-ribbon-item:checked image,
 .context-ribbon button.context-ribbon-item:checked label {
-    color: @accent_color;
+    color: mix(@accent_color, @text_color, 0.7);
 }
 .context-ribbon button.context-ribbon-selector label {
     font-feature-settings: "tnum";
