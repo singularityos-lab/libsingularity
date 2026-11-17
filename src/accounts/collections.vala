@@ -522,7 +522,10 @@ namespace Singularity.Accounts {
                 if (existing != null) drop(account.id);
                 return;
             }
-            if (existing != null) return;
+            if (existing != null) {
+                if (account.healthy && (existing.collections.size == 0 || existing.last_error != "")) existing.refresh.begin();
+                return;
+            }
             var cs = new CollectionSet(account, kind);
             cs.collections_changed.connect(() => collections_changed(cs));
             cs.changed.connect((c) => changed(cs, c));
