@@ -4729,6 +4729,10 @@ button.flat.singularity-hover-btn.suggested-action:active {
     border-top: 1px solid alpha(@text_color, 0.08);
 }
 
+window.ff-tv .singularity-view-edge {
+    border-top: none;
+}
+
 .file-view {
     padding-top: 0px;
 }

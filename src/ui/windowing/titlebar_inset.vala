@@ -83,9 +83,20 @@ namespace Singularity.Widgets {
         widget.set_data<bool> ("singularity-view-edge-installed", true);
 
         widget.realize.connect (() => {
-            var root = widget.get_root () as Singularity.Widgets.Window;
-            if (root == null) return;
-            widget.margin_top = (root.force_ssd || root.legacy_titlebar) ? 0 : VIEW_EDGE_INSET_HEIGHT;
+            sync_view_edge (widget);
         });
+        FormFactor.get_default ().changed.connect ((previous) => {
+            Idle.add (() => {
+                sync_view_edge (widget);
+                return Source.REMOVE;
+            });
+        });
+    }
+
+    private void sync_view_edge (Widget widget) {
+        var root = widget.get_root () as Singularity.Widgets.Window;
+        if (root == null) return;
+        bool tv = root.form_factor == FormFactorKind.TV && !root.form_factor_compat;
+        widget.margin_top = (root.force_ssd || root.legacy_titlebar || tv) ? 0 : VIEW_EDGE_INSET_HEIGHT;
     }
 }
