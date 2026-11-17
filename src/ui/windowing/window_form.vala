@@ -532,6 +532,13 @@ namespace Singularity.Widgets {
             bool at_end = editing && editable.get_position() >= editable.get_text().char_count();
             if (editing && _text_keys.key(_win, keyval)) return true;
             bool custom = focus != null && !editing && !is_target(focus) && !in_head(focus) && !in_chrome(focus) && is_candidate(focus);
+            bool arrow = keyval == Gdk.Key.Up || keyval == Gdk.Key.Down || keyval == Gdk.Key.Left || keyval == Gdk.Key.Right;
+            if (custom && arrow && focus is ScrolledWindow) {
+                int sdx = keyval == Gdk.Key.Left ? -1 : (keyval == Gdk.Key.Right ? 1 : 0);
+                int sdy = keyval == Gdk.Key.Up ? -1 : (keyval == Gdk.Key.Down ? 1 : 0);
+                scroll_content(focus, sdx, sdy);
+                return true;
+            }
             if (custom && (keyval == Gdk.Key.Up || keyval == Gdk.Key.Down || keyval == Gdk.Key.Left || keyval == Gdk.Key.Right)) return false;
             switch (keyval) {
                 case Gdk.Key.Up:
@@ -599,6 +606,8 @@ namespace Singularity.Widgets {
             collect_focusable(_win, ref all);
             if (focus == null || !is_candidate(focus)) {
                 focus_start();
+                var now = _win.get_focus();
+                if (now == null || !is_candidate(now)) scroll_content(null, dx, dy);
                 return true;
             }
             Graphene.Rect a;
@@ -608,9 +617,28 @@ namespace Singularity.Widgets {
             Widget? best = null;
             float best_score = float.MAX;
             bool from_head = in_head(focus);
+            Widget? scroller = null;
+            bool stay = false;
+            var sc = from_head ? null : focus.get_ancestor(typeof(ScrolledWindow));
+            while (sc != null && !stay) {
+                foreach (var w in all) {
+                    if (w == focus || !w.is_ancestor(sc) || focus.is_ancestor(w) || w.is_ancestor(focus)) continue;
+                    Graphene.Rect c;
+                    w.compute_bounds(_win, out c);
+                    float d = dy != 0 ? (c.origin.y + c.size.height / 2 - acy) * dy : (c.origin.x + c.size.width / 2 - acx) * dx;
+                    if (d > 1) {
+                        stay = true;
+                        scroller = sc;
+                        break;
+                    }
+                }
+                var up = sc.get_parent();
+                sc = up != null ? up.get_ancestor(typeof(ScrolledWindow)) : null;
+            }
             foreach (var w in all) {
                 if (w == focus || focus.is_ancestor(w) || w.is_ancestor(focus)) continue;
                 if (from_head && dy > 0 && in_chrome(w)) continue;
+                if (stay && !w.is_ancestor(scroller)) continue;
                 Graphene.Rect b;
                 w.compute_bounds(_win, out b);
                 float bcx = b.origin.x + b.size.width / 2;
@@ -637,7 +665,35 @@ namespace Singularity.Widgets {
                 }
             }
             if (best != null) best.grab_focus();
+            else if (!from_head) scroll_content(focus, dx, dy);
             return true;
+        }
+
+        private void scroll_content(Widget? from, int dx, int dy) {
+            ScrolledWindow? sw = from != null ? from.get_ancestor(typeof(ScrolledWindow)) as ScrolledWindow : null;
+            if (sw == null || in_head(sw) || in_chrome(sw)) sw = largest_scroll(_win, null);
+            if (sw == null) return;
+            var adj = dy != 0 ? sw.vadjustment : sw.hadjustment;
+            int dir = dy != 0 ? dy : dx;
+            if (adj == null || adj.upper - adj.page_size <= adj.lower) return;
+            double step = double.max(80, adj.page_size * 0.25);
+            double target = (adj.value + step * dir).clamp(adj.lower, adj.upper - adj.page_size);
+            Singularity.Motion.tween(adj, "value", target,
+                Singularity.Motion.Duration.SMALL, Singularity.Motion.Curve.STANDARD, sw);
+        }
+
+        private ScrolledWindow? largest_scroll(Widget root, ScrolledWindow? seed) {
+            ScrolledWindow? best = seed;
+            for (var c = root.get_first_child(); c != null; c = c.get_next_sibling()) {
+                if (!c.get_mapped() || in_head(c) || in_chrome(c)) continue;
+                var sw = c as ScrolledWindow;
+                if (sw != null && (best == null
+                        || sw.get_width() * sw.get_height() > best.get_width() * best.get_height())) {
+                    best = sw;
+                }
+                best = largest_scroll(c, best);
+            }
+            return best;
         }
 
         private static bool in_controls(Widget w) {

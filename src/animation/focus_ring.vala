@@ -63,6 +63,7 @@ namespace Singularity.Animation {
             overlay.set_measure_overlay(ring, false);
             window.notify["focus-widget"].connect(ring.refresh);
             window.notify["focus-visible"].connect(ring.refresh);
+            window.notify["is-active"].connect(ring.refresh);
             window.add_css_class("singularity-focus-ring-motion");
             return ring;
         }
@@ -82,7 +83,7 @@ namespace Singularity.Animation {
         public void refresh() {
             var window = _window;
             var focus = window != null ? window.get_focus() : null;
-            bool want = window != null && window.focus_visible && focus != null
+            bool want = window != null && window.is_active && window.focus_visible && focus != null
                 && focus.get_mapped() && focus.get_native() == get_native();
             if (!want) {
                 set_target(null);
