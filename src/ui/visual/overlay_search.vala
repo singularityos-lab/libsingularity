@@ -148,7 +148,8 @@ namespace Singularity.Widgets {
             _scroll.hscrollbar_policy = PolicyType.NEVER;
             _scroll.vscrollbar_policy = PolicyType.AUTOMATIC;
             _scroll.set_child(_list);
-            _scroll.height_request = 320;
+            _scroll.propagate_natural_height = true;
+            _scroll.max_content_height = 320;
 
             _empty_lbl = new Label(_empty_text);
             _empty_lbl.add_css_class("dim-label");
@@ -158,6 +159,8 @@ namespace Singularity.Widgets {
             _stack = new Stack();
             _stack.transition_type     = StackTransitionType.CROSSFADE;
             _stack.transition_duration = 100;
+            _stack.vhomogeneous = false;
+            _stack.interpolate_size = true;
             _stack.add_named(_scroll, "list");
             _stack.add_named(_empty_lbl, "empty");
 
