@@ -154,6 +154,8 @@ namespace Singularity.Widgets {
         private uint _moves = 0;
         private Box? _head = null;
         private Box? _tabs = null;
+        private Box? _actions = null;
+        private ulong _actions_id = 0;
         private EventControllerKey? _keys = null;
         private bool _user_moved = false;
         private Widget? _ok_target = null;
@@ -389,10 +391,15 @@ namespace Singularity.Widgets {
             }
             hide_pointer();
             hold_dark(false);
+            if (_actions_id != 0) {
+                _win.disconnect(_actions_id);
+                _actions_id = 0;
+            }
             if (_head != null) {
                 _head.unparent();
                 _head = null;
                 _tabs = null;
+                _actions = null;
                 _search_entry = null;
                 _search_tab = null;
             }
@@ -452,6 +459,13 @@ namespace Singularity.Widgets {
             _tabs = new Box(Orientation.HORIZONTAL, 8);
             _tabs.add_css_class("tv-app-tabs");
             _head.append(_tabs);
+            _actions = new Box(Orientation.HORIZONTAL, 8);
+            _actions.add_css_class("tv-app-actions");
+            _actions.hexpand = true;
+            _actions.halign = Align.END;
+            _head.append(_actions);
+            _actions_id = _win.action_bubbles_changed.connect(fill_actions);
+            fill_actions();
             var outer = _win.main_container.get_parent() as Box;
             if (outer != null) outer.insert_child_after(_head, _win.main_container.get_prev_sibling());
             fill_tabs();
@@ -515,9 +529,38 @@ namespace Singularity.Widgets {
                     if (_search_target != null) _search_target.text = _search_entry.text;
                 });
                 _search_entry.stop_search.connect(() => close_tv_search());
-                _head.append(_search_entry);
+                _head.insert_child_after(_search_entry, _tabs);
             }
             if (_search_entry != null && _search_target != null) _search_entry.placeholder_text = _search_target.placeholder;
+        }
+
+        private void fill_actions() {
+            if (_actions == null) return;
+            Widget? w;
+            while ((w = _actions.get_first_child()) != null) _actions.remove(w);
+            var sources = _win.action_bubbles;
+            for (int i = 0; i < sources.length; i++) {
+                var src = sources[i];
+                var b = new Button();
+                b.add_css_class("tv-app-tab");
+                if (src.has_css_class("suggested-action")) b.add_css_class("tv-app-action-suggested");
+                src.bind_property("use-underline", b, "use-underline", BindingFlags.SYNC_CREATE);
+                src.bind_property("label", b, "label", BindingFlags.SYNC_CREATE);
+                src.bind_property("visible", b, "visible", BindingFlags.SYNC_CREATE);
+                src.bind_property("sensitive", b, "sensitive", BindingFlags.SYNC_CREATE);
+                b.clicked.connect(() => src.clicked());
+                _actions.append(b);
+            }
+        }
+
+        private static Button? find_cancel(Widget root) {
+            for (var c = root.get_first_child(); c != null; c = c.get_next_sibling()) {
+                var b = c as Button;
+                if (b != null && Singularity.Focus.is_cancel(b) && b.visible && b.is_sensitive()) return b;
+                var deep = find_cancel(c);
+                if (deep != null) return deep;
+            }
+            return null;
         }
 
         private static SearchBubble? find_search(Widget root) {
@@ -880,6 +923,11 @@ namespace Singularity.Widgets {
                 prune_origins();
                 back.clicked();
                 restore_origin();
+                return true;
+            }
+            var cancel = find_cancel(_win);
+            if (cancel != null) {
+                cancel.clicked();
                 return true;
             }
             var focus = _win.get_focus();

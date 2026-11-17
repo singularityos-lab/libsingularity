@@ -7600,6 +7600,11 @@ window.ff-tv button.tv-app-tab.active {
     color: @text_color;
 }
 
+window.ff-tv button.tv-app-tab.tv-app-action-suggested {
+    background-color: alpha(@accent_color, 0.25);
+    color: @text_color;
+}
+
 window.ff-tv button.tv-app-tab:focus:focus-visible,
 window.ff-tv menubutton.tv-app-tab > button:focus:focus-visible,
 window.ff-tv.singularity-focus-ring-motion menubutton.tv-app-tab > button.singularity-focus-ringed:focus:focus-visible {

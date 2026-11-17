@@ -836,12 +836,22 @@ namespace Singularity.Widgets {
 
         /** Neutral pill text bubble. Use for plain actions (e.g. Cancel). */
         public Button add_bubble_text (string label, owned BubbleAction action) {
-            return _bubble_added<Button> (_ensure_bubble_bar ().add_text_button (label, (owned) action));
+            return _action_added (_ensure_bubble_bar ().add_text_button (label, (owned) action));
         }
 
         /** Accent suggested-action pill. Reserve for the primary CTA. */
         public Button add_bubble_suggested (string label, owned BubbleAction action) {
-            return _bubble_added<Button> (_ensure_bubble_bar ().add_suggested_button (label, (owned) action));
+            return _action_added (_ensure_bubble_bar ().add_suggested_button (label, (owned) action));
+        }
+
+        private GenericArray<Button> _action_bubbles = new GenericArray<Button> ();
+        internal GenericArray<Button> action_bubbles { get { return _action_bubbles; } }
+        internal signal void action_bubbles_changed ();
+
+        private Button _action_added (Button btn) {
+            _action_bubbles.add (btn);
+            action_bubbles_changed ();
+            return _bubble_added<Button> (btn);
         }
 
         /**

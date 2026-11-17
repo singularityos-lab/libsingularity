@@ -5,6 +5,7 @@ namespace Singularity {
     public class Focus : Object {
         private const string KEY = "singularity-focus-key";
         private const string PRIMARY = "singularity-focus-primary";
+        private const string CANCEL = "singularity-focus-cancel";
 
         public static void set_key(Widget widget, string? key) {
             widget.set_data<string?>(KEY, key);
@@ -20,6 +21,14 @@ namespace Singularity {
 
         public static bool is_primary(Widget widget) {
             return widget.get_data<bool>(PRIMARY) || widget.has_css_class("suggested-action");
+        }
+
+        public static void set_cancel(Widget widget, bool cancel = true) {
+            widget.set_data<bool>(CANCEL, cancel);
+        }
+
+        public static bool is_cancel(Widget widget) {
+            return widget.get_data<bool>(CANCEL);
         }
 
         public static void retarget(Widget widget, string key) {
