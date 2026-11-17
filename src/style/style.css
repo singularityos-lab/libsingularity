@@ -3804,6 +3804,20 @@ window.singularity.dialog {
     padding-left: 28px;
 }
 
+.singularity.run-dialog.dialog-overlay .dialog-content .run-ai-input,
+.run-ai-input textview,
+.run-ai-input textview text {
+    background-color: transparent;
+}
+
+.run-ai-text {
+    caret-color: @accent_color;
+}
+
+.run-ai-placeholder {
+    color: alpha(@text_color, 0.5);
+}
+
 .run-action-prefix {
     color: @accent_color;
     font-weight: 700;
