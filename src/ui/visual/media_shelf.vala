@@ -125,7 +125,7 @@ namespace Singularity.Widgets {
 
         public uint count { get { return _count; } }
 
-        public MediaArt append_tile(string icon_name, string title, string? subtitle) {
+        public MediaArt append_tile(string icon_name, string title, string? subtitle, string? key = null) {
             uint index = _count++;
             var button = new Button();
             button.add_css_class("media-shelf-tile");
@@ -157,6 +157,7 @@ namespace Singularity.Widgets {
             }
             button.set_child(box);
             button.set_data<Widget>(Singularity.Animation.FocusRing.TARGET_KEY, art);
+            if (key != null) Singularity.Focus.set_key(button, key);
             button.clicked.connect(() => item_activated(index));
             _row.append(button);
             return art;

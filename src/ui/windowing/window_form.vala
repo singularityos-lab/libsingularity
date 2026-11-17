@@ -61,6 +61,65 @@ namespace Singularity.Widgets {
         }
     }
 
+    internal class FocusOrigin {
+        public WeakRef widget;
+        public string? key;
+        public int[] path;
+
+        public FocusOrigin(Widget target, Widget root) {
+            widget = WeakRef(target);
+            key = Singularity.Focus.find_key(target);
+            path = path_of(target, root);
+        }
+
+        public static int[] path_of(Widget target, Widget root) {
+            int[] reversed = {};
+            for (Widget? w = target; w != null && w != root; w = w.get_parent()) {
+                var parent = w.get_parent();
+                if (parent == null) break;
+                int index = 0;
+                for (var c = parent.get_first_child(); c != null && c != w; c = c.get_next_sibling()) index++;
+                reversed += index;
+            }
+            int[] path = {};
+            for (int i = reversed.length - 1; i >= 0; i--) path += reversed[i];
+            return path;
+        }
+
+        public int shared_depth(Widget candidate, Widget root) {
+            var other = path_of(candidate, root);
+            int n = 0;
+            while (n < path.length && n < other.length && path[n] == other[n]) n++;
+            return n;
+        }
+
+        public Widget? best_keyed(Widget root, out bool sibling) {
+            sibling = false;
+            Widget? best = null;
+            int best_depth = -1;
+            foreach (var w in Singularity.Focus.find_keyed(root, key)) {
+                int depth = shared_depth(w, root);
+                if (depth > best_depth) {
+                    best_depth = depth;
+                    best = w;
+                }
+            }
+            if (best != null) sibling = best_depth >= path_of(best, root).length - 1 || best_depth >= path.length - 1;
+            return best;
+        }
+
+        public Widget? follow(Widget root) {
+            Widget? node = root;
+            foreach (int index in path) {
+                var c = node.get_first_child();
+                for (int i = 0; i < index && c != null; i++) c = c.get_next_sibling();
+                if (c == null) return node == root ? null : node;
+                node = c;
+            }
+            return node;
+        }
+    }
+
     internal class WindowForm : Object {
         public const string DESKTOP_KEY = "X-Sinty-FormFactors";
         private const int TV_LOGICAL_WIDTH = 960;
@@ -79,12 +138,16 @@ namespace Singularity.Widgets {
         private GenericArray<Gdk.Monitor> _entered = new GenericArray<Gdk.Monitor>();
         private Gdk.Monitor? _monitor = null;
         private bool _we_fullscreened = false;
+        private ulong _fullscreen_id = 0;
+        private uint _moves = 0;
         private Box? _head = null;
         private Box? _tabs = null;
         private EventControllerKey? _keys = null;
         private bool _user_moved = false;
         private Widget? _ok_target = null;
-        private GenericArray<Widget> _origins = new GenericArray<Widget>();
+        private GenericArray<FocusOrigin> _origins = new GenericArray<FocusOrigin>();
+        private uint _restore_source = 0;
+        private ulong _focus_id = 0;
         private bool _ok_long = false;
         private uint _ok_source = 0;
         private TvTextKeys _text_keys = new TvTextKeys();
@@ -128,8 +191,14 @@ namespace Singularity.Widgets {
             _rebuild_source = 0;
             if (_ok_source != 0) Source.remove(_ok_source);
             _ok_source = 0;
+            if (_restore_source != 0) Source.remove(_restore_source);
+            _restore_source = 0;
             if (_visible_id != 0) _win.disconnect(_visible_id);
             _visible_id = 0;
+            if (_focus_id != 0) _win.disconnect(_focus_id);
+            _focus_id = 0;
+            if (_fullscreen_id != 0) _win.disconnect(_fullscreen_id);
+            _fullscreen_id = 0;
         }
 
         private void track_surface() {
@@ -227,10 +296,19 @@ namespace Singularity.Widgets {
             bin.factor = f.clamp(1.0, 3.0);
         }
 
+        internal bool holds_fullscreen { get { return kind == FormFactorKind.TV; } }
+
         private void enter_tv() {
             if (!_win.fullscreened) {
                 _we_fullscreened = true;
                 _win.fullscreen();
+            }
+            if (_fullscreen_id == 0) {
+                _fullscreen_id = _win.notify["fullscreened"].connect(() => {
+                    if (_win.fullscreened || kind != FormFactorKind.TV) return;
+                    _we_fullscreened = true;
+                    _win.fullscreen();
+                });
             }
             apply_scale();
             hold_dark(true);
@@ -238,6 +316,15 @@ namespace Singularity.Widgets {
             if (_visible_id == 0) {
                 _visible_id = _win.notify["focus-visible"].connect(() => {
                     if (!_win.focus_visible && kind == FormFactorKind.TV && !compat) _win.focus_visible = true;
+                });
+            }
+            if (_focus_id == 0) {
+                _focus_id = _win.notify["focus-widget"].connect(() => {
+                    if (kind != FormFactorKind.TV || compat || !(_win.get_focus() is Label)) return;
+                    Idle.add(() => {
+                        if (_win.get_focus() is Label) focus_start();
+                        return Source.REMOVE;
+                    });
                 });
             }
             if (_keys == null) {
@@ -275,6 +362,14 @@ namespace Singularity.Widgets {
             if (_visible_id != 0) {
                 _win.disconnect(_visible_id);
                 _visible_id = 0;
+            }
+            if (_fullscreen_id != 0) {
+                _win.disconnect(_fullscreen_id);
+                _fullscreen_id = 0;
+            }
+            if (_focus_id != 0) {
+                _win.disconnect(_focus_id);
+                _focus_id = 0;
             }
             if (_keys != null) {
                 ((Widget) _win).remove_controller(_keys);
@@ -449,18 +544,18 @@ namespace Singularity.Widgets {
 
         private void focus_start(bool force = false) {
             var current = _win.get_focus();
-            if (!force && current != null && is_candidate(current) && !in_head(current) && !in_chrome(current)) return;
+            if (!force && current != null && is_candidate(current) && !in_head(current) && !in_chrome(current) && !is_back(current)) return;
             var all = new GenericArray<Widget>();
             collect_focusable(_win, ref all);
             Widget? best = null;
             Graphene.Rect best_rect = Graphene.Rect.zero();
             foreach (var w in all) {
-                if (in_head(w) || in_chrome(w)) continue;
+                if (in_head(w) || in_chrome(w) || is_back(w)) continue;
                 Graphene.Rect b;
                 if (!w.compute_bounds(_win, out b)) continue;
-                bool primary = w.has_css_class("suggested-action");
+                bool primary = Singularity.Focus.is_primary(w);
                 if (best != null && !primary) {
-                    if (best.has_css_class("suggested-action")) continue;
+                    if (Singularity.Focus.is_primary(best)) continue;
                     if (b.origin.y > best_rect.origin.y + 4) continue;
                     if (Math.fabsf(b.origin.y - best_rect.origin.y) <= 4 && b.origin.x >= best_rect.origin.x) continue;
                 }
@@ -482,6 +577,11 @@ namespace Singularity.Widgets {
             _win.focus_visible = true;
         }
 
+        private static bool is_back(Widget w) {
+            var b = w as Button;
+            return b != null && b.icon_name == "go-previous-symbolic";
+        }
+
         private static bool in_chrome(Widget w) {
             if (w.has_css_class("singularity-hover-btn")) return true;
             return w.get_ancestor(typeof(SearchBubble)) != null;
@@ -496,8 +596,10 @@ namespace Singularity.Widgets {
             if (w is Window || w is Label) return false;
             Graphene.Rect r;
             if (!w.compute_bounds(_win, out r)) return false;
-            return r.size.width > 1 && r.size.height > 1;
+            if (r.size.width <= 1 || r.size.height <= 1) return false;
+            return !Singularity.Focus.is_covered(w, _win);
         }
+
 
         private static bool is_target(Widget w) {
             return w is Button || w is MenuButton || w is ListBoxRow || w is FlowBoxChild || w is Editable
@@ -520,9 +622,16 @@ namespace Singularity.Widgets {
             var held = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SUPER_MASK;
             if ((state & held) != 0) return false;
             if (compat) return pointer_key(keyval);
+            bool nav = keyval == Gdk.Key.Up || keyval == Gdk.Key.Down || keyval == Gdk.Key.Left || keyval == Gdk.Key.Right
+                || keyval == Gdk.Key.Return || keyval == Gdk.Key.KP_Enter || keyval == Gdk.Key.Escape || keyval == Gdk.Key.BackSpace;
+            if (nav && _restore_source != 0) {
+                Source.remove(_restore_source);
+                _restore_source = 0;
+            }
             if (keyval == Gdk.Key.Up || keyval == Gdk.Key.Down || keyval == Gdk.Key.Left || keyval == Gdk.Key.Right) {
                 _win.focus_visible = true;
                 _user_moved = true;
+                _moves++;
             }
             var focus = _win.get_focus();
             Editable? editable = focus as Editable;
@@ -563,9 +672,44 @@ namespace Singularity.Widgets {
             }
         }
 
+        private void settle_focus() {
+            int ticks = 0;
+            Timeout.add(100, () => {
+                if (kind != FormFactorKind.TV || compat) return Source.REMOVE;
+                var f = _win.get_focus();
+                if (f == null || !is_candidate(f)) {
+                    focus_start();
+                    return Source.REMOVE;
+                }
+                return ++ticks < 15 ? Source.CONTINUE : Source.REMOVE;
+            });
+        }
+
+        private void remember_origin(Widget target) {
+            if (in_head(target) || in_chrome(target)) return;
+            if (_origins.length > 0 && _origins[_origins.length - 1].widget.get() == target) return;
+            _origins.add(new FocusOrigin(target, _win));
+            if (_origins.length > 16) _origins.remove_index(0);
+        }
+
+        private void prune_origins() {
+            while (_origins.length > 0) {
+                var w = _origins[_origins.length - 1].widget.get() as Widget;
+                if (w == null || w.get_root() != _win || !is_candidate(w)) return;
+                _origins.remove_index(_origins.length - 1);
+            }
+        }
+
         private bool ok_down(Widget? focus) {
             if (_ok_target != null) return true;
-            if (focus == null || !(focus is Button || focus is ListBoxRow || focus is FlowBoxChild)) return false;
+            if (focus == null) return false;
+            if (!(focus is Button || focus is ListBoxRow || focus is FlowBoxChild)) {
+                if (is_target(focus)) {
+                    remember_origin(focus);
+                    settle_focus();
+                }
+                return false;
+            }
             _ok_target = focus;
             _ok_long = false;
             _ok_source = Timeout.add(600, () => {
@@ -587,14 +731,16 @@ namespace Singularity.Widgets {
             }
             if (target == null || _ok_long || !target.get_mapped()) return;
             bool content = !in_head(target) && !in_chrome(target);
-            if (content) {
-                _origins.add(target);
-                if (_origins.length > 16) _origins.remove_index(0);
-            }
+            if (content) remember_origin(target);
+            uint moves = _moves;
             target.activate();
+            settle_focus();
             if (content) {
                 Timeout.add(300, () => {
-                    if (kind == FormFactorKind.TV && !compat) focus_start();
+                    if (kind != FormFactorKind.TV || compat || _moves != moves) return Source.REMOVE;
+                    bool gone = target.get_root() != _win || !is_candidate(target);
+                    if (gone && _restore_source == 0) focus_start(true);
+                    else focus_start();
                     return Source.REMOVE;
                 });
             }
@@ -706,7 +852,7 @@ namespace Singularity.Widgets {
         private static Button? find_back(Widget root, bool controls) {
             for (var c = root.get_first_child(); c != null; c = c.get_next_sibling()) {
                 var b = c as Button;
-                if (b != null && b.is_sensitive() && b.icon_name == "go-previous-symbolic") {
+                if (is_back(c) && b.is_sensitive()) {
                     if (controls ? b.visible && in_controls(b) : b.get_mapped()) return b;
                 }
                 var deep = find_back(c, controls);
@@ -719,11 +865,9 @@ namespace Singularity.Widgets {
             if (close_tv_search()) return true;
             var back = find_back(_win, true) ?? find_back(_win, false);
             if (back != null) {
+                prune_origins();
                 back.clicked();
-                Idle.add(() => {
-                    if (!return_to_origin()) focus_start();
-                    return Source.REMOVE;
-                });
+                restore_origin();
                 return true;
             }
             var focus = _win.get_focus();
@@ -744,16 +888,58 @@ namespace Singularity.Widgets {
             return true;
         }
 
-        private bool return_to_origin() {
-            while (_origins.length > 0) {
-                var w = _origins[_origins.length - 1];
-                _origins.remove_index(_origins.length - 1);
-                if (is_candidate(w) && !in_head(w) && !in_chrome(w)) {
-                    w.grab_focus();
-                    return true;
+        public void retarget(string key) {
+            if (_origins.length == 0) return;
+            var origin = _origins[_origins.length - 1];
+            origin.widget = WeakRef(null);
+            origin.key = key;
+        }
+
+        private void restore_origin() {
+            if (_restore_source != 0) Source.remove(_restore_source);
+            int tries = 0;
+            _restore_source = Timeout.add(50, () => {
+                if (return_to_origin(++tries)) {
+                    _restore_source = 0;
+                    return Source.REMOVE;
                 }
+                if (tries < 60) return Source.CONTINUE;
+                _restore_source = 0;
+                focus_start();
+                return Source.REMOVE;
+            });
+        }
+
+        private Widget? content_candidate(Widget? node) {
+            if (node == null) return null;
+            if (is_candidate(node) && !in_head(node) && !in_chrome(node)) return node;
+            var all = new GenericArray<Widget>();
+            collect_focusable(node, ref all);
+            foreach (var w in all) {
+                if (!in_head(w) && !in_chrome(w)) return w;
             }
-            return false;
+            return null;
+        }
+
+        private bool return_to_origin(int tries) {
+            bool last = tries >= 60;
+            if (_origins.length == 0) return false;
+            var origin = _origins[_origins.length - 1];
+            Widget? found = null;
+            var same = origin.widget.get() as Widget;
+            if (same != null && same.get_root() == _win && is_candidate(same) && !in_head(same) && !in_chrome(same)) found = same;
+            if (found == null && origin.key != null) {
+                bool sibling;
+                var keyed = origin.best_keyed(_win, out sibling);
+                if (keyed != null && !sibling && tries < 10) keyed = null;
+                if (keyed != null) found = content_candidate(keyed) ?? content_candidate(keyed.get_parent());
+            }
+            if (found == null && last) found = content_candidate(origin.follow(_win));
+            if (found == null) return false;
+            _origins.remove_index(_origins.length - 1);
+            found.grab_focus();
+            _win.focus_visible = true;
+            return true;
         }
 
         private void show_pointer() {

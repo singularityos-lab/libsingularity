@@ -257,6 +257,27 @@ namespace Singularity.Widgets {
 
         public signal void form_factor_changed(FormFactorKind previous);
 
+        public bool fullscreen_locked { get { return _form != null && _form.holds_fullscreen; } }
+
+        public bool leave_fullscreen() {
+            if (!fullscreened || fullscreen_locked) return false;
+            unfullscreen();
+            return true;
+        }
+
+        public virtual void toggle_fullscreen() {
+            if (!fullscreened) fullscreen();
+            else leave_fullscreen();
+        }
+
+        internal void retarget_focus(string key) {
+            if (_form != null) _form.retarget(key);
+        }
+
+        public int content_size(int size) {
+            return form_factor == FormFactorKind.TV && !form_factor_compat ? size * 2 : size;
+        }
+
         public Window(Gtk.Application app) {
             Object(application: app);
         }

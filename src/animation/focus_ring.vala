@@ -91,6 +91,11 @@ namespace Singularity.Animation {
                 return;
             }
             var target = ring_target(focus);
+            if (Singularity.Focus.is_covered(focus, window)) {
+                set_target(null);
+                hide_ring();
+                return;
+            }
             Graphene.Rect bounds;
             double area = (double) get_width() * get_height();
             if (!measure_target(target, out bounds)
@@ -193,6 +198,11 @@ namespace Singularity.Animation {
 
         private void follow() {
             if (!_shown || _target == null) return;
+            if (_window != null && Singularity.Focus.is_covered(_target, _window)) {
+                set_target(null);
+                hide_ring();
+                return;
+            }
             Graphene.Rect bounds;
             if (!measure_target(_target, out bounds)) return;
             if (bounds.equal(_to)) return;
