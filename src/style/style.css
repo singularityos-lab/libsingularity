@@ -4733,6 +4733,12 @@ window.ff-tv .singularity-view-edge {
     border-top: none;
 }
 
+window.ff-tv.singularity-focus-ring-motion entry:focus-within:not(.error),
+window.ff-tv.singularity-focus-ring-motion spinbutton:focus-within {
+    border-color: transparent;
+    box-shadow: none;
+}
+
 window.ff-tv label > selection {
     background: none;
     color: inherit;
