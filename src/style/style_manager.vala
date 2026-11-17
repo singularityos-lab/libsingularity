@@ -363,6 +363,10 @@ namespace Singularity.Style {
                     && material_settings.settings_schema.has_key("card-transparency")) {
                 material_settings.changed["card-transparency"].connect(update_material_style);
             }
+            if (material_settings != null
+                    && material_settings.settings_schema.has_key("shell-accent-tint")) {
+                material_settings.changed["shell-accent-tint"].connect(update_material_style);
+            }
             update_material_style();
         }
 
@@ -381,8 +385,18 @@ namespace Singularity.Style {
             string base_bg = _mix_hex(current_dark_mode ? "#242424" : "#f6f5f4", accent_hex, tint);
             uint8 red, green, blue;
             _parse_hex(base_bg, out red, out green, out blue);
-            string panel_glass = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, 0.0, 0.14);
-            string panel_blur = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, 0.0, 0.26);
+            bool shell_tint = material_settings != null
+                && material_settings.settings_schema.has_key("shell-accent-tint")
+                && material_settings.get_boolean("shell-accent-tint");
+            double shell_mix = shell_tint ? tint * 1.25 : 0.0;
+            string panel_glass = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, shell_mix, 0.14);
+            string panel_blur = _mix_rgba(current_dark_mode ? "#000000" : "#f8f8f8", accent_hex, shell_mix, 0.26);
+            string dock_bg = _mix_rgba(current_dark_mode ? "#1e1e1e" : "#e0e0e0", accent_hex, shell_mix,
+                current_dark_mode ? 0.70 : 0.80);
+            string dock_bg_blur = _mix_rgba(current_dark_mode ? "#141414" : "#d8d8d8", accent_hex, shell_mix,
+                current_dark_mode ? 0.45 : 0.60);
+            string dock_bg_glass = _mix_rgba(current_dark_mode ? "#141414" : "#d8d8d8", accent_hex, shell_mix,
+                current_dark_mode ? 0.30 : 0.38);
             string background = "rgba(%u, %u, %u, %d.%02d)".printf(
                 red, green, blue, opacity / 100, opacity % 100);
             int liquid_opacity = int.min(opacity, 65);
@@ -444,16 +458,26 @@ namespace Singularity.Style {
                     background-color: %s;
                     border-color: alpha(white, 0.18);
                 }
-                window.singularity-glass .panel,
-                .singularity-glass .panel {
+                window.singularity-glass:not(.flat-panel) .panel,
+                .singularity-glass:not(.flat-panel) .panel {
                     background-color: %s;
                 }
-                window.singularity-blur .panel,
-                .singularity-blur .panel {
+                window.singularity-blur:not(.flat-panel) .panel,
+                .singularity-blur:not(.flat-panel) .panel {
                     background-color: %s;
                 }
+                .dock-box { background-color: %s; }
+                window.singularity-blur .dock-box,
+                .singularity-blur .dock-box,
+                window.singularity-blur .dock-window:backdrop .dock-box,
+                .singularity-blur .dock-window:backdrop .dock-box { background-color: %s; }
+                window.singularity-glass .dock-box,
+                .singularity-glass .dock-box,
+                window.singularity-glass .dock-window:backdrop .dock-box,
+                .singularity-glass .dock-window:backdrop .dock-box { background-color: %s; }
             """.printf(background, liquid_background, card_background, card_liquid_background, card_background,
-                card_liquid_background, card_background, card_liquid_background, panel_glass, panel_blur);
+                card_liquid_background, card_background, card_liquid_background, panel_glass, panel_blur,
+                dock_bg, dock_bg_blur, dock_bg_glass);
 
             if (material_provider == null) {
                 material_provider = new CssProvider();
@@ -524,12 +548,8 @@ namespace Singularity.Style {
             bool dark = current_dark_mode;
             string base_bg     = dark ? "#242424" : "#f6f5f4";
             string toolbar_base = dark ? "#1a1a1a" : "#e8e8e8";
-            string dock_base   = dark ? "#1e1e1e" : "#e0e0e0";
-            string dock_blur   = dark ? "#141414" : "#d8d8d8";
             string hover_rgba  = dark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)";
             double toolbar_alpha = dark ? 0.75 : 0.85;
-            double dock_alpha    = dark ? 0.70 : 0.80;
-            double dock_blur_alpha = dark ? 0.45 : 0.60;
             string tint8 = _mix_hex(base_bg, hex_color, 0.08);
             // Compute toolbar rgba directly to avoid GTK CSS alpha(#hex) issues.
             string toolbar_rgba = _mix_rgba(toolbar_base, hex_color, 0.05, toolbar_alpha);
@@ -538,11 +558,6 @@ namespace Singularity.Style {
             // Pre-compute hover/active variants for button rules.
             string hover_hex  = _mix_hex(hex_color, "#ffffff", 0.15);
             string active_hex = _mix_hex(hex_color, "#000000", 0.15);
-            // Dock background: base + 4% accent tint (opaque + blur variant)
-            string dock_bg      = _mix_rgba(dock_base, hex_color, 0.04, dock_alpha);
-            string dock_bg_blur = _mix_rgba(dock_blur, hex_color, 0.04, dock_blur_alpha);
-            string dock_bg_glass = _mix_rgba(dock_blur, hex_color, 0.06,
-                dark ? 0.30 : 0.38);
             // Compute alpha variants (pure alpha of the accent color).
             uint8 ar, ag, ab;
             _parse_hex(hex_color, out ar, out ag, out ab);
@@ -616,17 +631,6 @@ namespace Singularity.Style {
                 highlight { background-color: @accent_color; }
                 slider { background-color: @accent_color; }
 
-                /* Dock accent tint */
-                .dock-box { background-color: %s; }
-                window.singularity-blur .dock-box,
-                .singularity-blur .dock-box,
-                window.singularity-blur .dock-window:backdrop .dock-box,
-                .singularity-blur .dock-window:backdrop .dock-box { background-color: %s; }
-                window.singularity-glass .dock-box,
-                .singularity-glass .dock-box,
-                window.singularity-glass .dock-window:backdrop .dock-box,
-                .singularity-glass .dock-window:backdrop .dock-box { background-color: %s; }
-
                 /* Workspace previews - rgbacomputed here for box-shadow */
                 .workspace-preview.active .workspace-clipper {
                     border-color: %s;
@@ -641,7 +645,6 @@ namespace Singularity.Style {
                 hex_color,
                 accent_fg_hex, accent_fg_hex,
                 tint8, toolbar_hex,
-                dock_bg, dock_bg_blur, dock_bg_glass,
                 alpha40, alpha20,
                 hex_color, hex_color, alpha40
             );
@@ -680,9 +683,7 @@ namespace Singularity.Style {
             .replace("{A35}",           alpha35)
             .replace("{A40}",           alpha40)
             .replace("{A80}",           alpha80)
-            .replace("{A85}",           alpha85)
-            .replace("{DOCK_BG}",       dock_bg)
-            .replace("{DOCK_BG_BLUR}",  dock_bg_blur);
+            .replace("{A85}",           alpha85);
 
             // Combine base theme + accent into one string for a single parse pass.
             string color_path = current_dark_mode

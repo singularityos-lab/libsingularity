@@ -575,13 +575,13 @@ notebook > header > tabs > tab:hover:not(:checked) { background-color: @card_hov
     transition: background-color 180ms ease;
 }
 
-window.singularity-blur .panel,
-.singularity-blur .panel {
+window.singularity-blur:not(.flat-panel) .panel,
+.singularity-blur:not(.flat-panel) .panel {
     background-color: alpha(@panel_bg, 0.24);
 }
 
-window.singularity-glass .panel,
-.singularity-glass .panel {
+window.singularity-glass:not(.flat-panel) .panel,
+.singularity-glass:not(.flat-panel) .panel {
     background-color: alpha(@panel_bg, 0.12);
     border-bottom: 1px solid alpha(@text_color, 0.14);
     box-shadow: none;
