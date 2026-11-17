@@ -201,7 +201,31 @@ namespace Singularity.Widgets {
             if (tv) {
                 add_css_class("ff-tv");
                 set_focus_visible(true);
-                apply_scale(parent.scale_bin != null ? parent.scale_bin.factor : 1.0);
+                double f = parent.scale_bin != null ? parent.scale_bin.factor : 1.0;
+                int pw = parent.get_width();
+                int ph = parent.get_height();
+                var surface = parent.get_surface();
+                Gdk.Monitor? monitor = surface != null ? parent.get_display().get_monitor_at_surface(surface) : null;
+                if (monitor == null) monitor = parent.get_display().get_monitors().get_item(0) as Gdk.Monitor;
+                if (monitor != null) {
+                    var geo = monitor.geometry;
+                    if (pw <= 0 || geo.width < pw) pw = geo.width;
+                    if (ph <= 0 || geo.height < ph) ph = geo.height;
+                }
+                int need_w = _base_width;
+                int need_h = _base_height;
+                var content = get_child();
+                if (content != null) {
+                    int min, nat, mb, nb;
+                    double cur = _scale.factor > 0 ? _scale.factor : 1.0;
+                    content.measure(Orientation.HORIZONTAL, -1, out min, out nat, out mb, out nb);
+                    need_w = int.max(need_w, (int) (min / cur));
+                    content.measure(Orientation.VERTICAL, (int) (need_w * cur), out min, out nat, out mb, out nb);
+                    need_h = int.max(need_h, (int) (min / cur));
+                }
+                if (pw > 0 && need_w > 0) f = double.min(f, pw * 0.9 / need_w);
+                if (ph > 0 && need_h > 0) f = double.min(f, ph * 0.86 / need_h);
+                apply_scale(double.max(1.0, f));
             } else {
                 remove_css_class("ff-tv");
                 apply_scale(1.0);

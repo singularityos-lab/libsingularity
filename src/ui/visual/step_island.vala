@@ -59,6 +59,7 @@ namespace Singularity.Widgets {
 
             dots_box = new StepDots(steps.length);
             dots_box.valign = Align.CENTER;
+            dots_box.visible = steps.length > 1;
             center.append(dots_box);
 
             title_lbl = new Label("");
