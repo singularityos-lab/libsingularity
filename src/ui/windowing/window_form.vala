@@ -46,18 +46,30 @@ namespace Singularity.Widgets {
             int inner = for_size < 0 ? -1 : (int) (for_size / _factor);
             int mb, nb;
             _child.measure(orientation, inner, out minimum, out natural, out mb, out nb);
-            minimum = (int) Math.ceil(minimum * _factor);
+            minimum = (int) Math.ceil(minimum * (orientation == Orientation.VERTICAL ? 1.0 : _factor));
             natural = (int) Math.ceil(natural * _factor);
+        }
+
+        private double fitting_factor(int width, int height) {
+            double f = _factor;
+            for (int pass = 0; pass < 2 && f > 1.0; pass++) {
+                int min_h, nat_h, mb, nb;
+                _child.measure(Orientation.VERTICAL, (int) (width / f), out min_h, out nat_h, out mb, out nb);
+                if (min_h <= 0 || min_h * f <= height) break;
+                f = double.max(1.0, (double) height / min_h);
+            }
+            return f;
         }
 
         public override void size_allocate(int width, int height, int baseline) {
             if (_child == null) return;
-            if (_factor == 1.0) {
+            double f = _factor > 1.0 ? fitting_factor(width, height) : _factor;
+            if (f == 1.0) {
                 _child.allocate(width, height, baseline, null);
                 return;
             }
-            var t = new Gsk.Transform().scale((float) _factor, (float) _factor);
-            _child.allocate((int) (width / _factor), (int) (height / _factor), -1, t);
+            var t = new Gsk.Transform().scale((float) f, (float) f);
+            _child.allocate((int) (width / f), (int) (height / f), -1, t);
         }
     }
 
