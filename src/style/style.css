@@ -7599,7 +7599,12 @@ window.ff-tv menubutton.tv-app-tab > button:focus:focus-visible label {
     color: white;
 }
 
-window.ff-tv :focus:focus-visible {
+window.ff-tv.singularity-focus-ring-motion :focus:focus-visible,
+window.ff-tv.singularity-focus-ring-motion :focus-within:focus-visible {
+    outline-style: none;
+}
+
+window.ff-tv popover :focus:focus-visible {
     outline: 3px solid @accent_color;
     outline-offset: 2px;
 }
@@ -7625,23 +7630,20 @@ window.ff-tv flowboxchild:focus:focus-visible,
 window.ff-tv gridview > child:focus:focus-visible,
 window.ff-tv listview > row:focus:focus-visible {
     background-color: alpha(@accent_color, 0.18);
-    outline: 3px solid @accent_color;
-    outline-offset: -3px;
+    outline-style: none;
     border-radius: 12px;
 }
 
 window.ff-tv button:focus:focus-visible,
 window.ff-tv.singularity-focus-ring-motion button.singularity-focus-ringed:focus:focus-visible:not(.tv-app-tab) {
-    outline: 3px solid @accent_color;
-    outline-offset: -3px;
+    outline-style: none;
     background-color: alpha(@accent_color, 0.16);
     box-shadow: 0 6px 24px alpha(@accent_color, 0.30);
 }
 
 window.ff-tv button.suggested-action:focus:focus-visible,
 window.ff-tv.singularity-focus-ring-motion button.suggested-action.singularity-focus-ringed:focus:focus-visible {
-    outline: 3px solid alpha(@accent_fg, 0.9);
-    outline-offset: -5px;
+    outline-style: none;
     background-color: mix(@accent_color, black, 0.12);
     color: @accent_fg;
 }
