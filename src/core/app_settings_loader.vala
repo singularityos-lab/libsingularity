@@ -35,6 +35,14 @@ namespace Singularity.Core {
         public string? subtitle { get; set; }
     }
 
+    public class AppSettingField : GLib.Object {
+        public string key { get; set; }
+
+        public string label { get; set; }
+
+        public string? placeholder { get; set; }
+    }
+
     /**
      * A single preference item inside an AppSettingsDescriptor.
      *
@@ -80,8 +88,39 @@ namespace Singularity.Core {
 
         public bool profile { get; set; default = false; }
 
+        public string[] list_command { get; set; default = {}; }
+
+        public string[] add_command { get; set; default = {}; }
+
+        public string[] remove_command { get; set; default = {}; }
+
+        public string? add_label { get; set; }
+
+        public string? add_description { get; set; }
+
+        public string? remove_description { get; set; }
+
+        public string? empty_label { get; set; }
+
+        public string? item_icon { get; set; }
+
+        public string item_id { get; set; default = "id"; }
+
+        public string item_title { get; set; default = "title"; }
+
+        public string item_subtitle { get; set; default = "subtitle"; }
+
+        public string item_removable { get; set; default = "removable"; }
+
+        public ArrayList<AppSettingField> fields { get; private set; }
+
+        public bool is_list {
+            get { return widget == "list" && list_command.length > 0; }
+        }
+
         public AppSettingItem() {
             options = new ArrayList<AppSettingOption>();
+            fields = new ArrayList<AppSettingField>();
         }
     }
 
@@ -187,6 +226,15 @@ namespace Singularity.Core {
             return item;
         }
 
+        private static string[] string_array(Json.Object obj, string member) {
+            string[] values = {};
+            if (!obj.has_member(member) || obj.get_member(member).get_node_type() != Json.NodeType.ARRAY) return values;
+            obj.get_array_member(member).foreach_element((arr, index, node) => {
+                if (node.get_value_type() == typeof(string)) values += node.get_string();
+            });
+            return values;
+        }
+
         private static AppSettingsDescriptor? parse_json(File file) {
             try {
                 var parser = new Parser();
@@ -220,6 +268,29 @@ namespace Singularity.Core {
                             if (obj.has_member("schema-id")) item.schema_id = obj.get_string_member("schema-id");
                             if (obj.has_member("path")) item.path = obj.get_string_member("path");
                             if (obj.has_member("profile")) item.profile = obj.get_boolean_member("profile");
+                            item.list_command = string_array(obj, "list-command");
+                            item.add_command = string_array(obj, "add-command");
+                            item.remove_command = string_array(obj, "remove-command");
+                            if (obj.has_member("add-label")) item.add_label = obj.get_string_member("add-label");
+                            if (obj.has_member("add-description")) item.add_description = obj.get_string_member("add-description");
+                            if (obj.has_member("remove-description")) item.remove_description = obj.get_string_member("remove-description");
+                            if (obj.has_member("empty-label")) item.empty_label = obj.get_string_member("empty-label");
+                            if (obj.has_member("item-icon")) item.item_icon = obj.get_string_member("item-icon");
+                            if (obj.has_member("item-id")) item.item_id = obj.get_string_member("item-id");
+                            if (obj.has_member("item-title")) item.item_title = obj.get_string_member("item-title");
+                            if (obj.has_member("item-subtitle")) item.item_subtitle = obj.get_string_member("item-subtitle");
+                            if (obj.has_member("item-removable")) item.item_removable = obj.get_string_member("item-removable");
+                            if (obj.has_member("fields")) {
+                                obj.get_array_member("fields").foreach_element((field_arr, field_idx, field_node) => {
+                                    if (field_node.get_node_type() != Json.NodeType.OBJECT) return;
+                                    var field_obj = field_node.get_object();
+                                    var field = new AppSettingField();
+                                    field.key = field_obj.get_string_member_with_default("key", "");
+                                    field.label = field_obj.get_string_member_with_default("label", field.key);
+                                    if (field_obj.has_member("placeholder")) field.placeholder = field_obj.get_string_member("placeholder");
+                                    if (field.key != "") item.fields.add(field);
+                                });
+                            }
                             if (obj.has_member("options")) {
                                 var options_array = obj.get_array_member("options");
                                 if (options_array != null) {

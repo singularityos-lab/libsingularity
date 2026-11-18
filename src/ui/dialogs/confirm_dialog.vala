@@ -168,9 +168,11 @@ namespace Singularity.Widgets {
             }
         }
 
+        public bool closes_on_primary { get; set; default = true; }
+
         private void respond(Response r) {
             response(r);
-            close_dialog();
+            if (r != Response.PRIMARY || closes_on_primary) close_dialog();
         }
 
         /**

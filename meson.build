@@ -115,6 +115,7 @@ libsingularity_sources = files(
   'src/ui/preferences/preferences.vala',
   'src/ui/preferences/preferences_window.vala',
   'src/ui/preferences/preferences_page.vala',
+  'src/ui/preferences/app_settings_list_group.vala',
   'src/ui/pages/status_page.vala',
   'src/ui/controls/search_entry.vala',
   'src/ui/controls/bubble_switcher.vala',
