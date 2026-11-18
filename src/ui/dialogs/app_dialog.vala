@@ -325,6 +325,71 @@ namespace Singularity.Widgets {
          * Presents the dialog. Override to add custom show behaviour.
          */
         public virtual void open_dialog() {
+            var parent = get_transient_for() as Singularity.Widgets.Window;
+            if (parent != null && !parent_settled(parent)) {
+                wait_for_parent(parent);
+                return;
+            }
+            stop_waiting();
+            open_dialog_now();
+        }
+
+        private Singularity.Widgets.Window? _waiting_parent = null;
+        private ulong[] _waiting_handlers = {};
+        private uint _settle_id = 0;
+        private uint _waiting_timeout_id = 0;
+
+        private static bool parent_settled(Singularity.Widgets.Window parent) {
+            if (!parent.get_mapped()) return false;
+            if (parent.form_factor == FormFactorKind.TV && !parent.form_factor_compat) return parent.fullscreened;
+            return true;
+        }
+
+        private void wait_for_parent(Singularity.Widgets.Window parent) {
+            if (_waiting_parent != null) return;
+            _waiting_parent = parent;
+            _waiting_handlers += parent.map.connect(() => settle());
+            _waiting_handlers += parent.notify["fullscreened"].connect(() => settle());
+            _waiting_handlers += parent.form_factor_changed.connect(() => settle());
+            _waiting_timeout_id = Timeout.add(2000, () => {
+                _waiting_timeout_id = 0;
+                stop_waiting();
+                if (!_destroyed) open_dialog_now();
+                return Source.REMOVE;
+            });
+        }
+
+        private void settle() {
+            if (_settle_id != 0) Source.remove(_settle_id);
+            _settle_id = Timeout.add(150, () => {
+                _settle_id = 0;
+                var parent = _waiting_parent;
+                if (parent == null || _destroyed) return Source.REMOVE;
+                if (parent_settled(parent)) {
+                    stop_waiting();
+                    open_dialog_now();
+                }
+                return Source.REMOVE;
+            });
+        }
+
+        private void stop_waiting() {
+            if (_waiting_parent != null) {
+                foreach (var h in _waiting_handlers) _waiting_parent.disconnect(h);
+            }
+            _waiting_handlers = {};
+            _waiting_parent = null;
+            if (_settle_id != 0) {
+                Source.remove(_settle_id);
+                _settle_id = 0;
+            }
+            if (_waiting_timeout_id != 0) {
+                Source.remove(_waiting_timeout_id);
+                _waiting_timeout_id = 0;
+            }
+        }
+
+        private void open_dialog_now() {
             present();
             var focus = get_focus();
             if (focus == null) {
