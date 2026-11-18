@@ -23,26 +23,124 @@ namespace Singularity {
         }
 
         public static string hardware_model() {
-            try {
-                string content;
-                if (FileUtils.get_contents("/sys/devices/virtual/dmi/id/product_name", out content)) {
-                    return content.strip();
-                }
-            } catch (Error e) {}
+            return model_from(
+                "/sys/devices/virtual/dmi/id/product_name",
+                "/sys/firmware/devicetree/base/model"
+            );
+        }
+
+        internal static string model_from(string dmi_path, string dt_path) {
+            string? dmi = read_trimmed(dmi_path);
+            if (dmi != null && dmi != "") return dmi;
+            // DEVICE-FIX(arm64): Arm boards have no DMI and name themselves only in the devicetree; without it they show Unknown Model
+            string? dt = read_trimmed(dt_path);
+            if (dt != null && dt != "") return dt;
             return "Unknown Model";
         }
 
-        public static string processor() {
+        private static string? read_trimmed(string path) {
             try {
                 string content;
-                FileUtils.get_contents("/proc/cpuinfo", out content);
-                foreach (string line in content.split("\n")) {
-                    if (line.has_prefix("model name")) {
-                        return line.split(":")[1].strip();
-                    }
+                if (FileUtils.get_contents(path, out content)) {
+                    return content.strip();
                 }
             } catch (Error e) {}
+            return null;
+        }
+
+        public static string processor() {
+            return processor_from("/proc/cpuinfo", "/sys/devices/soc0");
+        }
+
+        internal static string processor_from(string cpuinfo_path, string soc_path) {
+            string content;
+            try {
+                if (!FileUtils.get_contents(cpuinfo_path, out content)) content = "";
+            } catch (Error e) {
+                content = "";
+            }
+            foreach (string line in content.split("\n")) {
+                if (line.has_prefix("model name")) {
+                    return line.split(":", 2)[1].strip();
+                }
+            }
+            // DEVICE-FIX(arm64): Arm /proc/cpuinfo has no model name; without the SoC and core fallback every Arm board shows Unknown Processor
+            string? soc = soc_name(soc_path);
+            string? cores = arm_cores(content);
+            if (soc != null && cores != null) return soc + " (" + cores + ")";
+            if (soc != null) return soc;
+            if (cores != null) return cores;
             return "Unknown Processor";
+        }
+
+        private static string? soc_name(string soc_path) {
+            string? family = read_trimmed(Path.build_filename(soc_path, "family"));
+            string? machine = read_trimmed(Path.build_filename(soc_path, "machine"));
+            if (machine == null || machine == "") return null;
+            if (family == null || family == "" || machine.down().contains(family.down())) return machine;
+            return family + " " + machine;
+        }
+
+        private static string? arm_core_name(string implementer, string part) {
+            if (implementer != "0x41") return null;
+            switch (part) {
+                case "0xc07": return "Cortex-A7";
+                case "0xc0f": return "Cortex-A15";
+                case "0xd03": return "Cortex-A53";
+                case "0xd04": return "Cortex-A35";
+                case "0xd05": return "Cortex-A55";
+                case "0xd07": return "Cortex-A57";
+                case "0xd08": return "Cortex-A72";
+                case "0xd09": return "Cortex-A73";
+                case "0xd0a": return "Cortex-A75";
+                case "0xd0b": return "Cortex-A76";
+                case "0xd0c": return "Neoverse-N1";
+                case "0xd0d": return "Cortex-A77";
+                case "0xd40": return "Neoverse-V1";
+                case "0xd41": return "Cortex-A78";
+                case "0xd44": return "Cortex-X1";
+                case "0xd46": return "Cortex-A510";
+                case "0xd47": return "Cortex-A710";
+                case "0xd48": return "Cortex-X2";
+                case "0xd49": return "Neoverse-N2";
+                case "0xd4d": return "Cortex-A715";
+                case "0xd4e": return "Cortex-X3";
+                case "0xd80": return "Cortex-A520";
+                case "0xd81": return "Cortex-A720";
+                case "0xd82": return "Cortex-X4";
+            }
+            return null;
+        }
+
+        private static string? arm_cores(string cpuinfo) {
+            var order = new GenericArray<string>();
+            var counts = new HashTable<string, int>(str_hash, str_equal);
+            string implementer = "";
+            int total = 0;
+            foreach (string raw in cpuinfo.split("\n")) {
+                string[] kv = raw.split(":", 2);
+                if (kv.length != 2) continue;
+                string key = kv[0].strip();
+                string val = kv[1].strip();
+                if (key == "CPU implementer") {
+                    implementer = val;
+                } else if (key == "CPU part") {
+                    total++;
+                    string name = arm_core_name(implementer, val) ?? "";
+                    if (!counts.contains(name)) order.add(name);
+                    counts[name] = counts[name] + 1;
+                }
+            }
+            if (total == 0) return null;
+            string[] parts = {};
+            for (int i = 0; i < order.length; i++) {
+                if (order[i] == "") continue;
+                parts += "%d \u00d7 %s".printf(counts[order[i]], order[i]);
+            }
+            if (parts.length == 0 || counts.contains("")) {
+                return total == 1 ? "1 core" : "%d cores".printf(total);
+            }
+            return string.joinv(" + ", parts);
         }
 
         public static string memory() {
@@ -161,6 +259,87 @@ namespace Singularity {
             return "Unknown Graphics";
         }
 
+        internal static string? soc_gpu(string drivers_path) {
+            string[] drivers = { "adreno", "msm_gpu", "panfrost", "panthor", "lima", "v3d", "vc4-drm", "etnaviv", "gk20a", "gp10b", "gv11b", "powervr" };
+            foreach (string driver in drivers) {
+                string dir = Path.build_filename(drivers_path, driver);
+                Dir d;
+                try {
+                    d = Dir.open(dir);
+                } catch (Error e) {
+                    continue;
+                }
+                string? dev;
+                while ((dev = d.read_name()) != null) {
+                    string? name = gpu_from_compatible(
+                        read_string_list(Path.build_filename(dir, dev, "of_node", "compatible"))
+                    );
+                    if (name != null) return name;
+                }
+            }
+            return null;
+        }
+
+        private static string[] read_string_list(string path) {
+            string[] list = {};
+            uint8[] data;
+            try {
+                if (!FileUtils.get_data(path, out data)) return list;
+            } catch (Error e) {
+                return list;
+            }
+            var cur = new StringBuilder();
+            foreach (uint8 b in data) {
+                if (b == 0) {
+                    if (cur.len > 0) list += cur.str;
+                    cur.truncate(0);
+                } else {
+                    cur.append_c((char) b);
+                }
+            }
+            if (cur.len > 0) list += cur.str;
+            return list;
+        }
+
+        internal static string? gpu_from_compatible(string[] compatible) {
+            bool adreno = false;
+            foreach (string c in compatible) {
+                if (c == "qcom,adreno") {
+                    adreno = true;
+                } else if (c.has_prefix("qcom,adreno-")) {
+                    adreno = true;
+                    string id = c.substring(12);
+                    if (id.contains(".")) {
+                        string model = id.split(".")[0];
+                        if (model.length >= 3 && model[0].isdigit()) return "Qualcomm Adreno " + model;
+                    } else if (id.length == 8 && id[0] == '0') {
+                        uint64 v;
+                        unowned string rest;
+                        if (uint64.try_parse(id, out v, out rest, 16) && rest == "") {
+                            return "Qualcomm Adreno %u%u%u".printf(
+                                (uint) ((v >> 24) & 0xff), (uint) ((v >> 16) & 0xff), (uint) ((v >> 8) & 0xff)
+                            );
+                        }
+                    }
+                } else if (c.has_prefix("arm,mali-")) {
+                    string model = c.substring(9);
+                    if (model.length > 1 && (model[0] == 't' || model[0] == 'g') && model[1].isdigit()) {
+                        return "Arm Mali-" + model.up();
+                    }
+                    return "Arm Mali";
+                } else if (c.has_prefix("brcm,") && (c.contains("v3d") || c.contains("vc4") || c.contains("vc5"))) {
+                    return "Broadcom VideoCore";
+                } else if (c.has_prefix("nvidia,") && (c.contains("gk20a") || c.contains("gm20b") || c.contains("gp10b") || c.contains("gv11b"))) {
+                    return "NVIDIA Tegra Graphics";
+                } else if (c.has_prefix("vivante,")) {
+                    return "Vivante GPU";
+                } else if (c.has_prefix("img,img-")) {
+                    return "Imagination PowerVR";
+                }
+            }
+            return adreno ? "Qualcomm Adreno" : null;
+        }
+
         private static bool is_drm_card(string name) {
             if (!name.has_prefix("card") || name.length == 4) return false;
             for (int i = 4; i < name.length; i++) {
@@ -170,7 +349,10 @@ namespace Singularity {
         }
 
         public static string graphics() {
-            return graphics_from_drm("/sys/class/drm");
+            string drm = graphics_from_drm("/sys/class/drm");
+            if (drm != "Unknown Graphics") return drm;
+            // DEVICE-FIX(arm64): SoC GPUs are platform devices with no PCI vendor id; without reading the bound GPU driver's devicetree node they show Unknown Graphics
+            return soc_gpu("/sys/bus/platform/drivers") ?? drm;
         }
     }
 }
