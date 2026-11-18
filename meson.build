@@ -1129,6 +1129,13 @@ one_time_codes_test = executable(
 )
 test('one-time-codes', one_time_codes_test)
 
+form_factor_test = executable(
+  'form-factor-test',
+  files('tests/form_factor_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('form-factor', form_factor_test, env: ['GSETTINGS_BACKEND=memory'])
+
 drive_health_test = executable(
   'drive-health-test',
   files('tests/drive_health_test.vala'),

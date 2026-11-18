@@ -142,7 +142,11 @@ namespace Singularity {
             var display = Gdk.Display.get_default();
             if (display == null) return;
             _watching_monitors = true;
-            display.get_monitors().items_changed.connect(() => outputs_changed());
+            display.get_monitors().items_changed.connect(() => {
+                if (_settings != null && !forced) reload();
+                outputs_changed();
+            });
+            if (_settings != null && !forced) reload();
         }
 
         public bool outputs_configurable {
@@ -176,18 +180,24 @@ namespace Singularity {
             return connector.has_prefix("eDP") || connector.has_prefix("LVDS") || connector.has_prefix("DSI");
         }
 
-        public static FormFactorKind detect(Gdk.Monitor monitor) {
-            string connector = monitor.get_connector() ?? "";
-            if (is_internal_connector(connector)) return FormFactorKind.DESKTOP;
-            int w = monitor.get_width_mm();
-            int h = monitor.get_height_mm();
-            if (w <= 0 || h <= 0) return FormFactorKind.DESKTOP;
-            double inches = Math.sqrt((double) w * w + (double) h * h) / 25.4;
+        public static FormFactorKind classify(string connector, int width_mm, int height_mm) {
+            if (width_mm <= 0 || height_mm <= 0) return FormFactorKind.DESKTOP;
+            double inches = Math.sqrt((double) width_mm * width_mm + (double) height_mm * height_mm) / 25.4;
             if (inches < WATCH_MAX_INCHES) return FormFactorKind.WATCH;
             if (inches < PHONE_MAX_INCHES) return FormFactorKind.PHONE;
+            if (is_internal_connector(connector)) return FormFactorKind.DESKTOP;
             if (inches < TABLET_MAX_INCHES) return FormFactorKind.TABLET;
             if (inches >= TV_MIN_INCHES && connector.has_prefix("HDMI")) return FormFactorKind.TV;
             return FormFactorKind.DESKTOP;
+        }
+
+        public static FormFactorKind classify_main(string connector, int width_mm, int height_mm) {
+            var kind = classify(connector, width_mm, height_mm);
+            return kind.is_handheld() ? kind : FormFactorKind.DESKTOP;
+        }
+
+        public static FormFactorKind detect(Gdk.Monitor monitor) {
+            return classify(monitor.get_connector() ?? "", monitor.get_width_mm(), monitor.get_height_mm());
         }
 
         public string output_preference(string connector) {
@@ -258,11 +268,19 @@ namespace Singularity {
             string value = _settings.get_string(KEY);
             preference = value;
             FormFactorKind next;
-            if (!FormFactorKind.try_parse(value, out next)) next = _core_form == "tv" ? FormFactorKind.TV : FormFactorKind.DESKTOP;
+            if (!FormFactorKind.try_parse(value, out next)) next = auto_kind();
             if (next == kind) return;
             var previous = kind;
             kind = next;
             changed(previous);
+        }
+
+        private FormFactorKind auto_kind() {
+            if (_core_form == "tv") return FormFactorKind.TV;
+            watch_monitors();
+            var main = main_monitor();
+            if (main == null) return FormFactorKind.DESKTOP;
+            return classify_main(main.get_connector() ?? "", main.get_width_mm(), main.get_height_mm());
         }
 
         public bool choose(string id) {
