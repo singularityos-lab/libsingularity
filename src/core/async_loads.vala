@@ -39,6 +39,72 @@ namespace Singularity.Async {
         return yield run<Gdk.Texture>((c) => texture_of(decode(bytes, pixels, c)), qos, cancellable);
     }
 
+    public async Gdk.Texture load_cover(File file, int width, int height, Qos qos = Qos.USER, Cancellable? cancellable = null) throws Error {
+        var bytes = yield load_bytes(file, qos, cancellable);
+        return yield run<Gdk.Texture>((c) => cover(Gdk.Texture.from_bytes(bytes), width, height), qos, cancellable);
+    }
+
+    internal Gdk.Texture cover(Gdk.Texture source, int width, int height) {
+        int sw = source.width;
+        int sh = source.height;
+        if (width <= 0 || height <= 0 || (sw == width && sh == height)) return source;
+        var downloader = new Gdk.TextureDownloader(source);
+        downloader.set_format(Gdk.MemoryFormat.R8G8B8A8_PREMULTIPLIED);
+        size_t stride;
+        var src_bytes = downloader.download_bytes(out stride);
+        unowned uint8[] src = src_bytes.get_data();
+        double scale = double.max((double) width / sw, (double) height / sh);
+        double ox = (sw - width / scale) / 2;
+        double oy = (sh - height / scale) / 2;
+        var dst = new uint8[width * height * 4];
+        for (int y = 0; y < height; y++) {
+            double fy0 = oy + y / scale;
+            double fy1 = oy + (y + 1) / scale;
+            for (int x = 0; x < width; x++) {
+                double fx0 = ox + x / scale;
+                double fx1 = ox + (x + 1) / scale;
+                int d = (y * width + x) * 4;
+                if (scale < 1) {
+                    int x0 = ((int) fx0).clamp(0, sw - 1);
+                    int x1 = ((int) Math.ceil(fx1)).clamp(x0 + 1, sw);
+                    int y0 = ((int) fy0).clamp(0, sh - 1);
+                    int y1 = ((int) Math.ceil(fy1)).clamp(y0 + 1, sh);
+                    uint sum0 = 0, sum1 = 0, sum2 = 0, sum3 = 0;
+                    for (int yy = y0; yy < y1; yy++) {
+                        size_t row = yy * stride;
+                        for (int xx = x0; xx < x1; xx++) {
+                            size_t i = row + xx * 4;
+                            sum0 += src[i];
+                            sum1 += src[i + 1];
+                            sum2 += src[i + 2];
+                            sum3 += src[i + 3];
+                        }
+                    }
+                    uint n = (uint) ((x1 - x0) * (y1 - y0));
+                    dst[d] = (uint8) (sum0 / n);
+                    dst[d + 1] = (uint8) (sum1 / n);
+                    dst[d + 2] = (uint8) (sum2 / n);
+                    dst[d + 3] = (uint8) (sum3 / n);
+                } else {
+                    double sx = ((fx0 + fx1) / 2 - 0.5).clamp(0, sw - 1);
+                    double sy = ((fy0 + fy1) / 2 - 0.5).clamp(0, sh - 1);
+                    int x0 = (int) sx;
+                    int y0 = (int) sy;
+                    int x1 = int.min(x0 + 1, sw - 1);
+                    int y1 = int.min(y0 + 1, sh - 1);
+                    double tx = sx - x0;
+                    double ty = sy - y0;
+                    for (int ch = 0; ch < 4; ch++) {
+                        double top = src[y0 * stride + x0 * 4 + ch] * (1 - tx) + src[y0 * stride + x1 * 4 + ch] * tx;
+                        double bottom = src[y1 * stride + x0 * 4 + ch] * (1 - tx) + src[y1 * stride + x1 * 4 + ch] * tx;
+                        dst[d + ch] = (uint8) (top * (1 - ty) + bottom * ty + 0.5);
+                    }
+                }
+            }
+        }
+        return new Gdk.MemoryTexture(width, height, Gdk.MemoryFormat.R8G8B8A8_PREMULTIPLIED, new Bytes.take((owned) dst), width * 4);
+    }
+
     internal Gdk.Pixbuf decode(Bytes bytes, int pixels, Cancellable? cancellable) throws Error {
         var loader = new Gdk.PixbufLoader();
         loader.size_prepared.connect((width, height) => {

@@ -7180,15 +7180,23 @@ window.split-divider .split-guide.active {
 }
 
 window.tv-home {
-    background-color: alpha(black, 0.45);
+    background-color: alpha(#0d0d10, 0.96);
 }
 
 .tv-home-page {
     padding: 72px 96px;
 }
 
+.tv-home-main {
+    padding: 36px 0 24px 0;
+}
+
 .tv-home-head {
     margin-bottom: 40px;
+}
+
+.tv-home-main > .tv-home-head {
+    margin-bottom: 28px;
 }
 
 .tv-home-title {
@@ -7200,21 +7208,64 @@ window.tv-home {
 .tv-home-clock {
     font-size: 32px;
     font-weight: 600;
-    color: alpha(white, 0.85);
+    color: alpha(white, 0.92);
 }
 
 .tv-home-section {
     font-size: 22px;
-    font-weight: 600;
-    color: alpha(white, 0.75);
-    margin: 24px 0 16px 0;
+    font-weight: 700;
+    color: alpha(white, 0.92);
+    margin: 30px 0 6px 0;
 }
 
 .tv-home-row flowboxchild {
     padding: 24px 22px 12px 22px;
-    border-radius: 28px;
+}
+
+.singularity flowbox.tv-app-row > flowboxchild,
+.singularity flowbox.tv-app-row > flowboxchild:hover,
+.singularity flowbox.tv-app-row > flowboxchild:focus,
+.singularity flowbox.tv-app-row > flowboxchild:focus:focus-visible {
+    border-radius: 20px;
     background: none;
     box-shadow: none;
+    outline: none;
+}
+
+flowbox.tv-app-row > flowboxchild {
+    padding: 14px 8px 8px 8px;
+}
+
+window.tv-home flowboxchild,
+window.tv-home flowboxchild *,
+window.tv-home button,
+window.tv-home button *,
+window.tv-settings flowbox.tv-app-row > flowboxchild,
+window.tv-settings flowbox.tv-app-row > flowboxchild * {
+    transition: none;
+}
+
+.tv-app-art {
+    border-radius: 20px;
+    background-color: #2a2c31;
+    box-shadow: inset 0 1px alpha(white, 0.12);
+}
+
+.tv-app-art image {
+    -gtk-icon-shadow: 0 4px 10px alpha(black, 0.3);
+}
+
+.tv-app-art.folder {
+    background-color: alpha(white, 0.06);
+    background-image: none;
+}
+
+flowbox.tv-app-row > flowboxchild:focus-visible .tv-app-art {
+    box-shadow: inset 0 1px alpha(white, 0.16), 0 0 0 3px @accent_color, 0 0 32px 4px alpha(@accent_color, 0.55);
+}
+
+flowbox.tv-app-row > flowboxchild:focus-visible .tv-app-art.folder {
+    background-color: alpha(white, 0.14);
 }
 
 .tv-tile-label {
@@ -7223,17 +7274,233 @@ window.tv-home {
     color: white;
 }
 
-.tv-home-row .tv-tile-label {
+.tv-app-row .tv-tile-label {
     font-size: 19px;
-    color: alpha(white, 0.78);
-    text-shadow: 0 1px 6px alpha(black, 0.6);
-    transition: color 200ms ease-out;
+    color: alpha(white, 0.82);
 }
 
-.tv-home-row flowboxchild:hover .tv-tile-label,
-.tv-home-row flowboxchild:focus .tv-tile-label,
-.tv-home-row flowboxchild:focus-visible .tv-tile-label {
+.tv-app-row flowboxchild:focus-visible .tv-tile-label {
     color: white;
+}
+
+.tv-app-row .tv-tile-label.tv-folder-label {
+    font-size: 17px;
+    margin-bottom: 22px;
+}
+
+.tv-hero {
+    border-radius: 28px;
+    background-color: mix(#16161a, @accent_color, 0.18);
+    background-image: linear-gradient(110deg, mix(#101014, @accent_color, 0.32), #121216 70%);
+    box-shadow: 0 0 0 1px alpha(white, 0.06), 0 12px 32px alpha(black, 0.35);
+}
+
+.tv-hero-scrim {
+    background-image: linear-gradient(to right, alpha(mix(#0b0b0f, @accent_color, 0.22), 0.94) 0%, alpha(mix(#0b0b0f, @accent_color, 0.18), 0.72) 34%, alpha(#0b0b0f, 0) 62%);
+}
+
+.tv-hero.empty .tv-hero-scrim {
+    background-image: none;
+}
+
+.tv-hero-text {
+    margin: 24px 72px;
+}
+
+.tv-hero-badge {
+    padding: 5px 16px;
+    border-radius: 999px;
+    font-size: 17px;
+    font-weight: 700;
+    color: @accent_fg_color;
+    background-color: @accent_color;
+    margin-bottom: 10px;
+}
+
+.tv-hero-title {
+    font-size: 52px;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 2px 12px alpha(black, 0.35);
+}
+
+.tv-hero-overview {
+    margin-top: 8px;
+    font-size: 22px;
+    color: alpha(white, 0.86);
+}
+
+.tv-hero.empty .tv-hero-title {
+    font-size: 40px;
+}
+
+.tv-hero-actions {
+    margin-top: 24px;
+}
+
+.singularity button.tv-hero-watch,
+.singularity button.tv-hero-details {
+    min-height: 54px;
+    padding: 0 30px;
+    border-radius: 999px;
+    border: none;
+    font-size: 21px;
+    font-weight: 700;
+    outline: none;
+}
+
+.singularity button.tv-hero-watch,
+.singularity button.tv-hero-watch label,
+.singularity button.tv-hero-watch image {
+    color: #111114;
+}
+
+.singularity button.tv-hero-watch {
+    background-color: white;
+    box-shadow: 0 6px 18px alpha(black, 0.3);
+}
+
+.singularity button.tv-hero-details {
+    color: white;
+    background-color: alpha(white, 0.16);
+}
+
+.singularity button.tv-hero-watch:hover {
+    background-color: #ececf0;
+}
+
+.singularity button.tv-hero-details:hover {
+    background-color: alpha(white, 0.24);
+}
+
+.singularity button.tv-hero-watch:focus:focus-visible,
+.singularity button.tv-hero-details:focus:focus-visible,
+.singularity button.tv-sheet-offer:focus:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px @accent_color, 0 0 26px 2px alpha(@accent_color, 0.55);
+}
+
+.singularity button.tv-hero-details:focus:focus-visible {
+    background-color: alpha(white, 0.24);
+}
+
+.tv-hero-dots {
+    margin: 0 40px 30px 0;
+}
+
+.tv-hero-dot {
+    min-width: 11px;
+    min-height: 11px;
+    border-radius: 999px;
+    background-color: alpha(white, 0.42);
+}
+
+.tv-hero-dot.active {
+    background-color: @accent_color;
+}
+
+.tv-watch-row {
+    padding: 14px 0 22px 0;
+}
+
+.singularity button.tv-watch-card,
+.singularity button.tv-watch-card:hover,
+.singularity button.tv-watch-card:focus:focus-visible {
+    padding: 0;
+    border: none;
+    border-radius: 18px;
+    background: none;
+    outline: none;
+    box-shadow: 0 0 0 1px alpha(white, 0.07);
+}
+
+.singularity button.tv-watch-card:focus:focus-visible {
+    box-shadow: 0 0 0 3px @accent_color, 0 0 30px 4px alpha(@accent_color, 0.5);
+}
+
+.tv-watch-stage {
+    border-radius: 18px;
+    background-color: #1c1c21;
+}
+
+.tv-watch-scrim {
+    background-image: linear-gradient(to right, alpha(black, 0.62), alpha(black, 0.1) 60%), linear-gradient(to top, alpha(black, 0.55), alpha(black, 0) 45%);
+}
+
+.tv-watch-title {
+    margin: 0 0 12px 26px;
+    font-size: 30px;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 2px 10px alpha(black, 0.6);
+}
+
+.tv-watch-logo {
+    border-radius: 10px;
+}
+
+.tv-watch-service {
+    margin: 12px 12px 0 0;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background-color: alpha(black, 0.62);
+}
+
+.tv-watch-service-logo {
+    border-radius: 7px;
+}
+
+.tv-watch-service-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+}
+
+.tv-sheet {
+    background-color: #0d0d10;
+}
+
+.tv-sheet-scrim {
+    background-image: linear-gradient(to right, alpha(mix(#0b0b0f, @accent_color, 0.2), 0.96) 0%, alpha(#0b0b0f, 0.82) 45%, alpha(#0b0b0f, 0.35) 100%);
+}
+
+.tv-sheet-text {
+    margin: 64px 120px;
+}
+
+.tv-sheet-meta {
+    margin-top: 10px;
+    font-size: 20px;
+    font-weight: 600;
+    color: alpha(white, 0.7);
+}
+
+.tv-sheet .tv-home-section {
+    margin-top: 40px;
+    margin-bottom: 16px;
+}
+
+.singularity button.tv-sheet-offer {
+    padding: 12px 24px 12px 14px;
+    border: none;
+    border-radius: 20px;
+    color: white;
+    background-color: alpha(white, 0.1);
+    outline: none;
+}
+
+.tv-sheet-offer .tv-watch-logo {
+    margin: 0;
+}
+
+.tv-sheet-offer-name {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.tv-sheet-offer-hint {
+    font-size: 16px;
+    color: alpha(white, 0.7);
 }
 
 window.watch-face {
@@ -7415,7 +7682,7 @@ window.companion {
 }
 
 window.tv-home button.tv-home-gear {
-    margin-left: 20px;
+    margin-left: 28px;
     padding: 6px;
     border-radius: 999px;
     background: none;
