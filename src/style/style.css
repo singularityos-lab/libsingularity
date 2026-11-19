@@ -7212,22 +7212,9 @@ window.tv-home {
 
 .tv-home-row flowboxchild {
     padding: 24px 22px 12px 22px;
-    background: none;
-    outline: none;
-    box-shadow: none;
-}
-
-.tv-home-row flowboxchild:focus,
-.tv-home-row flowboxchild:focus-visible,
-.singularity flowbox.tv-home-row > flowboxchild:focus:focus-visible {
-    outline: none;
+    border-radius: 28px;
     background: none;
     box-shadow: none;
-}
-
-.tv-banner {
-    border-radius: 22px;
-    box-shadow: 0 6px 18px alpha(black, 0.32);
 }
 
 .tv-tile-label {
