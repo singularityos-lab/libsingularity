@@ -1061,10 +1061,8 @@ namespace Singularity.Widgets {
                 row.add_suffix(new Image.from_icon_name("object-select-symbolic"));
             }
             var gesture = new GestureClick();
-            gesture.pressed.connect((n, x, y) => {
-                gesture.set_state(EventSequenceState.CLAIMED);
-            });
             gesture.released.connect(() => {
+                gesture.set_state(EventSequenceState.CLAIMED);
                 current_value = id;
                 selected(id);
                 expanded = false;

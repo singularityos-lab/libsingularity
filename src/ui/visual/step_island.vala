@@ -64,6 +64,7 @@ namespace Singularity.Widgets {
 
             title_lbl = new Label("");
             title_lbl.add_css_class("singularity-step-island-title");
+            title_lbl.ellipsize = Pango.EllipsizeMode.END;
             center.append(title_lbl);
             append(center);
 
