@@ -340,6 +340,10 @@ libsingularity_sources = files(
   'src/ui/visual/chart_widgets.vala',
   'src/ui/visual/circular_progress.vala',
   'src/ui/visual/media_player_card.vala',
+  'src/ui/visual/led_matrix_view.vala',
+  'src/led/led_font.vala',
+  'src/led/led_scene.vala',
+  'src/led/led_device.vala',
   'src/ui/pages/browser_pill.vala',
   'src/core/terminal_themes.vala',
   'src/util/color_util.vala',
@@ -768,6 +772,17 @@ if get_option('system')
     vala_args: system_core_vala_args,
   )
   test('sensor', sensor_test)
+
+  led_scene_test = executable(
+    'led-scene-test',
+    files(
+      'tests/led_scene_test.vala',
+      'src/led/led_font.vala',
+      'src/led/led_scene.vala',
+    ),
+    dependencies: [gio_dep, json_dep, m_dep],
+  )
+  test('led-scene', led_scene_test)
 
   process_usage_test = executable(
     'process-usage-test',
