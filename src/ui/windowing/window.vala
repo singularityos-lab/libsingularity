@@ -438,6 +438,10 @@ namespace Singularity.Widgets {
                 // The legacy corner-pinned close button was rendering as
                 // a random rogue widget in welcome states; killed.
                 _flat_close_btn = null;
+
+                ((Gtk.Widget) this).realize.connect(() => {
+                    if (floating_bubbles && _bubble_bar == null) _ensure_bubble_bar();
+                });
             }
 
             _scrim_revealer = new Revealer();
