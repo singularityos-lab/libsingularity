@@ -389,4 +389,8 @@ namespace SintySystem {
 
     [CCode (cname = "sinty_clipboard_set")]
     public int clipboard_set ([CCode (array_length_type = "size_t")] uint8[]? data, [CCode (array_length_type = "size_t")] string[] mimes, bool primary, out ClipboardHolder holder);
+
+    public bool haptic_available ();
+    public int haptic_pulse (uint32 ms, uint16 strength);
+    public int haptic_key ();
 }

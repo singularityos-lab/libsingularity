@@ -870,6 +870,10 @@ int sinty_fscrypt_key_status(const char *mount, const uint8_t id[SINTY_FSCRYPT_I
 int sinty_fscrypt_set_policy(const char *dir, const SintyFscryptPolicy *policy);
 int sinty_fscrypt_get_policy(const char *path, SintyFscryptPolicy *out);
 
+bool sinty_haptic_available(void);
+int sinty_haptic_pulse(uint32_t ms, uint16_t strength);
+int sinty_haptic_key(void);
+
 #ifdef __cplusplus
 }
 #endif

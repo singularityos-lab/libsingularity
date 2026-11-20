@@ -38,6 +38,7 @@ pub const mounts = @import("v1/mount.zig");
 pub const fsck = @import("v1/fsck.zig");
 pub const erofs = @import("v1/erofs.zig");
 pub const f2fs = @import("v1/f2fs.zig");
+pub const haptic = @import("v1/haptic.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -1086,8 +1087,23 @@ export fn sinty_language_set(lang: [*:0]const u8) c_int {
     return 0;
 }
 
+export fn sinty_haptic_available() bool {
+    return haptic.available();
+}
+
+export fn sinty_haptic_pulse(ms: u32, strength: u16) c_int {
+    haptic.pulse(ms, strength) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_haptic_key() c_int {
+    haptic.key() catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
+    _ = haptic;
     _ = proc;
     _ = sensors;
     _ = power;
