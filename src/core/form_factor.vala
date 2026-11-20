@@ -159,15 +159,18 @@ namespace Singularity {
         }
 
         public static Gdk.Monitor? main_monitor() {
+            return get_default().pick_main_monitor();
+        }
+
+        private Gdk.Monitor? pick_main_monitor() {
             var display = Gdk.Display.get_default();
             if (display == null) return null;
             var monitors = display.get_monitors();
             uint n = monitors.get_n_items();
             if (n == 0) return null;
-            var ff = get_default();
             string wanted = "";
-            if (ff._settings != null && ff._settings.settings_schema.has_key(SHELL_MONITOR_KEY)) {
-                wanted = ff._settings.get_string(SHELL_MONITOR_KEY);
+            if (_settings != null && _settings.settings_schema.has_key(SHELL_MONITOR_KEY)) {
+                wanted = _settings.get_string(SHELL_MONITOR_KEY);
             }
             for (uint i = 0; i < n; i++) {
                 var m = (Gdk.Monitor) monitors.get_item(i);
@@ -278,7 +281,7 @@ namespace Singularity {
         private FormFactorKind auto_kind() {
             if (_core_form == "tv") return FormFactorKind.TV;
             watch_monitors();
-            var main = main_monitor();
+            var main = pick_main_monitor();
             if (main == null) return FormFactorKind.DESKTOP;
             return classify_main(main.get_connector() ?? "", main.get_width_mm(), main.get_height_mm());
         }
