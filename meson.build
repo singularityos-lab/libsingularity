@@ -141,6 +141,7 @@ libsingularity_sources = files(
   'src/ui/navigation/app_sidebar.vala',
   'src/ui/navigation/context_ribbon.vala',
   'src/ui/navigation/sidebar_tabs.vala',
+  'src/ui/navigation/split_view.vala',
   'src/ui/navigation/sidebar_section_label.vala',
   'src/shell/global_menu_bar.vala',
   'src/ui/pages/welcome_page.vala',
