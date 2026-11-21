@@ -768,6 +768,10 @@ window.singularity-glass:not(.flat-panel) .panel,
     filter: none;
 }
 
+.panel-window.light-bg:not(.flat-panel) .panel image.panel-logo {
+    filter: invert(1);
+}
+
 .panel-window:not(.flat-panel) .notification-button label {
 }
 
