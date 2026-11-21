@@ -84,6 +84,10 @@ namespace Singularity.Widgets {
 
         widget.realize.connect (() => {
             sync_view_edge (widget);
+            var root = widget.get_root () as Singularity.Widgets.Window;
+            if (root == null || root.get_data<bool> ("singularity-view-edge-follows")) return;
+            root.set_data<bool> ("singularity-view-edge-follows", true);
+            root.form_factor_changed.connect ((previous) => sync_view_edges (root));
         });
         FormFactor.get_default ().changed.connect ((previous) => {
             Idle.add (() => {
@@ -91,6 +95,13 @@ namespace Singularity.Widgets {
                 return Source.REMOVE;
             });
         });
+    }
+
+    private void sync_view_edges (Widget widget) {
+        if (widget.has_css_class ("singularity-view-edge")) sync_view_edge (widget);
+        for (var child = widget.get_first_child (); child != null; child = child.get_next_sibling ()) {
+            sync_view_edges (child);
+        }
     }
 
     private void sync_view_edge (Widget widget) {
