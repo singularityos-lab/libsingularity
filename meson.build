@@ -614,6 +614,7 @@ if get_option('system')
     'src/system/bluetooth_manager.vala',
     'src/system/datetime_manager.vala',
     'src/system/locale_manager.vala',
+    'src/system/keyboard_layouts.vala',
     'src/system/accounts_service.vala',
     'src/system/app_menu_registrar.vala',
     'src/system/shared_clock.vala',

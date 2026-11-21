@@ -114,6 +114,40 @@ namespace Singularity {
             return "";
         }
 
+        public static string effective_keyboard_layout(GLib.Settings settings, out string variant) {
+            if (settings.get_user_value("xkb-layout") != null && settings.get_string("xkb-layout") != "") {
+                variant = settings.get_string("xkb-variant");
+                return settings.get_string("xkb-layout");
+            }
+            string? layout = Environment.get_variable("XKB_DEFAULT_LAYOUT");
+            if (layout != null && layout != "") {
+                variant = Environment.get_variable("XKB_DEFAULT_VARIANT") ?? "";
+                return layout;
+            }
+            foreach (string path in new string[] { "/var/lib/singularity/vconsole.conf", "/etc/vconsole.conf" }) {
+                string contents;
+                try {
+                    if (!FileUtils.get_contents(path, out contents)) continue;
+                } catch (FileError e) {
+                    continue;
+                }
+                string found = "";
+                string found_variant = "";
+                foreach (string line in contents.split("\n")) {
+                    string clean = line.strip();
+                    if (clean.has_prefix("XKBLAYOUT=")) found = clean.substring(10).replace("\"", "");
+                    else if (clean.has_prefix("XKBVARIANT=")) found_variant = clean.substring(11).replace("\"", "");
+                }
+                if (found != "") {
+                    variant = found_variant;
+                    return found.split(",", 2)[0];
+                }
+            }
+            variant = "";
+            string lang = Environment.get_variable("LANG") ?? "";
+            return keyboard_layouts_for(lang)[0];
+        }
+
         public static string[] keyboard_layouts_for(string locale) {
             string name = locale.split(".", 2)[0].split("@", 2)[0];
             string[] parts = name.split("_", 2);

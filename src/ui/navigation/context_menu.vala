@@ -43,6 +43,17 @@ namespace Singularity.Widgets {
             set_child(content_box);
             add_css_class("context-menu");
             set_offset(-SHADOW_OFFSET, -SHADOW_OFFSET);
+            map.connect(() => {
+                if (FormFactor.get_default().for_monitor(monitor_of(parent_widget)).is_touch_first()) add_css_class("touch");
+                else remove_css_class("touch");
+            });
+        }
+
+        private static Gdk.Monitor? monitor_of(Widget widget) {
+            var native = widget.get_native();
+            var surface = native != null ? native.get_surface() : null;
+            if (surface == null) return null;
+            return widget.get_display().get_monitor_at_surface(surface);
         }
 
         /**

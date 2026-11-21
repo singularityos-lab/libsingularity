@@ -3010,6 +3010,41 @@ popover .menu-row {
     padding: 0 2px;
 }
 
+popover.context-menu.touch > contents {
+    padding: 6px;
+    border-radius: 18px;
+}
+
+.singularity popover.context-menu.touch button.flat.menu-row,
+.singularity popover.context-menu.touch .menu-row,
+popover.context-menu.touch .menu-row {
+    min-height: 48px;
+    min-width: 230px;
+    padding: 4px 14px;
+    border-radius: 12px;
+    font-size: 1.08em;
+}
+
+popover.context-menu.touch .menu-row image {
+    -gtk-icon-size: 20px;
+}
+
+window.ff-phone popover.menu modelbutton,
+window.ff-tablet popover.menu modelbutton,
+window.ff-phone entry > popover modelbutton,
+window.ff-tablet entry > popover modelbutton {
+    min-height: 48px;
+    padding: 4px 14px;
+    border-radius: 12px;
+    font-size: 1.08em;
+}
+
+window.ff-phone popover.menu > contents,
+window.ff-tablet popover.menu > contents {
+    padding: 6px;
+    border-radius: 18px;
+}
+
 .menu-row:hover,
 button.menu-row:hover,
 button.flat.menu-row:hover,
