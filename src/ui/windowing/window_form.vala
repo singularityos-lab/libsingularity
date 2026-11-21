@@ -192,6 +192,7 @@ namespace Singularity.Widgets {
             ((Widget) win).realize.connect_after(track_surface);
             ((Widget) win).map.connect_after(() => update());
             win.notify["application"].connect(() => update());
+            win.notify["tv-head-hidden"].connect(sync_head);
         }
 
         public void release() {
@@ -357,7 +358,7 @@ namespace Singularity.Widgets {
                 return;
             }
             _win.tv_sidebar_hidden = true;
-            build_head();
+            if (!_win.tv_head_hidden) build_head();
             schedule_rebuild();
             _user_moved = false;
             _start_tries = 0;
@@ -391,18 +392,7 @@ namespace Singularity.Widgets {
             }
             hide_pointer();
             hold_dark(false);
-            if (_actions_id != 0) {
-                _win.disconnect(_actions_id);
-                _actions_id = 0;
-            }
-            if (_head != null) {
-                _head.unparent();
-                _head = null;
-                _tabs = null;
-                _actions = null;
-                _search_entry = null;
-                _search_tab = null;
-            }
+            drop_head();
             _win.tv_sidebar_hidden = false;
             if (_win.scale_bin != null) _win.scale_bin.factor = 1.0;
             if (_we_fullscreened) {
@@ -437,6 +427,29 @@ namespace Singularity.Widgets {
                     continue;
                 }
                 collect_rows(c, ref rows);
+            }
+        }
+
+        private void sync_head() {
+            if (_win.tv_head_hidden) {
+                drop_head();
+            } else if (kind == FormFactorKind.TV && !compat) {
+                build_head();
+            }
+        }
+
+        private void drop_head() {
+            if (_actions_id != 0) {
+                _win.disconnect(_actions_id);
+                _actions_id = 0;
+            }
+            if (_head != null) {
+                _head.unparent();
+                _head = null;
+                _tabs = null;
+                _actions = null;
+                _search_entry = null;
+                _search_tab = null;
             }
         }
 

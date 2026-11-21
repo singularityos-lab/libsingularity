@@ -1207,6 +1207,8 @@ namespace Singularity.Widgets {
 
         public bool sidebar_toggle_shown { get; private set; default = false; }
 
+        public bool tv_head_hidden { get; set; default = false; }
+
         private void _sync_sidebar_toggle() {
             if (_bubble_bar == null) return;
             bool show = _has_sidebar() && _welcome_pages == 0
