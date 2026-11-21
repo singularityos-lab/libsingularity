@@ -86,7 +86,23 @@ namespace Singularity.Animation {
             this.child = child;
         }
 
+        private bool _transform_input = false;
+
+        public bool transform_input {
+            get { return _transform_input; }
+            set {
+                if (_transform_input == value) return;
+                _transform_input = value;
+                if (_native_transform) set_native_visual_transform(this, value ? null : get_visual_transform());
+                queue_allocate();
+            }
+        }
+
         private void update_transform() {
+            if (_transform_input) {
+                queue_allocate();
+                return;
+            }
             if (_native_transform && set_native_visual_transform(this, get_visual_transform())) return;
             queue_draw();
         }
@@ -128,6 +144,10 @@ namespace Singularity.Animation {
         }
 
         public override void size_allocate(int width, int height, int baseline) {
+            if (_transform_input) {
+                if (_child != null && _child.visible) _child.allocate(width, height, baseline, get_visual_transform());
+                return;
+            }
             if (_child != null && _child.visible) _child.allocate(width, height, baseline, null);
             update_transform();
         }
@@ -144,7 +164,7 @@ namespace Singularity.Animation {
 
         public override void snapshot(Gtk.Snapshot snapshot) {
             if (_child == null) return;
-            if (_native_transform || is_identity) {
+            if (_transform_input || _native_transform || is_identity) {
                 snapshot_child(_child, snapshot);
                 return;
             }
