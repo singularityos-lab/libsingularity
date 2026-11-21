@@ -40,6 +40,7 @@ pub const erofs = @import("v1/erofs.zig");
 pub const f2fs = @import("v1/f2fs.zig");
 pub const haptic = @import("v1/haptic.zig");
 pub const unlock = @import("v1/unlock.zig");
+pub const words = @import("v1/words.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -1128,6 +1129,42 @@ export fn sinty_unlock_clear(pin: [*:0]const u8) c_int {
     return @intFromEnum(v);
 }
 
+export fn sinty_words_open(path: [*:0]const u8) ?*words.Words {
+    return words.open(path) catch null;
+}
+
+export fn sinty_words_free(w: ?*words.Words) void {
+    if (w) |p| p.deinit();
+}
+
+export fn sinty_words_contains(w: *const words.Words, text: [*:0]const u8) bool {
+    return w.contains(span(text));
+}
+
+fn wordsOut(w: *const words.Words, ids: []const u32, out: [*][*:0]const u8) c_int {
+    for (ids, 0..) |id, i| out[i] = w.word(id);
+    return @intCast(ids.len);
+}
+
+export fn sinty_words_complete(w: *const words.Words, prefix: [*:0]const u8, out: [*][*:0]const u8, max: c_int) c_int {
+    var ids: [64]u32 = undefined;
+    const n = w.complete(span(prefix), ids[0..@intCast(std.math.clamp(max, 0, 64))]);
+    return wordsOut(w, ids[0..n], out);
+}
+
+export fn sinty_words_correct(w: *const words.Words, text: [*:0]const u8, out: [*][*:0]const u8, max: c_int) c_int {
+    var ids: [64]u32 = undefined;
+    const n = w.correct(span(text), ids[0..@intCast(std.math.clamp(max, 0, 64))]);
+    return wordsOut(w, ids[0..n], out);
+}
+
+export fn sinty_words_swipe(w: *const words.Words, keys: [*]const words.Key, n_keys: usize, xy: [*]const f32, n_points: usize, out: [*][*:0]const u8, max: c_int) c_int {
+    const points: [*]const [2]f32 = @ptrCast(xy);
+    var ids: [64]u32 = undefined;
+    const n = w.swipe(keys[0..n_keys], points[0..n_points], ids[0..@intCast(std.math.clamp(max, 0, 64))]);
+    return wordsOut(w, ids[0..n], out);
+}
+
 export fn sinty_unlock_lockdown() c_int {
     unlock.lockdown() catch |e| return sys.code(e);
     return 0;
@@ -1137,6 +1174,7 @@ test {
     std.testing.refAllDecls(@This());
     _ = haptic;
     _ = unlock;
+    _ = words;
     _ = proc;
     _ = sensors;
     _ = power;

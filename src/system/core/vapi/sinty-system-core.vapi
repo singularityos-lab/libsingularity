@@ -423,4 +423,26 @@ namespace SintySystem {
     public int unlock_set (string pin, int kind, string secret);
     public int unlock_clear (string pin);
     public int unlock_lockdown ();
+
+    [CCode (cname = "SintyWordsKey", has_type_id = false, destroy_function = "")]
+    public struct WordsKey {
+        public uint32 codepoint;
+        public float x;
+        public float y;
+    }
+
+    [Compact]
+    [CCode (cname = "SintyWords", free_function = "sinty_words_free")]
+    public class Words {
+        [CCode (cname = "sinty_words_open")]
+        public static Words? open (string path);
+        [CCode (cname = "sinty_words_contains")]
+        public bool contains (string text);
+        [CCode (cname = "sinty_words_complete")]
+        public int complete (string prefix, [CCode (array_length = false)] void*[] out_words, int max);
+        [CCode (cname = "sinty_words_correct")]
+        public int correct (string text, [CCode (array_length = false)] void*[] out_words, int max);
+        [CCode (cname = "sinty_words_swipe")]
+        public int swipe ([CCode (array_length_type = "size_t")] WordsKey[] keys, [CCode (array_length = false)] float[] xy, size_t n_points, [CCode (array_length = false)] void*[] out_words, int max);
+    }
 }

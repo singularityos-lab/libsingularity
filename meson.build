@@ -624,6 +624,7 @@ if get_option('system')
     'src/system/ddc.vala',
     'src/system/haptics.vala',
     'src/system/quick_unlock.vala',
+    'src/system/word_list.vala',
     'src/system/kbd_brightness_manager.vala',
     'src/system/power_manager.vala',
     'src/system/dynamic_internet_socket.c',

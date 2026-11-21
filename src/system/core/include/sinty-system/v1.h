@@ -901,6 +901,22 @@ int sinty_unlock_set(const char *pin, int kind, const char *secret);
 int sinty_unlock_clear(const char *pin);
 int sinty_unlock_lockdown(void);
 
+typedef struct SintyWords SintyWords;
+
+typedef struct {
+    uint32_t codepoint;
+    float x;
+    float y;
+} SintyWordsKey;
+
+SintyWords *sinty_words_open(const char *path);
+void sinty_words_free(SintyWords *words);
+bool sinty_words_contains(const SintyWords *words, const char *text);
+int sinty_words_complete(const SintyWords *words, const char *prefix, const char **out, int max);
+int sinty_words_correct(const SintyWords *words, const char *text, const char **out, int max);
+int sinty_words_swipe(const SintyWords *words, const SintyWordsKey *keys, size_t n_keys,
+                      const float *xy, size_t n_points, const char **out, int max);
+
 #ifdef __cplusplus
 }
 #endif
