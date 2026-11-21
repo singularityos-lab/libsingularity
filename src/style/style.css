@@ -1571,6 +1571,11 @@ popover.dock-window-previews > contents {
     background-color: alpha(@text_color, 0.07);
 }
 
+.quick-setting-group.detail-on-hold .quick-setting-tile,
+.quick-setting-group.detail-on-hold .quick-setting-tile.active {
+    border-radius: 64px;
+}
+
 .quick-setting-group .quick-setting-tile.active {
     background-color: @accent_color;
     border-radius: 64px 0 0 64px;
