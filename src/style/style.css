@@ -7652,6 +7652,16 @@ window.watch-face button.watch-swatch {
     border-right-width: 0;
 }
 
+.sidebar .phone-shade-handle {
+    min-height: 32px;
+}
+
+.sidebar .phone-shade-handle .phone-nav-pill {
+    min-width: 44px;
+    min-height: 5px;
+    background-color: alpha(@text_color, 0.35);
+}
+
 window.screen-chooser {
     background-color: transparent;
 }
