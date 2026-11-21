@@ -143,6 +143,7 @@ namespace Singularity.Widgets {
         }
 
         private void settle (bool value) {
+            if (is_open == value) return;
             is_open = value;
             settled (value);
         }

@@ -60,6 +60,13 @@ namespace Singularity.Widgets {
                 sync_back ();
                 if (!open) panel_closed ();
             });
+            var keys = new EventControllerKey ();
+            keys.key_pressed.connect ((keyval, code, state) => {
+                if (keyval != Gdk.Key.Escape || !reveal_panel) return false;
+                reveal_panel = false;
+                return true;
+            });
+            add_controller (keys);
             notify["panel-width"].connect (() => queue_resize ());
             notify["main-min-width"].connect (() => queue_resize ());
             unrealize.connect (() => claim_edge (false));
