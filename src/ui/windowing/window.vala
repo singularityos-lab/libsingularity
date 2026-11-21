@@ -153,6 +153,7 @@ namespace Singularity.Widgets {
         public bool legacy_titlebar { get { return _legacy_titlebar; } }
 
         public bool floating_bubbles { get { return !_force_ssd && !_legacy_titlebar; } }
+        public bool content_window_controls { get; set; default = false; }
         private WindowHandle? _flat_drag_handle  = null;
         private Button?       _flat_close_btn    = null;
         [CCode (cname = "singularity_window_set_border_widget", cheader_filename = "wayland/surface_effect.h")]
@@ -441,7 +442,7 @@ namespace Singularity.Widgets {
                 _flat_close_btn = null;
 
                 ((Gtk.Widget) this).realize.connect(() => {
-                    if (floating_bubbles && _bubble_bar == null) _ensure_bubble_bar();
+                    if (floating_bubbles && !content_window_controls && _bubble_bar == null) _ensure_bubble_bar();
                 });
             }
 
