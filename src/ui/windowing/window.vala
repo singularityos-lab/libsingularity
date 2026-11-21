@@ -167,8 +167,8 @@ namespace Singularity.Widgets {
         private ulong _maximized_handler       = 0;
 
         private ContentBin? _content_bin     = null;
-        private Revealer    _drawer_revealer;
-        private Revealer    _scrim_revealer;
+        private EdgeSheet   _drawer_sheet;
+        private int         _start_edge_claims = 0;
         private Box         _drawer_box;
         private Button?     _auto_sidebar_toggle = null;
         private bool _narrow              = false;
@@ -242,6 +242,7 @@ namespace Singularity.Widgets {
             set {
                 sidebar_revealer.visible = !value;
                 if (value && _drawer_open) _set_drawer_open(false);
+                _sync_drawer_edge();
             }
         }
 
@@ -444,32 +445,17 @@ namespace Singularity.Widgets {
                 });
             }
 
-            _scrim_revealer = new Revealer();
-            _scrim_revealer.transition_type = RevealerTransitionType.CROSSFADE;
-            _scrim_revealer.transition_duration = 200;
-            _scrim_revealer.visible = false;
-            var scrim = new Box(Orientation.VERTICAL, 0);
-            scrim.add_css_class("window-drawer-scrim");
-            scrim.hexpand = true;
-            scrim.vexpand = true;
-            var scrim_click = new GestureClick();
-            scrim_click.released.connect(_on_scrim_released);
-            scrim.add_controller(scrim_click);
-            _scrim_revealer.set_child(scrim);
-            overlay.add_overlay(_scrim_revealer);
-
             _drawer_box = new Box(Orientation.VERTICAL, 0);
             _drawer_box.add_css_class("window-drawer");
-            _drawer_revealer = new Revealer();
-            _drawer_revealer.transition_type = RevealerTransitionType.SLIDE_RIGHT;
-            _drawer_revealer.transition_duration = 200;
-            _drawer_revealer.halign = Align.START;
-            _drawer_revealer.valign = Align.FILL;
-            _drawer_revealer.margin_end = DRAWER_GAP;
-            _drawer_revealer.visible = false;
-            _drawer_revealer.set_child(_drawer_box);
-            _drawer_revealer.notify["child-revealed"].connect(_on_drawer_revealed);
-            overlay.add_overlay(_drawer_revealer);
+            _drawer_sheet = new EdgeSheet(overlay, PackType.START);
+            _drawer_sheet.gap = DRAWER_GAP;
+            _drawer_sheet.can_open = false;
+            _drawer_sheet.set_child(_drawer_box);
+            _drawer_sheet.swipe.begin_track.connect(() => _hook_sidebar_items(sidebar_area));
+            _drawer_sheet.swipe.settled.connect((open) => {
+                _drawer_open = open && _narrow;
+            });
+            overlay.add_overlay(_drawer_sheet);
             Singularity.Animation.FocusRing.install(this, overlay);
 
             var adaptive_keys = new EventControllerKey();
@@ -998,6 +984,7 @@ namespace Singularity.Widgets {
             if (!_narrow && get_width() <= 0 && form_factor == FormFactorKind.PHONE && !form_factor_compat) {
                 _set_narrow(true);
             } else {
+                _sync_drawer_edge();
                 _sync_sidebar_toggle();
             }
             _queue_adaptive_update();
@@ -1067,6 +1054,7 @@ namespace Singularity.Widgets {
         private void _apply_welcome() {
             if (_bubble_bar != null) _bubble_bar.set_welcome(_welcome_pages > 0);
             _apply_sidebar_welcome(sidebar_area);
+            _sync_drawer_edge();
             _sync_sidebar_toggle();
         }
 
@@ -1149,40 +1137,33 @@ namespace Singularity.Widgets {
                 _drawer_box.append(sidebar_scroll_wrap);
             } else {
                 _drawer_open = false;
-                _drawer_revealer.reveal_child = false;
-                _drawer_revealer.visible = false;
-                _scrim_revealer.reveal_child = false;
-                _scrim_revealer.visible = false;
+                _drawer_sheet.swipe.set_open(false, false);
                 _drawer_box.remove(sidebar_scroll_wrap);
                 sidebar_scroll_wrap.hscrollbar_policy = PolicyType.NEVER;
                 sidebar_scroll_wrap.propagate_natural_width = false;
                 sidebar_revealer.set_child(sidebar_scroll_wrap);
                 sidebar_revealer.reveal_child = _sidebar_wanted;
             }
+            _sync_drawer_edge();
             _sync_sidebar_toggle();
         }
 
         private void _set_drawer_open(bool open) {
             if (!_narrow) open = false;
-            if (_drawer_open == open) return;
+            if (_drawer_open == open && _drawer_sheet.revealed == open) return;
             _drawer_open = open;
-            if (open) {
-                _hook_sidebar_items(sidebar_area);
-                _scrim_revealer.visible = true;
-                _drawer_revealer.visible = true;
-            }
-            _scrim_revealer.reveal_child = open;
-            _drawer_revealer.reveal_child = open;
+            if (open) _hook_sidebar_items(sidebar_area);
+            _drawer_sheet.revealed = open;
         }
 
-        private void _on_drawer_revealed() {
-            if (_drawer_open || _drawer_revealer.child_revealed) return;
-            _drawer_revealer.visible = false;
-            _scrim_revealer.visible = false;
+        public void claim_start_edge(bool claim) {
+            _start_edge_claims = int.max(0, _start_edge_claims + (claim ? 1 : -1));
+            _sync_drawer_edge();
         }
 
-        private void _on_scrim_released(int n_press, double x, double y) {
-            _set_drawer_open(false);
+        private void _sync_drawer_edge() {
+            _drawer_sheet.can_open = _narrow && _has_sidebar() && sidebar_revealer.visible
+                && _welcome_pages == 0 && _start_edge_claims == 0;
         }
 
         private void _hook_sidebar_items(Widget root) {

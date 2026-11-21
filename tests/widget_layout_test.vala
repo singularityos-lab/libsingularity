@@ -246,6 +246,127 @@ void test_switch_row_notifies_active() {
     assert(notified == 3);
 }
 
+GestureDrag drag_of(Widget host) {
+    var controllers = host.observe_controllers();
+    for (uint i = 0; i < controllers.get_n_items(); i++) {
+        var c = controllers.get_item(i) as GestureDrag;
+        if (c != null) return c;
+    }
+    assert_not_reached();
+}
+
+void drag(GestureDrag gesture, double x, double y, double[] steps, uint step_ms) {
+    var motion = Singularity.Motion.get_default();
+    Signal.emit_by_name(gesture, "drag-begin", x, y);
+    for (int i = 0; i + 1 < steps.length; i += 2) {
+        motion.advance(step_ms);
+        Signal.emit_by_name(gesture, "drag-update", steps[i], steps[i + 1]);
+    }
+    Signal.emit_by_name(gesture, "drag-end", steps[steps.length - 2], steps[steps.length - 1]);
+    motion.advance(2000, 60);
+}
+
+EdgeSheet make_sheet(Box host) {
+    var sheet = new EdgeSheet(host, PackType.START);
+    var child = new Box(Orientation.VERTICAL, 0);
+    child.set_size_request(200, -1);
+    sheet.set_child(child);
+    sheet.swipe.distance = 200;
+    return sheet;
+}
+
+void test_edge_swipe_follows_finger() {
+    if (!gtk_ready) { Test.skip("no display"); return; }
+    var host = new Box(Orientation.VERTICAL, 0);
+    var sheet = make_sheet(host);
+    var gesture = drag_of(host);
+    var motion = Singularity.Motion.get_default();
+    motion.use_manual_clock(1000000);
+    Signal.emit_by_name(gesture, "drag-begin", 4.0, 300.0);
+    motion.advance(16);
+    Signal.emit_by_name(gesture, "drag-update", 12.0, 1.0);
+    assert_true(sheet.swipe.tracking);
+    double start = sheet.swipe.progress;
+    motion.advance(200);
+    Signal.emit_by_name(gesture, "drag-update", 62.0, 3.0);
+    assert_cmpfloat_with_epsilon(sheet.swipe.progress - start, 0.25, 0.001);
+    motion.advance(200);
+    Signal.emit_by_name(gesture, "drag-update", 132.0, 3.0);
+    assert_cmpfloat_with_epsilon(sheet.swipe.progress - start, 0.6, 0.001);
+    motion.advance(400);
+    Signal.emit_by_name(gesture, "drag-update", 132.0, 3.0);
+    Signal.emit_by_name(gesture, "drag-end", 132.0, 3.0);
+    motion.advance(2000, 60);
+    assert_true(sheet.swipe.is_open);
+    assert_cmpfloat(sheet.swipe.progress, CompareOperator.EQ, 1.0);
+    motion.use_frame_clock();
+}
+
+void test_edge_swipe_ignores_vertical_and_far_drags() {
+    if (!gtk_ready) { Test.skip("no display"); return; }
+    var host = new Box(Orientation.VERTICAL, 0);
+    var sheet = make_sheet(host);
+    var gesture = drag_of(host);
+    Singularity.Motion.get_default().use_manual_clock(1000000);
+    drag(gesture, 4, 300, { 3, 40, 6, 120 }, 16);
+    assert_false(sheet.swipe.is_open);
+    assert_cmpfloat(sheet.swipe.progress, CompareOperator.EQ, 0.0);
+    drag(gesture, 150, 300, { 40, 0, 160, 0 }, 16);
+    assert_false(sheet.swipe.is_open);
+    sheet.can_open = false;
+    drag(gesture, 4, 300, { 40, 0, 160, 0 }, 16);
+    assert_false(sheet.swipe.is_open);
+    Singularity.Motion.get_default().use_frame_clock();
+}
+
+void test_edge_swipe_flings_closed() {
+    if (!gtk_ready) { Test.skip("no display"); return; }
+    var host = new Box(Orientation.VERTICAL, 0);
+    var sheet = make_sheet(host);
+    var gesture = drag_of(host);
+    Singularity.Motion.get_default().use_manual_clock(1000000);
+    sheet.swipe.set_open(true, false);
+    bool closed = false;
+    sheet.swipe.settled.connect((open) => closed = !open);
+    drag(gesture, 150, 300, { -12, 0, -30, 0, -50, 0 }, 16);
+    assert_true(closed);
+    assert_cmpfloat(sheet.swipe.progress, CompareOperator.EQ, 0.0);
+    assert_false(sheet.revealed);
+    Singularity.Motion.get_default().use_frame_clock();
+}
+void test_detail_pane_overlays_on_narrow_widths() {
+    if (!gtk_ready) { Test.skip("no display"); return; }
+    var main = new Box(Orientation.VERTICAL, 0);
+    var panel = new Box(Orientation.VERTICAL, 0);
+    var pane = new DetailPane(main);
+    pane.panel_width = 400;
+    pane.set_panel(panel);
+    var window = new Gtk.Window();
+    window.child = pane;
+    window.present();
+    var motion = Singularity.Motion.get_default();
+    motion.use_manual_clock(1000000);
+    pane.reveal_panel = true;
+    motion.advance(2000, 60);
+    assert_true(pane.panel_revealed);
+    pane.allocate(1200, 800, -1, null);
+    assert_false(pane.overlay_mode);
+    assert_cmpint(main.get_width(), CompareOperator.EQ, 800);
+    assert_cmpint(panel.get_width(), CompareOperator.EQ, 400);
+    pane.allocate(420, 800, -1, null);
+    assert_true(pane.overlay_mode);
+    assert_cmpint(main.get_width(), CompareOperator.EQ, 420);
+    assert_cmpint(panel.get_width(), CompareOperator.EQ, 420);
+    bool closed = false;
+    pane.panel_closed.connect(() => closed = true);
+    pane.reveal_panel = false;
+    motion.advance(2000, 60);
+    assert_true(closed);
+    assert_false(pane.panel_revealed);
+    motion.use_frame_clock();
+    window.destroy();
+}
+
 int main(string[] args) {
     Test.init(ref args);
     Log.set_always_fatal(LogLevelFlags.LEVEL_ERROR | LogLevelFlags.LEVEL_CRITICAL);
@@ -270,6 +391,10 @@ int main(string[] args) {
     Test.add_func("/selection-row/fits-long-subtitles", test_selection_row_fits_long_subtitles);
     Test.add_func("/selection-row/scrolls-long-lists", test_selection_row_scrolls_long_lists);
     Test.add_func("/switch-row/notifies-active", test_switch_row_notifies_active);
+    Test.add_func("/edge-swipe/follows-finger", test_edge_swipe_follows_finger);
+    Test.add_func("/edge-swipe/ignores-vertical-and-far-drags", test_edge_swipe_ignores_vertical_and_far_drags);
+    Test.add_func("/edge-swipe/flings-closed", test_edge_swipe_flings_closed);
+    Test.add_func("/detail-pane/overlays-on-narrow-widths", test_detail_pane_overlays_on_narrow_widths);
     int result = Test.run();
     if (display != null) {
         display.send_signal(Posix.Signal.TERM);

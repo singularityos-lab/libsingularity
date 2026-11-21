@@ -6170,6 +6170,10 @@ button.scale-chooser-preset.recommended:not(:checked) {
 .window-drawer-scrim {
     background-color: alpha(black, 0.32);
 }
+.singularity-detail-pane.overlay > .detail-pane-panel {
+    background-color: @window_bg;
+    box-shadow: 0 0 18px alpha(@shadow_color, 0.35);
+}
 .window-drawer .cal-nav-picker button.cal-nav-day-btn {
     padding: 0 2px;
 }
