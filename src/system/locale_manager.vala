@@ -114,6 +114,22 @@ namespace Singularity {
             return "";
         }
 
+        public static string[] keyboard_layouts_for(string locale) {
+            string name = locale.split(".", 2)[0].split("@", 2)[0];
+            string[] parts = name.split("_", 2);
+            string language = parts[0].down();
+            string territory = parts.length > 1 ? parts[1].down() : "";
+            string[] result = {};
+            if (language == "en") {
+                if (territory == "gb" || territory == "ie") result += territory;
+            } else {
+                if (territory != "") result += territory;
+                if (language != "" && language != territory) result += language;
+            }
+            if (!("us" in result)) result += "us";
+            return result;
+        }
+
         public string get_formats_value() {
             foreach (string s in current_locale) {
                 if (s.has_prefix("LC_TIME=")) {
