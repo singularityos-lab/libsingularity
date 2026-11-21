@@ -5938,6 +5938,15 @@ button.disk-card.selected {
     box-shadow: 0 -6px 24px alpha(@shadow_color, 0.28);
 }
 
+.osk.compact {
+    padding: 8px 4px 10px;
+}
+
+.osk.compact button.osk-key {
+    min-width: 0;
+    padding: 0;
+}
+
 .osk button.osk-key {
     border-radius: 10px;
     background-image: none;
