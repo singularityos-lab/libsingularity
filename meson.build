@@ -420,6 +420,7 @@ endif
 if get_option('layer-shell')
   libsingularity_sources += files(
     'src/shell/shell_dialog.vala',
+  'src/shell/shell_confirm_dialog.vala',
     'src/shell/osd_overlay.vala',
     'src/shell/screen_flash.vala',
   )
