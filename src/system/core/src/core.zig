@@ -39,6 +39,7 @@ pub const fsck = @import("v1/fsck.zig");
 pub const erofs = @import("v1/erofs.zig");
 pub const f2fs = @import("v1/f2fs.zig");
 pub const haptic = @import("v1/haptic.zig");
+pub const unlock = @import("v1/unlock.zig");
 
 const sysfs = "/sys";
 const procfs = "/proc";
@@ -1101,9 +1102,41 @@ export fn sinty_haptic_key() c_int {
     return 0;
 }
 
+export fn sinty_unlock_available() bool {
+    return unlock.available();
+}
+
+export fn sinty_unlock_state(out: *unlock.State) c_int {
+    unlock.state(out) catch |e| return sys.code(e);
+    return 0;
+}
+
+export fn sinty_unlock_verify(secret: [*:0]const u8) c_int {
+    const v = unlock.verify(span(secret)) catch |e| return sys.code(e);
+    return @intFromEnum(v);
+}
+
+export fn sinty_unlock_set(pin: [*:0]const u8, kind: c_int, secret: [*:0]const u8) c_int {
+    if (kind != @intFromEnum(unlock.Kind.pin) and kind != @intFromEnum(unlock.Kind.pattern)) return sys.code(error.Invalid);
+    const k: unlock.Kind = @enumFromInt(kind);
+    const v = unlock.set(span(pin), k, span(secret)) catch |e| return sys.code(e);
+    return @intFromEnum(v);
+}
+
+export fn sinty_unlock_clear(pin: [*:0]const u8) c_int {
+    const v = unlock.clear(span(pin)) catch |e| return sys.code(e);
+    return @intFromEnum(v);
+}
+
+export fn sinty_unlock_lockdown() c_int {
+    unlock.lockdown() catch |e| return sys.code(e);
+    return 0;
+}
+
 test {
     std.testing.refAllDecls(@This());
     _ = haptic;
+    _ = unlock;
     _ = proc;
     _ = sensors;
     _ = power;

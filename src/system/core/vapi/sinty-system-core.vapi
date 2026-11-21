@@ -393,4 +393,34 @@ namespace SintySystem {
     public bool haptic_available ();
     public int haptic_pulse (uint32 ms, uint16 strength);
     public int haptic_key ();
+
+    [CCode (cname = "SintyUnlockKind", cprefix = "SINTY_UNLOCK_", has_type_id = false)]
+    public enum UnlockKind {
+        NONE,
+        PIN,
+        PATTERN
+    }
+
+    [CCode (cname = "SintyUnlockVerdict", cprefix = "SINTY_UNLOCK_", has_type_id = false)]
+    public enum UnlockVerdict {
+        OK,
+        FAIL,
+        LOCKED,
+        BLOCKED,
+        INVALID
+    }
+
+    [CCode (cname = "SintyUnlockState", has_type_id = false, destroy_function = "")]
+    public struct UnlockState {
+        public int kind;
+        public bool armed;
+        public int32 length;
+    }
+
+    public bool unlock_available ();
+    public int unlock_state (out UnlockState state);
+    public int unlock_verify (string secret);
+    public int unlock_set (string pin, int kind, string secret);
+    public int unlock_clear (string pin);
+    public int unlock_lockdown ();
 }

@@ -106,6 +106,7 @@ libsingularity_sources = files(
   'src/ui/controls/icon_button.vala',
   'src/ui/controls/read_aloud_button.vala',
   'src/ui/controls/circular_button.vala',
+  'src/ui/controls/pattern_pad.vala',
   'src/ui/controls/close_button.vala',
   'src/ui/dialogs/about_dialog.vala',
   'src/ui/dialogs/app_dialog.vala',
@@ -548,6 +549,7 @@ if get_option('system')
     'src/system/core/src/v1/erofs.zig',
     'src/system/core/src/v1/f2fs.zig',
     'src/system/core/src/v1/haptic.zig',
+    'src/system/core/src/v1/unlock.zig',
     'src/system/core/src/v1/nl.zig',
     'src/system/core/src/v1/wireguard.zig',
     'src/system/core/src/v1/wifi.zig',
@@ -621,6 +623,7 @@ if get_option('system')
     'src/system/brightness_manager.vala',
     'src/system/ddc.vala',
     'src/system/haptics.vala',
+    'src/system/quick_unlock.vala',
     'src/system/kbd_brightness_manager.vala',
     'src/system/power_manager.vala',
     'src/system/dynamic_internet_socket.c',
@@ -848,9 +851,11 @@ if get_option('system')
       'src/system/power_backends.vala',
       'src/system/battery_health.vala',
       'src/system/session_manager.vala',
+      'src/system/quick_unlock.vala',
     ),
     c_args: power_c_args,
-    dependencies: [gio_dep, gee_dep, m_dep],
+    dependencies: [gio_dep, gee_dep, m_dep, system_core_dep],
+    vala_args: system_core_vala_args,
   )
   test('power', power_test, env: ['TMPDIR=' + meson.current_build_dir()])
 

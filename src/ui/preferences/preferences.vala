@@ -642,6 +642,11 @@ namespace Singularity.Widgets {
             set { entry.text = value; }
         }
 
+        public InputPurpose input_purpose {
+            get { return entry.input_purpose; }
+            set { entry.input_purpose = value; }
+        }
+
         public signal void entry_changed();
         public signal void entry_activated();
 

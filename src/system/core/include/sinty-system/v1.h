@@ -874,6 +874,33 @@ bool sinty_haptic_available(void);
 int sinty_haptic_pulse(uint32_t ms, uint16_t strength);
 int sinty_haptic_key(void);
 
+typedef enum {
+    SINTY_UNLOCK_NONE = 0,
+    SINTY_UNLOCK_PIN = 1,
+    SINTY_UNLOCK_PATTERN = 2,
+} SintyUnlockKind;
+
+typedef enum {
+    SINTY_UNLOCK_OK = 0,
+    SINTY_UNLOCK_FAIL = 1,
+    SINTY_UNLOCK_LOCKED = 2,
+    SINTY_UNLOCK_BLOCKED = 3,
+    SINTY_UNLOCK_INVALID = 4,
+} SintyUnlockVerdict;
+
+typedef struct {
+    int kind;
+    bool armed;
+    int32_t length;
+} SintyUnlockState;
+
+bool sinty_unlock_available(void);
+int sinty_unlock_state(SintyUnlockState *out);
+int sinty_unlock_verify(const char *secret);
+int sinty_unlock_set(const char *pin, int kind, const char *secret);
+int sinty_unlock_clear(const char *pin);
+int sinty_unlock_lockdown(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -25,6 +25,11 @@ namespace Singularity {
          */
         public signal void session_ending();
 
+        public void lockdown() {
+            if (!QuickUnlock.lockdown()) warning("SessionManager: quick unlock was not disarmed");
+            lock_screen();
+        }
+
         public void lock_screen() {
             // 1. Native singularity-lockscreen (ext-session-lock-v1 + PAM)
             string? lockscreen = find_singularity_binary("singularity-lockscreen");
