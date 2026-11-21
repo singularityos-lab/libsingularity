@@ -606,6 +606,17 @@ namespace Singularity.Widgets {
             base.snapshot(snapshot);
         }
 
+        public override void show() {
+            bool chosen = get_focus() != null;
+            base.show();
+            if (chosen || !form_factor.is_touch_first() || form_factor_compat) return;
+            var focus = get_focus();
+            if ((focus is Gtk.Text && ((Gtk.Text) focus).editable)
+                    || (focus is Gtk.TextView && ((Gtk.TextView) focus).editable)) {
+                set_focus(null);
+            }
+        }
+
         public override void size_allocate(int width, int height, int baseline) {
             base.size_allocate(width, height, baseline);
             _apply_background_effect();
@@ -984,7 +995,11 @@ namespace Singularity.Widgets {
             widget.vexpand = true;
             sidebar_area.append(widget);
             if (_welcome_pages > 0) _apply_sidebar_welcome(sidebar_area);
-            _sync_sidebar_toggle();
+            if (!_narrow && get_width() <= 0 && form_factor == FormFactorKind.PHONE && !form_factor_compat) {
+                _set_narrow(true);
+            } else {
+                _sync_sidebar_toggle();
+            }
             _queue_adaptive_update();
         }
 
