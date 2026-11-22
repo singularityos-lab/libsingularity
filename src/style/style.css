@@ -321,9 +321,7 @@ popover.background > contents { padding: 6px; }
 tooltip {
     background-color: @surface_bright;
     border: 1px solid @border_color;
-    border-radius: 4px;
     color: @text_color;
-    padding: 4px 8px;
 }
 
 /* Label */
@@ -2653,15 +2651,70 @@ button.segmented-button.active:checked {
 /* TimePicker: compact HH:MM stepper fields with a dim colon. */
 .time-picker spinbutton.time-picker-field {
     min-width: 0;
-    border-radius: 6px;
+    padding: 2px;
+    border: none;
+    border-radius: 14px;
+    background-color: alpha(@text_color, 0.06);
 }
 .time-picker spinbutton.time-picker-field text {
     min-width: 1.4em;
-    padding: 2px 2px;
+    padding: 2px;
+    font-size: 17px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+}
+.time-picker spinbutton.time-picker-field button {
+    min-width: 28px;
+    min-height: 22px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 11px;
+    background-color: transparent;
+    -gtk-icon-size: 12px;
+}
+.time-picker spinbutton.time-picker-field button:hover {
+    background-color: alpha(@text_color, 0.1);
 }
 .time-picker-colon {
     font-weight: 700;
     opacity: 0.55;
+}
+
+.cal-nav-picker {
+    padding: 8px 6px;
+}
+.cal-nav-month-label {
+    font-size: 13px;
+    font-weight: 700;
+}
+.cal-nav-picker button.cal-nav-day-btn {
+    min-width: 28px;
+    min-height: 26px;
+    padding: 0 2px;
+    border-radius: 13px;
+    font-size: 12px;
+}
+.cal-nav-picker button.cal-nav-day-btn.busy {
+    font-weight: 700;
+}
+.cal-nav-picker button.cal-nav-day-btn.today {
+    color: @accent_color;
+    font-weight: 700;
+}
+.cal-nav-picker button.cal-nav-day-btn.selected {
+    background-color: @accent_color;
+}
+.cal-nav-picker button.cal-nav-day-btn.selected,
+.cal-nav-picker button.cal-nav-day-btn.selected label {
+    color: white;
+}
+.cal-nav-picker button.cal-nav-today-btn {
+    min-height: 22px;
+    margin: 0 4px;
+    padding: 2px 8px;
+    border-radius: 11px;
+    font-size: 11px;
 }
 
 /* SegmentedControl inside toolbar: no vertical margin so toolbar stays 46px */
