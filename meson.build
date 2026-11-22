@@ -328,6 +328,7 @@ libsingularity_sources = files(
   'src/animation/glass_indicator.vala',
   'src/animation/snapshot_crossfade.vala',
   'src/animation/focus_ring.vala',
+  'src/animation/anchored_drag.vala',
   'src/animation/drag_lift.vala',
   'src/animation/widget_morph.vala',
   'src/animation/motion_debug.vala',
