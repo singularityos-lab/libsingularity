@@ -3,7 +3,7 @@ using GLib;
 namespace Singularity {
 
     public enum MobileCommand {
-        SET_RADIO, SET_DATA, SET_ROAMING, SET_APN, GET_IMEI, SEND_PIN, SEND_PUK, SEARCH_NETWORKS, SELECT_NETWORK,
+        SET_RADIO, SET_DATA, SET_ROAMING, SET_APN, GET_IMEI, SEND_PIN, SEND_PUK, CHANGE_PIN, SEARCH_NETWORKS, SELECT_NETWORK,
         GET_EID, LIST_PROFILES, ENABLE_PROFILE, DISABLE_PROFILE, RENAME_PROFILE, DELETE_PROFILE, ADD_PROFILE, SEND_NOTIFICATIONS,
         SELECT_SLOT, RESTART_SERVICE, RESTART_MODEM, DIAGNOSTICS
     }
@@ -205,6 +205,9 @@ namespace Singularity {
                     path = sim_path; iface = MM_SIM_IFACE;
                     method = command == MobileCommand.SEND_PIN ? "SendPin" : "SendPuk";
                     break;
+                case MobileCommand.CHANGE_PIN:
+                    if (sim_path == "") throw new IOError.NOT_FOUND(_("No SIM"));
+                    path = sim_path; iface = MM_SIM_IFACE; method = "ChangePin"; break;
                 case MobileCommand.SEARCH_NETWORKS:
                 case MobileCommand.SELECT_NETWORK:
                     path = MM_MODEM; iface = MM_3GPP_IFACE;
