@@ -3,7 +3,7 @@ using GLib;
 namespace Singularity {
 
     public enum MobileCommand {
-        SET_RADIO, SET_DATA, SET_ROAMING, SET_APN, GET_IMEI, SEND_PIN,
+        SET_RADIO, SET_DATA, SET_ROAMING, SET_APN, GET_IMEI, SEND_PIN, SEND_PUK, SEARCH_NETWORKS, SELECT_NETWORK,
         GET_EID, LIST_PROFILES, ENABLE_PROFILE, DISABLE_PROFILE, RENAME_PROFILE, DELETE_PROFILE, ADD_PROFILE, SEND_NOTIFICATIONS,
         SELECT_SLOT, RESTART_SERVICE, RESTART_MODEM, DIAGNOSTICS
     }
@@ -25,6 +25,15 @@ namespace Singularity {
                 if (provider != "") return provider;
                 return name != "" ? name : _("eSIM");
             }
+        }
+    }
+
+    public class MobileOperator : Object {
+        public string code { get; construct; }
+        public uint status { get; construct; }
+
+        public MobileOperator(string code, uint status) {
+            Object(code: code, status: status);
         }
     }
 
@@ -191,8 +200,16 @@ namespace Singularity {
                     else method = "GetIMEI";
                     break;
                 case MobileCommand.SEND_PIN:
+                case MobileCommand.SEND_PUK:
                     if (sim_path == "") throw new IOError.NOT_FOUND(_("No SIM"));
-                    path = sim_path; iface = MM_SIM_IFACE; method = "SendPin"; break;
+                    path = sim_path; iface = MM_SIM_IFACE;
+                    method = command == MobileCommand.SEND_PIN ? "SendPin" : "SendPuk";
+                    break;
+                case MobileCommand.SEARCH_NETWORKS:
+                case MobileCommand.SELECT_NETWORK:
+                    path = MM_MODEM; iface = MM_3GPP_IFACE;
+                    method = command == MobileCommand.SEARCH_NETWORKS ? "Scan" : "Register";
+                    break;
                 case MobileCommand.GET_EID: method = "GetEID"; break;
                 case MobileCommand.LIST_PROFILES: method = "ListProfiles"; break;
                 case MobileCommand.ENABLE_PROFILE: method = "EnableProfile"; break;
@@ -221,6 +238,18 @@ namespace Singularity {
             } finally {
                 queue_refresh();
             }
+        }
+
+        public async Gee.List<MobileOperator> search_operators() throws Error {
+            var list = new Gee.ArrayList<MobileOperator>();
+            var items = (yield run(MobileCommand.SEARCH_NETWORKS)).get_child_value(0);
+            for (size_t i = 0; i < items.n_children(); i++) {
+                var item = items.get_child_value(i);
+                var code = item.lookup_value("operator-code", VariantType.STRING);
+                var status = item.lookup_value("status", VariantType.UINT32);
+                if (code != null) list.add(new MobileOperator(code.get_string(), status != null ? status.get_uint32() : 0));
+            }
+            return list;
         }
 
         public async Gee.List<MobileProfile> list_profiles() throws Error {

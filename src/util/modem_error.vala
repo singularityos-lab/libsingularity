@@ -8,7 +8,7 @@ namespace Singularity {
             string remote = DBusError.get_remote_error(e) ?? "";
             if (remote.has_suffix(".Unauthorized")) return _("Permission was not given.");
             if (remote.has_suffix(".NotRegistered")) return _("There is no mobile network yet. Check the SIM or eSIM in Settings.");
-            if (remote.has_suffix(".IncorrectPassword")) return _("That PIN is not right.");
+            if (remote.has_suffix(".IncorrectPassword")) return _("That code is not right.");
             if (remote.has_suffix(".ESIM.Error.NoChip")) return _("The eSIM chip did not answer. Switch to the eSIM or restart the modem from Developer settings.");
             if (remote.has_suffix(".ESIM.Error.NoProfile")) return _("This eSIM is no longer on the device.");
             if (remote.has_suffix(".ESIM.Error.Active")) return _("Turn the eSIM off before deleting it.");
