@@ -88,6 +88,11 @@ namespace Singularity.Widgets {
             selected(name);
         }
 
+        public void set_option_label(string name, string label) {
+            var btn = _buttons.get(name);
+            if (btn != null) btn.label = label;
+        }
+
         public void set_option_visible(string name, bool visible) {
             var btn = _buttons.get(name);
             if (btn == null || btn.visible == visible) return;

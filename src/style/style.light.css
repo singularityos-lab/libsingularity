@@ -44,6 +44,7 @@
 @define-color surface_scrim rgba(240, 240, 240, 0.92);
 @define-color surface_scrim_heavy rgba(246, 246, 246, 0.96);
 @define-color panel_solid_bg #000000;
+@define-color keyboard_bg #e8e8e8;
 @define-color overview_bg rgba(240, 240, 240, 0.85);
 @define-color hover_white alpha(@text_color, 0.06);
 
