@@ -3,7 +3,7 @@ using GLib;
 namespace Singularity {
 
     public enum MobileCommand {
-        SET_RADIO, SET_DATA, SET_ROAMING, SET_APN, GET_IMEI, SEND_PIN, SEND_PUK, CHANGE_PIN, SEARCH_NETWORKS, SELECT_NETWORK,
+        SET_RADIO, SET_LTE_ONLY, SET_DATA, SET_ROAMING, SET_APN, GET_IMEI, SEND_PIN, SEND_PUK, CHANGE_PIN, SEARCH_NETWORKS, SELECT_NETWORK,
         GET_EID, LIST_PROFILES, ENABLE_PROFILE, DISABLE_PROFILE, RENAME_PROFILE, DELETE_PROFILE, ADD_PROFILE, SEND_NOTIFICATIONS,
         SELECT_SLOT, RESTART_SERVICE, RESTART_MODEM, DIAGNOSTICS
     }
@@ -50,6 +50,9 @@ namespace Singularity {
         private const string STACK_PATH = "/dev/sinty/Modem1";
         private const string DEVICE_CONFIG = "/run/sinty/modem.conf";
         private const int LONG_TIMEOUT = 360000;
+        private const uint MODE_2G = 1 << 1;
+        private const uint MODE_3G = 1 << 2;
+        private const uint MODE_4G = 1 << 3;
 
         private static MobileNetwork? instance = null;
         private DBusConnection? bus = null;
@@ -69,6 +72,8 @@ namespace Singularity {
         public bool roaming_enabled { get; private set; default = false; }
         public string apn { get; private set; default = ""; }
         public bool has_settings { get; private set; default = false; }
+        public bool lte_only { get; private set; default = false; }
+        public bool has_modes { get; private set; default = false; }
 
         public signal void changed();
 
@@ -138,6 +143,8 @@ namespace Singularity {
             unlock_required = 0;
             operator_name = "";
             sim_path = "";
+            lte_only = false;
+            has_modes = false;
             if (modem != null) {
                 var v = modem.lookup_value("State", VariantType.INT32);
                 if (v != null) state = v.get_int32();
@@ -151,6 +158,11 @@ namespace Singularity {
                 if (v != null) unlock_required = v.get_uint32();
                 v = modem.lookup_value("Revision", VariantType.STRING);
                 if (v != null) revision = v.get_string();
+                v = modem.lookup_value("CurrentModes", new VariantType("(uu)"));
+                if (v != null) {
+                    has_modes = true;
+                    lte_only = v.get_child_value(0).get_uint32() == MODE_4G;
+                }
                 v = modem.lookup_value("Sim", VariantType.OBJECT_PATH);
                 if (v != null) sim_path = v.get_string();
             }
@@ -184,10 +196,18 @@ namespace Singularity {
             string name = MM_BUS;
             string path = "/dev/sinty/Modem1/ESIM";
             string iface = "dev.sinty.Modem1.ESIM";
+            Variant? body = args;
             string method = "";
             switch (command) {
                 case MobileCommand.SET_RADIO:
                     path = MM_MODEM; iface = MM_MODEM_IFACE; method = "Enable"; break;
+                case MobileCommand.SET_LTE_ONLY:
+                    path = MM_MODEM; iface = MM_MODEM_IFACE; method = "SetCurrentModes";
+                    bool only = args.get_child_value(0).get_boolean();
+                    uint allowed = only ? MODE_4G : MODE_2G | MODE_3G | MODE_4G;
+                    uint preferred = only ? 0 : MODE_4G;
+                    body = new Variant("((uu))", allowed, preferred);
+                    break;
                 case MobileCommand.SET_DATA:
                 case MobileCommand.SET_ROAMING:
                 case MobileCommand.SET_APN:
@@ -236,7 +256,7 @@ namespace Singularity {
                     break;
             }
             try {
-                return yield bus.call(name, path, iface, method, args, null,
+                return yield bus.call(name, path, iface, method, body, null,
                     DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, LONG_TIMEOUT);
             } finally {
                 queue_refresh();
