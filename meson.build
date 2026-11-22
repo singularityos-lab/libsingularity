@@ -352,6 +352,7 @@ libsingularity_sources = files(
   'src/core/terminal_themes.vala',
   'src/util/color_util.vala',
   'src/util/http_body.vala',
+  'src/util/modem_error.vala',
   'src/util/tiling_layout.vala',
   'src/util/tile_tree.vala',
   'src/util/grid_layout.vala',
@@ -630,6 +631,7 @@ if get_option('system')
     'src/system/power_manager.vala',
     'src/system/dynamic_internet_socket.c',
     'src/system/dynamic_internet.vala',
+    'src/system/mobile_network.vala',
     'src/system/nm_client.vala',
     'src/system/nm_import.vala',
     'src/system/nm_dynamic_internet_backend.vala',
@@ -1304,6 +1306,13 @@ http_body_test = executable(
   dependencies: [libsingularity_dep, soup_dep],
 )
 test('http-body', http_body_test)
+
+modem_error_test = executable(
+  'modem-error-test',
+  files('tests/modem_error_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('modem-error', modem_error_test, env: ['LC_ALL=C.UTF-8'])
 
 mirror_lock_test = executable(
   'mirror-lock-test',
