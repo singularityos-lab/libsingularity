@@ -348,7 +348,7 @@ namespace Singularity.Async {
             }
 
             string? path = file.get_path();
-            if (!made.mime.has_prefix("image/")) return made;
+            if (!FileSystem.ImageTypes.can_preview(made.mime)) return made;
             if (path != null && path.has_prefix(FileSystem.ThumbnailCache.root() + "/")) return made;
             if (FileSystem.ThumbnailCache.has_failed(app, made.uri, made.mtime)) return made;
 

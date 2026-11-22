@@ -42,6 +42,7 @@ namespace Singularity.Widgets {
 
             var image = new Image.from_icon_name(icon);
             image.pixel_size = 96;
+            Singularity.Animation.IconMotion.play_when_shown(image);
             body.append(image);
 
             var title = new Label(name);

@@ -54,6 +54,20 @@ namespace Singularity {
             return shared();
         }
 
+        public static Gdk.Pixbuf load_icon_scaled(string path, int size) throws Error {
+            if (path.has_suffix(".svg")) {
+                string compiled = path.substring(0, path.length - ".svg".length) + ".iride";
+                if (FileUtils.test(compiled, FileTest.IS_REGULAR)) {
+                    try {
+                        return load_scaled(compiled, size, size, true);
+                    } catch (Error e) {
+                        debug("%s: %s", compiled, e.message);
+                    }
+                }
+            }
+            return load_scaled(path, size, size, true);
+        }
+
         public static Gdk.Pixbuf load_scaled(string path, int width, int height, bool preserve_aspect) throws Error {
             var info = File.new_for_path(path).query_info("time::modified,time::modified-usec,standard::size",
                                                           FileQueryInfoFlags.NONE);

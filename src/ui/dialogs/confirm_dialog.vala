@@ -81,6 +81,7 @@ namespace Singularity.Widgets {
                 string shown = large_icon_name(icon_name);
                 var icon = new Image.from_icon_name(shown);
                 icon.pixel_size = 48;
+                Singularity.Animation.IconMotion.play_when_shown(icon);
                 if (shown.has_suffix("-symbolic")) icon.add_css_class("dim-label");
                 box.append(icon);
             }

@@ -206,6 +206,7 @@ namespace Singularity.Widgets {
             _app_icon.halign = Align.CENTER;
             _app_icon.visible = false;
             _app_icon.add_css_class("welcome-page-icon");
+            Singularity.Animation.IconMotion.play_when_shown(_app_icon);
             header.append(_app_icon);
 
             _title_lbl = new Label("");

@@ -100,6 +100,7 @@ namespace Singularity.Widgets {
             icon_image = new Image();
             icon_image.add_css_class("status-page-icon");
             icon_image.visible = false;
+            Singularity.Animation.IconMotion.play_when_shown(icon_image);
             append(icon_image);
 
             title_label = new Label("");

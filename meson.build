@@ -330,6 +330,7 @@ libsingularity_sources = files(
   'src/animation/drag_lift.vala',
   'src/animation/widget_morph.vala',
   'src/animation/motion_debug.vala',
+  'src/animation/icon_motion.vala',
   'src/style/accent_icons.vala',
   'src/style/icon_color.vala',
   'src/style/style_manager.vala',
@@ -360,6 +361,7 @@ libsingularity_sources = files(
   'src/file_system/file_provider.vala',
   'src/file_system/recent_provider.vala',
   'src/file_system/samba_provider.vala',
+  'src/file_system/image_types.vala',
   'src/file_system/thumbnail_cache.vala',
   'src/file_system/video_thumbnailer.vala',
   'src/media/video_paintable.vala',
@@ -391,6 +393,12 @@ libsingularity_sources = files(
   'src/equations/equation.vala',
 )
 
+iride_deps = []
+iride_lib = meson.get_compiler('c').find_library('iride', has_headers: 'libiride.h', required: get_option('iride'))
+if iride_lib.found()
+  iride_deps = [iride_lib, meson.get_compiler('vala').find_library('libiride')]
+endif
+
 parental_policy_dir = get_option('prefix') / get_option('localstatedir') / 'lib' / 'singularity' / 'parental'
 parental_c_args = [
   '-DSINGULARITY_PARENTAL_SYSCONFDIR="@0@"'.format(get_option('prefix') / get_option('sysconfdir')),
@@ -398,6 +406,9 @@ parental_c_args = [
 ]
 
 libsingularity_vala_args = ['--vapidir', meson.current_source_dir() / 'src/vapi', '--pkg', 'gdkextra', '--pkg', 'scenerender']
+if iride_lib.found()
+  libsingularity_vala_args += ['-D', 'IRIDE']
+endif
 libsingularity_sources += files(
   'src/scene3d/scene.vala',
   'src/scene3d/scene_view.vala',
@@ -444,7 +455,7 @@ libsingularity = shared_library('singularity',
     snap_protocol_h,
     foreign_toplevel_protocol_c,
   ],
-  dependencies: libsingularity_deps + [dependency('gnutls')],
+  dependencies: libsingularity_deps + iride_deps + [dependency('gnutls')],
   c_args: parental_c_args + lcms2_c_args,
   link_args: lcms2_link_args,
   vala_args: libsingularity_vala_args,
