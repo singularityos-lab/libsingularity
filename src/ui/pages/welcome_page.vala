@@ -26,7 +26,7 @@ namespace Singularity.Widgets {
                 _icon_name = value;
                 if (value != "") {
                     _app_icon.icon_name = value;
-                    _app_icon.visible = true;
+                    _app_icon.visible = _head == null;
                 } else {
                     _app_icon.visible = false;
                 }
@@ -38,7 +38,8 @@ namespace Singularity.Widgets {
             get { return _title_lbl.label; }
             set {
                 _title_lbl.label = value;
-                _title_lbl.visible = value != "";
+                _title_lbl.visible = value != "" && _head == null;
+                if (_is_state && _head != null && get_mapped()) _head.show_state(this, value);
             }
         }
 
@@ -55,6 +56,19 @@ namespace Singularity.Widgets {
                 if (!get_mapped()) return;
                 if (value) _leave_host();
                 else _join_host();
+            }
+        }
+
+        /**
+         * Marks a section page as reporting a state, such as an empty list.
+         * Under a page header only a state shows its title and subtitle.
+         * Default false.
+         */
+        public bool is_state {
+            get { return _is_state; }
+            set {
+                _is_state = value;
+                if (get_mapped()) _join_head();
             }
         }
 
@@ -121,6 +135,9 @@ namespace Singularity.Widgets {
         private bool _is_section = false;
         private bool _embedded = false;
         private bool _compact = false;
+        private bool _is_state = false;
+        private Box _top_bar;
+        private Box _header;
         private ScrolledWindow _scroll;
 
         private class ActionEntry {
@@ -173,6 +190,7 @@ namespace Singularity.Widgets {
             _close_btn.clicked.connect(() => close_requested());
             top_bar.append(_close_btn);
             append(top_bar);
+            _top_bar = top_bar;
 
             // Scrollable body
             var scroll = new ScrolledWindow();
@@ -202,7 +220,6 @@ namespace Singularity.Widgets {
             header.halign = Align.CENTER;
 
             _app_icon = new Image();
-            _app_icon.pixel_size = 64;
             _app_icon.halign = Align.CENTER;
             _app_icon.visible = false;
             _app_icon.add_css_class("welcome-page-icon");
@@ -211,6 +228,7 @@ namespace Singularity.Widgets {
 
             _title_lbl = new Label("");
             _title_lbl.add_css_class("title-1");
+            _title_lbl.add_css_class("welcome-page-title");
             _title_lbl.wrap = true;
             _title_lbl.justify = Justification.CENTER;
             _title_lbl.visible = false;
@@ -224,6 +242,7 @@ namespace Singularity.Widgets {
             header.append(_subtitle_lbl);
 
             _left_pane.append(header);
+            _header = header;
 
             _actions_box = new Box(Orientation.VERTICAL, 0);
             _actions_box.halign = Align.CENTER;
@@ -254,15 +273,30 @@ namespace Singularity.Widgets {
         // -- Window integration --------------------------------------------
 
         private unowned Window? _host = null;
+        private PageHero? _head = null;
 
         public override void map() {
+            _join_head();
             base.map();
             if (!_is_section) _join_host();
         }
 
         public override void unmap() {
+            if (_head != null) _head.drop_state(this);
             _leave_host();
             base.unmap();
+        }
+
+        private void _join_head() {
+            _head = PageHero.above(this);
+            _app_icon.visible = _head == null && _icon_name != "";
+            _title_lbl.visible = _head == null && _title_lbl.label != "";
+            if (_head == null) return;
+            _top_bar.visible = false;
+            _left_pane.margin_top = 0;
+            _header.visible = _is_state && _subtitle_lbl.label != "";
+            if (_is_state) _head.show_state(this, _title_lbl.label);
+            else _head.drop_state(this);
         }
 
         private void _join_host() {

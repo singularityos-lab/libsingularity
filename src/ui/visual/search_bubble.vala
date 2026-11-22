@@ -27,6 +27,19 @@ namespace Singularity.Widgets {
 
         public Gtk.SearchEntry entry { get { return _entry.entry; } }
 
+        public bool large {
+            get { return has_css_class ("large"); }
+            set {
+                if (value) {
+                    BubbleBox.prepare (this);
+                    add_css_class ("large");
+                } else {
+                    remove_css_class ("large");
+                }
+                set_expanded (value);
+            }
+        }
+
         public SearchBubble (string? placeholder = null) {
             Object (orientation: Orientation.HORIZONTAL, spacing: 0);
             add_css_class ("singularity-search-bubble");

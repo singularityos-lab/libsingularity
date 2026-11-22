@@ -1276,17 +1276,21 @@ popover.dock-window-previews > contents {
 .app-switcher-item.selected {
     background-color: alpha(@accent_color, 0.28);
 }
+.app-switcher-item.preview {
+    border-radius: 12px;
+    padding: 0;
+}
+.app-switcher-item.preview:hover {
+    background-color: transparent;
+    box-shadow: 0 0 0 2px alpha(@text_color, 0.25);
+}
+.app-switcher-item.preview.selected {
+    background-color: transparent;
+    box-shadow: 0 0 0 3px @accent_color;
+}
 .switcher-thumbnail-box {
-    border-radius: 8px;
+    border-radius: 12px;
     background-color: @card_bg;
-}
-.switcher-thumbnail-fallback {
-    opacity: 0.5;
-}
-.switcher-thumbnail-icon {
-    background-color: alpha(@window_bg, 0.8);
-    border-radius: 4px;
-    padding: 2px;
 }
 
 .overview-box {
@@ -4053,6 +4057,11 @@ window.singularity.dialog {
     border-bottom-right-radius: 12px;
 }
 
+.singularity .preferences-list.selectable > .preferences-row:selected {
+    background-color: alpha(@accent_color, 0.15);
+    color: @accent_color;
+}
+
 .singularity .preferences-row .title {
     font-weight: 500;
     font-size: 13px;
@@ -4476,7 +4485,6 @@ window.auth-dialog .auth-fingerprint-status.success {
 .singularity .monitor-preview-container {
     background-color: @surface_overlay;
     border-radius: 12px;
-    margin: 0;
     padding: 0;
     box-shadow: 0 4px 12px alpha(@shadow_color, 0.3);
     border: 1px solid alpha(@text_color, 0.1);
@@ -4633,10 +4641,17 @@ button.flat.singularity-hover-btn:checked label {
     color: @hover_btn_fg;
     font-size: 12px;
 }
+.singularity-search-bubble entry:focus,
 .singularity-search-bubble entry:focus-within,
+.singularity-search-bubble entry:focus:focus-visible,
 .singularity-search-bubble .search-entry:focus-within {
+    background-color: transparent;
     border: none;
     box-shadow: none;
+    outline: none;
+}
+.singularity-search-bubble.singularity-hover-btn:focus-within {
+    border-color: @focus_ring_color;
 }
 .singularity-search-bubble entry > text,
 .singularity-search-bubble .search-entry > text {
@@ -4650,6 +4665,17 @@ button.flat.singularity-hover-btn:checked label {
 .singularity-search-bubble image {
     color: alpha(@hover_btn_fg, 0.7);
     -gtk-icon-size: 12px;
+}
+.singularity-search-bubble.large {
+    padding: 4px 8px;
+}
+.singularity-search-bubble.large entry,
+.singularity-search-bubble.large .search-entry {
+    min-height: 36px;
+    font-size: 15px;
+}
+.singularity-search-bubble.large image {
+    -gtk-icon-size: 16px;
 }
 
 .singularity-hover-segmented {
@@ -7017,8 +7043,27 @@ dropdown > popover listview > row:selected {
 .status-page.compact .status-page-icon {
     -gtk-icon-size: 48px;
 }
+.settings-page-content > .monitor-preview-container {
+    margin-bottom: 22px;
+}
+.welcome-page .welcome-page-icon {
+    -gtk-icon-size: 64px;
+}
+.settings-page-content .welcome-page .welcome-page-icon,
+.settings-page-content .status-page .status-page-icon {
+    -gtk-icon-size: 32px;
+}
+.page-hero-state {
+    font-size: 13px;
+}
 .status-page:not(.compact) .status-page-title {
     font-size: 20px;
+}
+.settings-page-content .welcome-page .welcome-page-title,
+.settings-page-content .status-page .status-page-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0;
 }
 
 .dialog-titlebar {

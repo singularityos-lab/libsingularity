@@ -66,6 +66,17 @@ namespace Singularity.Widgets {
             }
         }
         public signal void row_added(Widget row);
+        public signal void row_selected(ListBoxRow? row);
+
+        /** Lets the user pick one row of the group, which stays highlighted. */
+        public bool selectable {
+            get { return list_box.selection_mode == SelectionMode.SINGLE; }
+            set {
+                list_box.selection_mode = value ? SelectionMode.SINGLE : SelectionMode.NONE;
+                if (value) list_box.add_css_class("selectable");
+                else list_box.remove_css_class("selectable");
+            }
+        }
         public string description {
             get { return description_label != null ? description_label.label : ""; }
             set {
@@ -117,6 +128,7 @@ namespace Singularity.Widgets {
             list_box.add_css_class("preferences-list");
             list_box.selection_mode = SelectionMode.NONE;
             list_box.activate_on_single_click = true;
+            list_box.row_selected.connect((row) => row_selected(row));
             append(list_box);
         }
 
@@ -162,6 +174,15 @@ namespace Singularity.Widgets {
         public void remove_row(Widget row) {
             rows.remove(row);
             list_box.remove(row);
+        }
+
+        /**
+         * Selects the row at the given position of a selectable group.
+         *
+         * @param index Position of the row.
+         */
+        public void select_index(int index) {
+            list_box.select_row(list_box.get_row_at_index(index));
         }
 
         public Gee.List<Widget> get_rows() {

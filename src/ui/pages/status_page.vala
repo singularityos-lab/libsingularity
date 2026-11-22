@@ -14,12 +14,16 @@ namespace Singularity.Widgets {
         private Label title_label;
         private Label description_label;
         private Box child_box;
+        private bool has_icon = false;
+        private PageHero? head = null;
 
         /** Icon shown at the top of the page, in its full-color version when the theme has one. Set to empty string to hide. */
         public string icon_name {
             set {
                 icon_image.icon_name = large_icon_name(value);
-                icon_image.visible = (value != null && value != "");
+                has_icon = value != null && value != "";
+                icon_image.visible = has_icon && head == null;
+                if (get_mapped()) join_head();
             }
         }
         /** Primary title text (large, bold). Set to empty string to hide. */
@@ -27,7 +31,8 @@ namespace Singularity.Widgets {
             get { return title_label.label; }
             set {
                 title_label.label = value;
-                title_label.visible = (value != null && value != "");
+                title_label.visible = (value != null && value != "") && head == null;
+                if (head != null && get_mapped()) head.show_state(this, value);
             }
         }
         /** Secondary description text (smaller, muted). Set to empty string to hide. */
@@ -124,6 +129,24 @@ namespace Singularity.Widgets {
             child_box = new Box(Orientation.VERTICAL, 0);
             child_box.halign = Align.CENTER;
             append(child_box);
+        }
+
+        public override void map() {
+            join_head();
+            base.map();
+        }
+
+        public override void unmap() {
+            if (head != null) head.drop_state(this);
+            base.unmap();
+        }
+
+        private void join_head() {
+            if (!has_icon) return;
+            head = PageHero.above(this);
+            icon_image.visible = head == null;
+            title_label.visible = head == null && title_label.label != "";
+            if (head != null) head.show_state(this, title_label.label);
         }
     }
 }

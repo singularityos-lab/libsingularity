@@ -4,6 +4,11 @@ namespace Singularity.Animation {
         public const uint DOCK_LIMIT = 500;
 
         private const string PLAYING = "singularity-icon-motion";
+        internal const string SOURCE = "singularity-icon-source";
+
+        public static void set_source(Gtk.Image image, GLib.File? file) {
+            image.set_data<GLib.File?>(SOURCE, file);
+        }
 
         public static bool play(Gtk.Image image, uint limit_ms = 0, double detail = 1.0) {
 #if IRIDE
@@ -161,7 +166,7 @@ namespace Singularity.Animation {
                 default:
                     return null;
             }
-            var file = found != null ? found.get_file() : null;
+            var file = found != null ? found.get_file() : image.get_data<GLib.File>(IconMotion.SOURCE);
             string? path = file != null ? file.get_path() : null;
             if (path == null || !path.has_suffix(".svg") || path.has_suffix("-symbolic.svg")) return null;
             string sibling = path.substring(0, path.length - ".svg".length) + ".iride";
