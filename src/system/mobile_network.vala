@@ -45,6 +45,7 @@ namespace Singularity {
         private const string MM_MODEM = "/org/freedesktop/ModemManager1/Modem/0";
         private const string MM_MODEM_IFACE = "org.freedesktop.ModemManager1.Modem";
         private const string MM_3GPP_IFACE = "org.freedesktop.ModemManager1.Modem.Modem3gpp";
+        private const string MM_VOICE_IFACE = "org.freedesktop.ModemManager1.Modem.Voice";
         private const string MM_SIM_IFACE = "org.freedesktop.ModemManager1.Sim";
         private const string STACK_BUS = "dev.sinty.Modem1";
         private const string STACK_PATH = "/dev/sinty/Modem1";
@@ -74,6 +75,8 @@ namespace Singularity {
         public bool has_settings { get; private set; default = false; }
         public bool lte_only { get; private set; default = false; }
         public bool has_modes { get; private set; default = false; }
+        public bool has_voice { get; private set; default = false; }
+        public bool calls_ready { get; private set; default = false; }
 
         public signal void changed();
 
@@ -134,6 +137,10 @@ namespace Singularity {
             if (bus == null) return;
             var modem = yield read_properties(MM_MODEM_IFACE);
             var gpp = yield read_properties(MM_3GPP_IFACE);
+            var voice = yield read_properties(MM_VOICE_IFACE);
+            var emergency_only = voice != null ? voice.lookup_value("EmergencyOnly", VariantType.BOOLEAN) : null;
+            has_voice = emergency_only != null;
+            calls_ready = has_voice && !emergency_only.get_boolean();
             available = modem != null;
             state = 0;
             failed_reason = 0;
