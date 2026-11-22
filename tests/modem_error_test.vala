@@ -14,6 +14,12 @@ void test_unknown_error_loses_the_bus_prefix() {
         == "end the current call before placing another");
 }
 
+void test_errors_point_to_the_page_that_fixes_them() {
+    assert(Singularity.ModemError.settings_page(DBusError.new_for_dbus_error(CORE + "NotRegistered", "x")) == "network-mobile");
+    assert(Singularity.ModemError.settings_page(DBusError.new_for_dbus_error("org.freedesktop.DBus.Error.ServiceUnknown", "x")) == "dev-modem");
+    assert(Singularity.ModemError.settings_page(DBusError.new_for_dbus_error(CORE + "Failed", "x")) == null);
+}
+
 void test_esim_error() {
     assert(describe("dev.sinty.Modem1.ESIM.Error.Active", "profile is active")
         == "Turn the eSIM off before deleting it.");
@@ -28,6 +34,7 @@ void test_local_error_is_kept() {
 int main(string[] args) {
     Test.init(ref args);
     Test.add_func("/modem-error/no-network", test_no_network);
+    Test.add_func("/modem-error/settings-page", test_errors_point_to_the_page_that_fixes_them);
     Test.add_func("/modem-error/unknown", test_unknown_error_loses_the_bus_prefix);
     Test.add_func("/modem-error/esim", test_esim_error);
     Test.add_func("/modem-error/local", test_local_error_is_kept);

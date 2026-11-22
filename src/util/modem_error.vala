@@ -4,6 +4,40 @@ namespace Singularity {
 
     public class ModemError {
 
+        public static string? settings_page(Error e) {
+            string remote = DBusError.get_remote_error(e) ?? "";
+            if (remote.has_suffix(".NotRegistered")) return "network-mobile";
+            if (remote.has_suffix(".ServiceUnknown") || remote.has_suffix(".NameHasNoOwner") || remote.has_suffix(".UnknownObject")
+                || remote.has_suffix(".ESIM.Error.NoChip"))
+                return "dev-modem";
+            return null;
+        }
+
+        public static Widgets.Toast toast(Error e) {
+            return toast_for(describe(e), settings_page(e));
+        }
+
+        public static Widgets.Toast toast_for(string text, string? page) {
+            var toast = new Widgets.Toast(text);
+            if (page != null) {
+                string target = page;
+                toast.timeout = 10;
+                toast.button_label = _("Settings");
+                toast.button_clicked.connect(() => open_settings.begin(target));
+            }
+            return toast;
+        }
+
+        private static async void open_settings(string page) {
+            try {
+                var bus = yield Bus.get(BusType.SESSION);
+                yield bus.call("dev.sinty.desktop", "/dev/sinty/Shell", "dev.sinty.Shell", "OpenSettings",
+                    new Variant("(s)", page), null, DBusCallFlags.NONE, 5000);
+            } catch (Error e) {
+                warning("open settings: %s", e.message);
+            }
+        }
+
         public static string describe(Error e) {
             string remote = DBusError.get_remote_error(e) ?? "";
             if (remote.has_suffix(".Unauthorized")) return _("Permission was not given.");

@@ -75,6 +75,8 @@ namespace Singularity {
         public bool has_settings { get; private set; default = false; }
         public bool lte_only { get; private set; default = false; }
         public bool has_modes { get; private set; default = false; }
+        public bool has_usage { get; private set; default = false; }
+        public uint64 data_used { get; private set; default = 0; }
         public bool has_voice { get; private set; default = false; }
         public bool calls_ready { get; private set; default = false; }
 
@@ -180,7 +182,21 @@ namespace Singularity {
                 if (v != null) operator_name = v.get_string();
             }
             yield read_settings();
+            yield read_usage();
             changed();
+        }
+
+        private async void read_usage() {
+            has_usage = false;
+            if (!available) return;
+            try {
+                var reply = yield bus.call(MM_BUS, "/dev/sinty/Modem1/Network", "dev.sinty.Modem1.Network", "GetUsage",
+                    null, new VariantType("(tt)"), DBusCallFlags.NO_AUTO_START, 5000);
+                data_used = reply.get_child_value(0).get_uint64() + reply.get_child_value(1).get_uint64();
+                has_usage = true;
+            } catch (Error e) {
+                debug("mobile data usage: %s", e.message);
+            }
         }
 
         private async void read_settings() {
