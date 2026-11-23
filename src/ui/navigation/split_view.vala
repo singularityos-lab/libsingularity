@@ -12,6 +12,7 @@ namespace Singularity.Widgets {
         private Button? _back = null;
 
         public int list_width { get; set; default = 320; }
+        public double list_fraction { get; set; default = 0.0; }
         public int detail_min_width { get; set; default = 360; }
 
         public bool collapsed { get { return _collapsed; } }
@@ -37,6 +38,7 @@ namespace Singularity.Widgets {
             _detail.set_parent (this);
             add_css_class ("singularity-split-view");
             notify["list-width"].connect (() => queue_resize ());
+            notify["list-fraction"].connect (() => queue_resize ());
             notify["detail-min-width"].connect (() => queue_resize ());
         }
 
@@ -80,6 +82,7 @@ namespace Singularity.Widgets {
             int lmin, lnat;
             _list.measure (Orientation.HORIZONTAL, -1, out lmin, out lnat, null, null);
             int list_w = int.max (lmin, list_width);
+            if (list_fraction > 0.0) list_w = int.max (lmin, (int) Math.round (width * list_fraction));
             bool collapsed = width < list_w + snat + detail_min_width;
 
             if (collapsed) {
