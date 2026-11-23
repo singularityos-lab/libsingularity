@@ -98,6 +98,7 @@ namespace Singularity {
         private bool _desktop_info_done = false;
         private bool _extending_menubar = false;
         private SimpleAction? _window_path_action = null;
+        private Singularity.Migration.Service? migration = null;
 
         /**
          * Creates a new Singularity application.
@@ -156,6 +157,12 @@ namespace Singularity {
             } catch (Error e) {
                 warning("AppAgent: cannot export %s: %s", object_path, e.message);
             }
+            migration = new Singularity.Migration.Service(this);
+            try {
+                migration.export(connection, object_path);
+            } catch (IOError e) {
+                warning("Migration: cannot export %s: %s", object_path, e.message);
+            }
             dbus_registered(connection, object_path);
             return true;
         }
@@ -164,6 +171,8 @@ namespace Singularity {
             dbus_unregistered(connection, object_path);
             ActionAccels.for_application(this).unexport();
             agent.unexport();
+            if (migration != null) migration.unexport();
+            migration = null;
             base.dbus_unregister(connection, object_path);
         }
 

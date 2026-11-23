@@ -290,6 +290,9 @@ libsingularity_sources = files(
   'src/core/settings_util.vala',
   'src/core/app_agent.vala',
   'src/core/application.vala',
+  'src/migration/widget_state.vala',
+  'src/migration/session.vala',
+  'src/migration/service.vala',
   'src/core/action_accels.vala',
   'src/core/shell_application.vala',
   'src/core/settings_contract.vala',
@@ -452,6 +455,7 @@ endif
 libsingularity = shared_library('singularity',
   libsingularity_sources + libsingularity_resources + [
     'src/core/async_engine.c',
+    'src/migration/text_history.c',
     'src/core/background_work.c',
     'src/wayland/surface_effect.c',
     'src/wayland/snap_button.c',
@@ -1370,6 +1374,14 @@ choice_button_test = executable(
   vala_args: ['--pkg', 'posix'],
 )
 test('choice-button', choice_button_test, env: ['TMPDIR=' + meson.current_build_dir()])
+
+migration_test = executable(
+  'migration-test',
+  files('tests/migration_test.vala'),
+  dependencies: [libsingularity_dep],
+  vala_args: ['--pkg', 'posix'],
+)
+test('migration', find_program('dbus-run-session'), args: ['--', migration_test], env: ['TMPDIR=' + meson.current_build_dir(), 'GSETTINGS_BACKEND=memory'])
 
 print_test = executable(
   'print-test',
