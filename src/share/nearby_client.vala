@@ -18,6 +18,9 @@ namespace Singularity {
         public bool supports_find { get; set; default = false; }
         public bool supports_media { get; set; default = false; }
         public bool supports_sinty_ai { get; set; default = false; }
+        public bool can_show_desktop_on { get; set; default = false; }
+        public bool can_show_desktop_of { get; set; default = false; }
+        public bool showing_desktop_of { get; set; default = false; }
         public bool has_conversations { get; set; default = false; }
         public int notification_count { get; set; default = 0; }
 
@@ -60,6 +63,9 @@ namespace Singularity {
             supports_find = flag(dict, "supports-find");
             supports_media = flag(dict, "supports-media");
             supports_sinty_ai = flag(dict, "supports-sinty-ai");
+            can_show_desktop_on = flag(dict, "can-show-desktop-on");
+            can_show_desktop_of = flag(dict, "can-show-desktop-of");
+            showing_desktop_of = flag(dict, "showing-desktop-of");
             has_conversations = flag(dict, "has-conversations");
             var nc = dict.lookup_value("notification-count", VariantType.INT32);
             notification_count = nc != null ? nc.get_int32() : 0;
