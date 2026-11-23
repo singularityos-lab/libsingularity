@@ -193,6 +193,7 @@ namespace Singularity.Widgets {
             ((Widget) win).map.connect_after(() => update());
             win.notify["application"].connect(() => update());
             win.notify["tv-head-hidden"].connect(sync_head);
+            win.notify["tv-scale-disabled"].connect(apply_scale);
         }
 
         public void release() {
@@ -303,7 +304,7 @@ namespace Singularity.Widgets {
         private void apply_scale() {
             var bin = _win.scale_bin;
             if (bin == null) return;
-            if (kind != FormFactorKind.TV || _monitor == null) {
+            if (kind != FormFactorKind.TV || _monitor == null || _win.tv_scale_disabled) {
                 bin.factor = 1.0;
                 return;
             }
