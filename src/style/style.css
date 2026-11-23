@@ -7345,13 +7345,6 @@ window.phone-home .phone-home-edit-bar button.pill {
     box-shadow: 0 2px 10px alpha(black, 0.25);
 }
 
-.hub-view.hub-floating {
-    border-radius: 0 34px 34px 0;
-    box-shadow:
-        0 1px 2px alpha(black, 0.22),
-        0 6px 14px alpha(black, 0.34);
-}
-
 .hub-view .hub-accounts,
 .hub-view .hub-sheet {
     background-color: @window_bg_color;
