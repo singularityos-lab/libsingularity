@@ -22,6 +22,16 @@ namespace Singularity {
         public bool can_show_desktop_of { get; set; default = false; }
         public bool showing_desktop_of { get; set; default = false; }
         public bool has_conversations { get; set; default = false; }
+        public bool can_share_input { get; set; default = false; }
+        public string input_output { get; set; default = ""; }
+        public string input_side { get; set; default = ""; }
+        public int input_start { get; set; default = 0; }
+        public int input_end { get; set; default = 0; }
+        public string input_state { get; set; default = ""; }
+
+        public bool placed {
+            get { return input_output != "" && input_end > input_start; }
+        }
         public int notification_count { get; set; default = 0; }
 
         public NearbyDevice(string id) {
@@ -67,6 +77,14 @@ namespace Singularity {
             can_show_desktop_of = flag(dict, "can-show-desktop-of");
             showing_desktop_of = flag(dict, "showing-desktop-of");
             has_conversations = flag(dict, "has-conversations");
+            can_share_input = flag(dict, "can-share-input");
+            input_output = str(dict, "input-output", "");
+            input_side = str(dict, "input-side", "");
+            var istart = dict.lookup_value("input-start", VariantType.INT32);
+            input_start = istart != null ? istart.get_int32() : 0;
+            var iend = dict.lookup_value("input-end", VariantType.INT32);
+            input_end = iend != null ? iend.get_int32() : 0;
+            input_state = str(dict, "input-state", "");
             var nc = dict.lookup_value("notification-count", VariantType.INT32);
             notification_count = nc != null ? nc.get_int32() : 0;
         }
@@ -131,6 +149,7 @@ namespace Singularity {
         public signal void transfer_started(string transfer_id, string device_id, string name, int64 size, bool incoming);
         public signal void transfer_requested(string batch_id, string device_id, string summary, int64 size);
         public signal void received_files_changed();
+        public signal void edge_pushed(string output, string side, double position, double length);
 
         public static NearbyClient get_default() {
             if (instance == null) instance = new NearbyClient();
@@ -223,6 +242,10 @@ namespace Singularity {
                     break;
                 case "ReceivedFilesChanged":
                     received_files_changed();
+                    break;
+                case "EdgePushed":
+                    edge_pushed(parameters.get_child_value(0).dup_string(), parameters.get_child_value(1).dup_string(),
+                        parameters.get_child_value(2).get_double(), parameters.get_child_value(3).get_double());
                     break;
             }
         }
@@ -334,6 +357,20 @@ namespace Singularity {
             } catch (Error e) {
                 debug("nearby: %s: %s", method, e.message);
             }
+            return result;
+        }
+
+        public async void place_input(string id, string output, string side, int start, int end) throws Error {
+            yield call("PlaceInput", new Variant("(sssii)", id, output, side, start, end));
+        }
+
+        public async void remove_input(string id) throws Error {
+            yield call("RemoveInput", new Variant("(s)", id));
+        }
+
+        public Gee.List<NearbyDevice> input_devices() {
+            var result = new Gee.ArrayList<NearbyDevice>();
+            foreach (var d in devices) if (d.placed || d.can_share_input) result.add(d);
             return result;
         }
 

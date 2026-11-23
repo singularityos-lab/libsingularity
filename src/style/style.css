@@ -8529,3 +8529,29 @@ window.game-overlay.shown .game-overlay-stage {
 .swipeable .swipe-actions.trailing > .swipe-action:last-child {
     transition: none;
 }
+
+.edge-approach-window,
+.edge-chooser-window {
+    background-color: transparent;
+}
+
+.edge-approach {
+    color: @accent_color;
+}
+
+.monitor-preview {
+    color: @accent_color;
+}
+
+.edge-chooser {
+    padding: 10px;
+    border-radius: 20px;
+    background-color: alpha(@theme_bg_color, 0.94);
+    border: 1px solid alpha(currentColor, 0.12);
+    box-shadow: 0 12px 34px alpha(black, 0.34);
+}
+
+.edge-chooser-device {
+    padding: 6px 8px;
+    border-radius: 12px;
+}
