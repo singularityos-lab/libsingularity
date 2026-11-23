@@ -98,6 +98,7 @@ namespace Singularity.Style {
             _icon_theme_pinned = true;
             refresh_icon_theme();
             gs.notify["gtk-icon-theme-name"].connect(() => refresh_icon_theme());
+            ThemeMode.get_default().changed.connect(() => refresh_icon_look());
         }
 
         /**
@@ -123,6 +124,21 @@ namespace Singularity.Style {
             if (gs == null) return;
             string name = resolve_icon_theme(_desired_icon_theme);
             if (gs.gtk_icon_theme_name != name) gs.gtk_icon_theme_name = name;
+            refresh_icon_look();
+        }
+
+        private static void refresh_icon_look() {
+            if (!_icon_theme_pinned) return;
+            var gs = Gtk.Settings.get_default();
+            if (gs == null || gs.get_class().find_property("gtk-icon-accent") == null) return;
+            bool dark = ThemeMode.get_default().app_dark();
+            var sm = get_default();
+            string accent = sm.current_accent == ACCENT_NAMES[0] ? "" : sm.icon_accent;
+            bool was_dark;
+            string? was_accent;
+            gs.get("gtk-icon-dark", out was_dark, "gtk-icon-accent", out was_accent);
+            if (was_dark != dark) gs.set("gtk-icon-dark", dark);
+            if (was_accent != accent) gs.set("gtk-icon-accent", accent);
         }
 
         private static bool icon_theme_installed(string name) {
@@ -538,6 +554,7 @@ namespace Singularity.Style {
             }
             // Expose the resolved accent hex so callers (e.g. the shell's labwc
             // theming) can derive their own accent-tinted colours.
+            icon_accent = hex_color;
             hex_color = readable_accent(hex_color, current_dark_mode);
             accent_hex = hex_color;
             accent_fg_hex = contrast_fg_for(hex_color);
@@ -1072,6 +1089,7 @@ namespace Singularity.Style {
 
         /** The resolved accent colour as a "#rrggbb" hex string. */
         public string accent_hex { get; private set; default = "#3584e4"; }
+        private string icon_accent = "#3584e4";
 
         /**
          * Text colour used on surfaces filled with the accent, as a "#rrggbb"

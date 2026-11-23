@@ -101,8 +101,12 @@ namespace Singularity.Animation {
         public Gtk.Image image { get { return (Gtk.Image) widget; } }
 
         private Bytes file;
+        private Bytes? white;
         private uint8[] work;
+        private uint8[]? white_work;
         private uint8[] pixels;
+        private uint8[]? white_pixels;
+        private uint32 accent;
         private uint32 wanted;
         private uint32 side;
         private double speed = 1.0;
@@ -133,14 +137,44 @@ namespace Singularity.Animation {
             if (file.get_size() == 0) return null;
 
             var self = new IconPlayback(image);
-            self.file = file;
+            self.accent = global::Iride.NO_ACCENT;
+            bool dark = false;
+            string? hex = null;
+            var gs = image.get_settings();
+            if (gs.get_class().find_property("gtk-icon-accent") != null) {
+                gs.get("gtk-icon-dark", out dark, "gtk-icon-accent", out hex);
+                var color = Gdk.RGBA();
+                if (hex != null && hex != "" && color.parse(hex)) {
+                    self.accent = ((uint32) Math.round(color.red * 255) << 16)
+                        | ((uint32) Math.round(color.green * 255) << 8)
+                        | (uint32) Math.round(color.blue * 255);
+                }
+            }
+            unowned uint8[] black;
+            unowned uint8[]? white;
+            if (global::Iride.look(file.get_data(), dark ? global::Iride.Scheme.DARK : global::Iride.Scheme.LIGHT,
+                    self.accent != global::Iride.NO_ACCENT, out black, out white) != 0) return null;
+            size_t start = (size_t) ((uint8*) black - (uint8*) file.get_data());
+            self.file = new Bytes.from_bytes(file, start, black.length);
+            if (white != null) {
+                self.white = new Bytes.from_bytes(file, (size_t) ((uint8*) white - (uint8*) file.get_data()), white.length);
+            }
             self.wanted = uint32.min((uint32) Math.ceil(device * detail), LARGEST);
             uint32 duration;
             size_t room;
-            if (global::Iride.motion(file.get_data(), self.wanted, out duration, out self.side, out room) != 0) return null;
+            if (global::Iride.motion(self.file.get_data(), self.wanted, out duration, out self.side, out room) != 0) return null;
             self.work = new uint8[room];
-            if (global::Iride.prepare(file.get_data(), self.wanted, self.work) != 0) return null;
+            if (global::Iride.prepare(self.file.get_data(), self.wanted, self.work) != 0) return null;
             self.pixels = new uint8[self.side * self.side * 4];
+            if (self.white != null) {
+                uint32 white_duration, white_side;
+                size_t white_room;
+                if (global::Iride.motion(self.white.get_data(), self.wanted, out white_duration, out white_side, out white_room) != 0
+                        || white_side != self.side) return null;
+                self.white_work = new uint8[white_room];
+                if (global::Iride.prepare(self.white.get_data(), self.wanted, self.white_work) != 0) return null;
+                self.white_pixels = new uint8[self.pixels.length];
+            }
             if (limit_ms > 0 && duration > limit_ms) self.speed = (double) duration / limit_ms;
             self.shown = new IconFrame(size);
             if (!self.draw(0)) return null;
@@ -175,6 +209,10 @@ namespace Singularity.Animation {
 
         private bool draw(double msec) {
             if (global::Iride.frame(file.get_data(), wanted, msec, work, pixels) != 0) return false;
+            if (white != null) {
+                if (global::Iride.frame(white.get_data(), wanted, msec, white_work, white_pixels) != 0) return false;
+                if (global::Iride.tint(pixels, white_pixels, accent, pixels) != 0) return false;
+            }
             shown.show(new Gdk.MemoryTexture((int) side, (int) side, Gdk.MemoryFormat.B8G8R8A8_PREMULTIPLIED,
                 new Bytes(pixels), side * 4));
             return true;
