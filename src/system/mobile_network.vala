@@ -5,7 +5,7 @@ namespace Singularity {
     public enum MobileCommand {
         SET_RADIO, SET_LTE_ONLY, SET_DATA, SET_ROAMING, SET_APN, GET_IMEI, SEND_PIN, SEND_PUK, CHANGE_PIN, SEARCH_NETWORKS, SELECT_NETWORK,
         GET_EID, LIST_PROFILES, ENABLE_PROFILE, DISABLE_PROFILE, RENAME_PROFILE, DELETE_PROFILE, ADD_PROFILE, SEND_NOTIFICATIONS,
-        SELECT_SLOT, RESTART_SERVICE, RESTART_MODEM, DIAGNOSTICS
+        SELECT_SLOT, RESTART_SERVICE, RESTART_MODEM, DIAGNOSTICS, SET_STANDBY, SET_DATA_LINE, MODEM_REQUEST
     }
 
     public class MobileProfile : Object {
@@ -266,9 +266,16 @@ namespace Singularity {
                 case MobileCommand.SEND_NOTIFICATIONS: method = "SendNotifications"; break;
                 case MobileCommand.SELECT_SLOT:
                 case MobileCommand.RESTART_SERVICE:
+                case MobileCommand.SET_STANDBY:
+                case MobileCommand.SET_DATA_LINE:
+                case MobileCommand.MODEM_REQUEST:
                     path = MM_MODEM;
                     iface = "dev.sinty.Modem1.Recovery";
-                    method = command == MobileCommand.SELECT_SLOT ? "SelectSlot" : "Restart";
+                    if (command == MobileCommand.SELECT_SLOT) method = "SelectSlot";
+                    else if (command == MobileCommand.SET_STANDBY) method = "SetStandby";
+                    else if (command == MobileCommand.SET_DATA_LINE) method = "SetDataLine";
+                    else if (command == MobileCommand.MODEM_REQUEST) method = "Request";
+                    else method = "Restart";
                     break;
                 case MobileCommand.RESTART_MODEM:
                 case MobileCommand.DIAGNOSTICS:
