@@ -34,19 +34,23 @@ AutostartManager host_like(string name) {
     write_entry(user, "dev.sinty.badge.desktop", "Exec=true\nHidden=true\n");
     write_entry(user, "mine.desktop", "Exec=true\n");
     write_entry(user, "mine-off.desktop", "Exec=true\nX-GNOME-Autostart-enabled=false\n");
+    write_entry(user, "daemon.desktop", "Exec=true\nNoDisplay=true\n");
+    write_entry(user, "elsewhere.desktop", "Exec=true\nNotShowIn=Singularity;\n");
     return new AutostartManager.with_dirs(user, { opt }, { etc });
 }
 
 void test_only_prefix_and_named_entries_run() {
     var manager = host_like("run");
     var launched = names(manager.launchable_entries("Singularity"));
-    assert(launched.length == 3);
-    assert(launched[0] == "opt/dev.sinty.store.updates.desktop");
-    assert(launched[1] == "user/mine.desktop");
-    assert(launched[2] == "etc/ours.desktop");
+    assert(launched.length == 4);
+    assert("opt/dev.sinty.store.updates.desktop" in launched);
+    assert("user/daemon.desktop" in launched);
+    assert("user/mine.desktop" in launched);
+    assert("etc/ours.desktop" in launched);
     var visible = names(manager.visible_entries());
-    assert(visible.length == 4);
-    assert(visible[1] == "user/mine-off.desktop");
+    assert(visible.length == 6);
+    assert("user/mine-off.desktop" in visible);
+    assert("user/elsewhere.desktop" in visible);
     assert(manager.contains("dev.sinty.store.updates.desktop"));
     assert(!manager.contains("dev.sinty.badge.desktop"));
     assert(!manager.contains("nm-applet.desktop"));

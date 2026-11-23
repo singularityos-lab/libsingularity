@@ -64,7 +64,7 @@ namespace Singularity {
             var list = new Gee.ArrayList<string>();
             foreach (var entry in effective_entries()) {
                 if (entry.kind == EntryKind.USER) {
-                    if (user_entry_should_launch(entry.path)) list.add(entry.path);
+                    if (user_entry_should_launch(entry.path, desktop)) list.add(entry.path);
                 } else if (system_entry_should_launch(entry.path, entry.kind == EntryKind.SYSTEM, desktop)) {
                     list.add(entry.path);
                 }
@@ -105,23 +105,15 @@ namespace Singularity {
         }
 
         /**
-         * The rule for the user's own entries: not hidden, the desktop file
-         * loads and should be shown, and `X-GNOME-Autostart-enabled` is not
-         * false.
+         * The rule for the user's own entries: the system rule without the
+         * `OnlyShowIn=Singularity` requirement. `NoDisplay` only hides an
+         * entry from menus, so background services that set it still start.
+         *
+         * @param path    The desktop file.
+         * @param desktop The current desktop names, or null for `XDG_CURRENT_DESKTOP`.
          */
-        public static bool user_entry_should_launch(string path) {
-            if (is_hidden(path)) return false;
-            var info = new DesktopAppInfo.from_filename(path);
-            if (info == null || !info.should_show()) return false;
-            var kf = new KeyFile();
-            try {
-                kf.load_from_file(path, KeyFileFlags.NONE);
-                if (kf.has_key("Desktop Entry", "X-GNOME-Autostart-enabled")
-                        && !kf.get_boolean("Desktop Entry", "X-GNOME-Autostart-enabled"))
-                    return false;
-            } catch (Error e) {
-            }
-            return true;
+        public static bool user_entry_should_launch(string path, string? desktop = null) {
+            return system_entry_should_launch(path, false, desktop);
         }
 
         /**
