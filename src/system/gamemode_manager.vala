@@ -8,6 +8,8 @@ namespace Singularity {
         public bool auto_mode { get; set; default = false; }
         // Whether gamemode is currently active
         public bool active { get; private set; default = false; }
+        public bool requested { get; private set; default = false; }
+        public bool held_elsewhere { get; private set; default = false; }
 
         private GLib.Settings _settings;
         private GLib.DBusProxy? _gamemode_proxy = null;
@@ -15,6 +17,7 @@ namespace Singularity {
         private GLib.DBusConnection? _system = null;
         private string? _profiles_name = null;
         private uint32 _hold = 0;
+        private int _clients = 0;
 
         public signal void state_changed();
 
@@ -48,13 +51,16 @@ namespace Singularity {
                 if (available) {
                     _gamemode_proxy = yield new GLib.DBusProxy(
                         connection,
-                        GLib.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
+                        GLib.DBusProxyFlags.NONE,
                         null,
                         "com.feralinteractive.GameMode",
                         "/com/feralinteractive/GameMode",
                         "com.feralinteractive.GameMode",
                         null
                     );
+                    _gamemode_proxy.g_properties_changed.connect(() => read_clients());
+                    _gamemode_proxy.notify["g-name-owner"].connect(() => read_clients());
+                    read_clients();
                 }
             } catch (GLib.Error e) {
                 available = false;
@@ -89,6 +95,22 @@ namespace Singularity {
             }
         }
 
+        private void read_clients() {
+            var count = _gamemode_proxy != null && _gamemode_proxy.g_name_owner != null
+                ? _gamemode_proxy.get_cached_property("ClientCount") : null;
+            _clients = count != null && count.is_of_type(GLib.VariantType.INT32) ? count.get_int32() : 0;
+            update();
+        }
+
+        private void update() {
+            int own = _registered_pid >= 0 ? 1 : 0;
+            bool was_active = active, was_requested = requested, was_elsewhere = held_elsewhere;
+            requested = _registered_pid >= 0 || _hold != 0;
+            held_elsewhere = _clients > own;
+            active = requested || held_elsewhere;
+            if (was_active != active || was_requested != requested || was_elsewhere != held_elsewhere) state_changed();
+        }
+
         private static string profiles_path(string name) {
             return "/" + name.replace(".", "/");
         }
@@ -100,7 +122,7 @@ namespace Singularity {
         }
 
         public void activate(string? reason = null) {
-            if (active) return;
+            if (requested) return;
             if (_gamemode_proxy != null) {
                 try {
                     int pid = (int) Posix.getpid();
@@ -112,8 +134,8 @@ namespace Singularity {
                         null
                     );
                     _registered_pid = pid;
-                    active = true;
-                    state_changed();
+                    _clients = int.max(_clients, 1);
+                    update();
                 } catch (GLib.Error e) {
                     warning("GameMode: RegisterGameByPID failed: %s", e.message);
                 }
@@ -123,8 +145,7 @@ namespace Singularity {
                         "HoldProfile", new GLib.Variant("(sss)", "performance", "Game Mode", reason ?? "dev.sinty.desktop"),
                         new GLib.VariantType("(u)"), GLib.DBusCallFlags.NONE, 2000, null);
                     _hold = r.get_child_value(0).get_uint32();
-                    active = true;
-                    state_changed();
+                    update();
                 } catch (GLib.Error e) {
                     warning("GameMode: HoldProfile failed: %s", e.message);
                 }
@@ -132,7 +153,7 @@ namespace Singularity {
         }
 
         public void deactivate() {
-            if (!active) return;
+            if (!requested) return;
             if (_gamemode_proxy != null && _registered_pid >= 0) {
                 try {
                     _gamemode_proxy.call_sync(
@@ -146,6 +167,7 @@ namespace Singularity {
                     warning("GameMode: UnregisterGameByPID failed: %s", e.message);
                 }
                 _registered_pid = -1;
+                _clients = int.max(_clients - 1, 0);
             }
             if (_system != null && _profiles_name != null && _hold != 0) {
                 try {
@@ -156,8 +178,7 @@ namespace Singularity {
                 }
                 _hold = 0;
             }
-            active = false;
-            state_changed();
+            update();
         }
     }
 }
