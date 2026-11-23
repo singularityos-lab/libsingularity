@@ -1060,6 +1060,17 @@ window.singularity-glass .dock-window:backdrop .dock-box,
     color: @text_color;
 }
 
+.singularity-sidebar-badge {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+    border-radius: 999px;
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
 .dock-suffix-badge {
     background-color: alpha(@accent_bg_color, 0.85);
     color: white;
@@ -7326,6 +7337,74 @@ window.phone-home .phone-home-edit-bar button.pill {
     box-shadow: 0 2px 10px alpha(black, 0.25);
 }
 
+.hub-view .hub-accounts,
+.hub-view .hub-sheet {
+    background-color: @window_bg_color;
+}
+
+.hub-view .hub-accounts {
+    padding: 12px 8px;
+}
+
+.hub-view .hub-sheet {
+    box-shadow: -1px 0 0 alpha(@borders, 0.6), -8px 0 24px alpha(black, 0.18);
+}
+
+.hub-view .hub-card {
+    background-color: @window_bg_color;
+    box-shadow: -8px 0 24px alpha(black, 0.22);
+}
+
+.hub-view .hub-card-header {
+    padding: 8px 12px 8px 8px;
+    border-bottom: 1px solid alpha(@borders, 0.6);
+}
+
+.hub-view .hub-card-actions {
+    padding: 8px 12px 12px 12px;
+    border-top: 1px solid alpha(@borders, 0.6);
+}
+
+.hub-view .hub-header {
+    padding: 8px 8px 4px 8px;
+}
+
+.hub-view .hub-count {
+    color: @accent_color;
+    font-weight: 700;
+}
+
+.hub-view .hub-filter-note {
+    margin: 0 16px 4px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: @accent_color;
+}
+
+.hub-view .hub-row .hub-kind {
+    margin: 6px 4px 0 6px;
+    padding: 4px;
+}
+
+.hub-view .hub-row .hub-sender {
+    font-weight: 500;
+}
+
+.hub-view .hub-row.unread .hub-sender,
+.hub-view .hub-row.unread .hub-subject {
+    font-weight: 700;
+}
+
+.hub-view .hub-row .hub-unread-dot {
+    background-color: @accent_bg_color;
+    border-radius: 999px;
+    box-shadow: 0 0 0 2px @card_bg_color;
+}
+
+.hub-view .hub-row .hub-flag {
+    color: @warning_color;
+}
+
 window.split-divider {
     background: none;
 }
@@ -8357,4 +8436,44 @@ window.game-overlay.shown .game-overlay-stage {
 .game-overlay-hint {
     font-size: 14px;
     color: alpha(white, 0.55);
+}
+
+.swipeable .swipe-content {
+    background-color: @card_bg;
+}
+
+.swipeable:hover .swipe-content {
+    background-color: mix(@card_bg, @text_color, 0.05);
+}
+
+.swipeable .swipe-actions {
+    padding: 0;
+}
+
+.swipeable .swipe-action {
+    border-radius: 0;
+    min-width: 76px;
+    padding: 0 8px;
+    border: none;
+    box-shadow: none;
+    color: white;
+    background-color: alpha(@text_color, 0.45);
+}
+
+.swipeable .swipe-action.accent {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
+.swipeable .swipe-action.warning {
+    background-color: @warning_color;
+}
+
+.swipeable .swipe-action.destructive {
+    background-color: @destructive_color;
+}
+
+.swipeable .swipe-actions.leading > .swipe-action:first-child,
+.swipeable .swipe-actions.trailing > .swipe-action:last-child {
+    transition: none;
 }

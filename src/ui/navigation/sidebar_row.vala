@@ -18,6 +18,48 @@ namespace Singularity.Widgets {
 
         private Image _img;
         private Label _lbl;
+        private Label? _detail = null;
+        private Label? _badge = null;
+
+        public string detail {
+            get { return _detail != null ? _detail.label : ""; }
+            set {
+                if (_detail == null) {
+                    if (value == "") return;
+                    var row = (Box) get_child ();
+                    row.remove (_lbl);
+                    var column = new Box (Orientation.VERTICAL, 0);
+                    column.hexpand = true;
+                    column.valign = Align.CENTER;
+                    column.append (_lbl);
+                    _detail = new Label ("");
+                    _detail.xalign = 0;
+                    _detail.ellipsize = Pango.EllipsizeMode.END;
+                    _detail.add_css_class ("dim-label");
+                    _detail.add_css_class ("caption");
+                    column.append (_detail);
+                    row.insert_child_after (column, _img);
+                }
+                _detail.label = value;
+                _detail.visible = value != "";
+            }
+        }
+
+        public string badge {
+            get { return _badge != null ? _badge.label : ""; }
+            set {
+                if (_badge == null) {
+                    if (value == "") return;
+                    _badge = new Label ("");
+                    _badge.valign = Align.CENTER;
+                    _badge.add_css_class ("singularity-sidebar-badge");
+                    _badge.add_css_class ("numeric");
+                    ((Box) get_child ()).append (_badge);
+                }
+                _badge.label = value;
+                _badge.visible = value != "";
+            }
+        }
 
         public SidebarRow (string icon_name, string text) {
             Object (icon_name: icon_name, text: text);

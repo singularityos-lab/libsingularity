@@ -159,6 +159,14 @@ namespace Singularity.Animation {
             update_transform();
         }
 
+        public override bool contains(double x, double y) {
+            if (!_transform_input || _child == null) return base.contains(x, y);
+            if (!_child.visible) return false;
+            Graphene.Rect bounds;
+            if (!_child.compute_bounds(this, out bounds)) return false;
+            return bounds.contains_point(Graphene.Point() { x = (float) x, y = (float) y });
+        }
+
         public Gsk.Transform? get_visual_transform() {
             if (is_identity) return null;
             float ox = (float) (get_width() * _origin_x);

@@ -222,8 +222,35 @@ namespace Singularity.Widgets {
         public signal void confirmed();
         public signal void confirmation_cancelled();
 
+        private RowSwipe? swipe = null;
+
         public PreferencesRow() {
             Object();
+        }
+
+        public void add_swipe_action(SwipeEdge edge, SwipeAction action) {
+            if (swipe == null) swipe = new RowSwipe(this);
+            swipe.add(edge, action);
+        }
+
+        public void clear_swipe_actions() {
+            if (swipe != null) swipe.clear();
+        }
+
+        public void close_swipe() {
+            if (swipe != null) swipe.close();
+        }
+
+        public bool swipe_menu {
+            get { return swipe == null || swipe.menu_enabled; }
+            set {
+                if (swipe == null) swipe = new RowSwipe(this);
+                swipe.menu_enabled = value;
+            }
+        }
+
+        public void append_swipe_actions(ContextMenu menu) {
+            if (swipe != null) swipe.append_to(menu);
         }
 
         construct {
