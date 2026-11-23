@@ -334,6 +334,7 @@ libsingularity_sources = files(
   'src/animation/motion_debug.vala',
   'src/animation/icon_hover.vala',
   'src/animation/icon_motion.vala',
+  'src/animation/icon_press.vala',
   'src/style/accent_icons.vala',
   'src/style/icon_color.vala',
   'src/style/style_manager.vala',

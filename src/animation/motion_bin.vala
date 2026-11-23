@@ -17,6 +17,7 @@ namespace Singularity.Animation {
         private double _translate_y = 0.0;
         private double _scale_x = 1.0;
         private double _scale_y = 1.0;
+        private double _squash = 0.0;
         private double _origin_x = 0.5;
         private double _origin_y = 0.5;
 
@@ -51,6 +52,11 @@ namespace Singularity.Animation {
             set { if (_scale_y != value) { _scale_y = value; update_transform(); } }
         }
 
+        public double squash {
+            get { return _squash; }
+            set { if (_squash != value) { _squash = value; update_transform(); } }
+        }
+
         public double scale {
             get { return _scale_x; }
             set {
@@ -72,7 +78,7 @@ namespace Singularity.Animation {
         }
 
         public bool is_identity {
-            get { return _translate_x == 0.0 && _translate_y == 0.0 && _scale_x == 1.0 && _scale_y == 1.0; }
+            get { return _translate_x == 0.0 && _translate_y == 0.0 && _scale_x == 1.0 && _scale_y == 1.0 && _squash == 0.0; }
         }
 
         static construct {
@@ -116,6 +122,7 @@ namespace Singularity.Animation {
             _translate_y = 0.0;
             _scale_x = 1.0;
             _scale_y = 1.0;
+            _squash = 0.0;
             update_transform();
         }
 
@@ -159,7 +166,8 @@ namespace Singularity.Animation {
             Graphene.Point origin = { ox + (float) _translate_x, oy + (float) _translate_y };
             Graphene.Point back = { -ox, -oy };
             return new Gsk.Transform().translate(origin)
-                .scale((float) _scale_x, (float) _scale_y).translate(back);
+                .scale((float) (_scale_x * (1.0 + _squash * 0.5)), (float) (_scale_y * (1.0 - _squash)))
+                .translate(back);
         }
 
         public override void snapshot(Gtk.Snapshot snapshot) {

@@ -25,6 +25,15 @@ namespace Singularity.Animation {
 #endif
         }
 
+        public static bool animated(Gtk.Image image) {
+#if IRIDE
+            int size = image.pixel_size > 0 ? image.pixel_size : int.min(image.get_width(), image.get_height());
+            return size > 0 && IconPlayback.sibling_of(image, size, image.get_scale_factor()) != null;
+#else
+            return false;
+#endif
+        }
+
         public static void stop(Gtk.Image image) {
 #if IRIDE
             var playback = image.get_data<IconPlayback>(PLAYING);
@@ -181,7 +190,7 @@ namespace Singularity.Animation {
             return self;
         }
 
-        private static string? sibling_of(Gtk.Image image, int size, int scale) {
+        internal static string? sibling_of(Gtk.Image image, int size, int scale) {
             var theme = Gtk.IconTheme.get_for_display(image.get_display());
             var direction = image.get_direction();
             Gtk.IconPaintable? found = null;
