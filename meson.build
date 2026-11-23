@@ -226,6 +226,7 @@ libsingularity_sources = files(
   'src/util/qr_decoder.vala',
   'src/share/share_content.vala',
   'src/share/share_target.vala',
+  'src/core/app_actions.vala',
   'src/share/share_sheet.vala',
   'src/share/nearby_client.vala',
   'src/share/nearby_target.vala',
