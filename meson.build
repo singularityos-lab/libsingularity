@@ -163,6 +163,7 @@ libsingularity_sources = files(
   'src/ui/visual/tile_cache.vala',
   'src/ui/visual/large_icon.vala',
   'src/ui/visual/clamp.vala',
+  'src/ui/visual/shade_bin.vala',
   'src/ui/visual/watch_face_view.vala',
   'src/ui/visual/watch_faces.vala',
   'src/ui/visual/theme_preview.vala',

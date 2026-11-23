@@ -7234,6 +7234,14 @@ window.phone-nav {
     background-color: transparent;
 }
 
+window.phone-nav.hub-covered .phone-nav-bar {
+    background-color: black;
+}
+
+window.hub-peek-edge {
+    background-color: alpha(black, 0.01);
+}
+
 .phone-nav-bar {
     min-height: 44px;
     padding: 0 18px;
