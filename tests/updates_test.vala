@@ -267,6 +267,9 @@ private class FakeUpdated : Object {
             } else if (last_request.has_prefix("POST /download?token=") && state == "available") {
                 state = "downloading";
                 body = "{\"state\":\"downloading\",\"percent\":40}";
+            } else if (last_request.has_prefix("POST /download/cancel") && state == "downloading") {
+                state = "available";
+                body = "{\"state\":\"available\",\"latest\":\"v184\",\"consent_token\":\"%s\"}".printf(string.nfill(64, 'a'));
             } else if (last_request.has_prefix("POST /download")) {
                 status = "409 Conflict";
                 body = "{\"state\":\"idle\",\"error\":\"no update\"}";
@@ -326,6 +329,31 @@ private void test_updated_provider() {
     assert(fake.last_request.has_prefix("POST /download?token=" + string.nfill(64, 'a')));
     assert(provider.state == State.DOWNLOADING);
     assert(provider.progress > 0.39 && provider.progress < 0.41);
+    assert(provider.can_cancel);
+    provider.cancel_download.begin((obj, res) => {
+        try {
+            provider.cancel_download.end(res);
+        } catch (Error e) {
+            failure = e;
+        }
+        loop.quit();
+    });
+    loop.run();
+    assert(failure == null);
+    assert(fake.last_request.has_prefix("POST /download/cancel"));
+    assert(provider.state == State.AVAILABLE);
+    provider.cancel_download.begin((obj, res) => {
+        try {
+            provider.cancel_download.end(res);
+        } catch (Error e) {
+            failure = e;
+        }
+        loop.quit();
+    });
+    loop.run();
+    assert(failure != null);
+    assert(provider.state == State.AVAILABLE);
+    failure = null;
     fake.state = "ready";
     provider.schedule.begin((obj, res) => {
         try {

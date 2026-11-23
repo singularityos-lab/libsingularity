@@ -34,6 +34,7 @@ namespace Singularity.Updates {
             can_download = true;
             can_schedule = false;
             can_unschedule = false;
+            can_cancel = true;
             has_history = true;
             description = _("Updated as a whole system image. Your files and apps stay as they are.");
             return true;
@@ -212,6 +213,15 @@ namespace Singularity.Updates {
 
         public override async void schedule() throws Error {
             yield refresh();
+        }
+
+        public override async void cancel_download() throws Error {
+            try {
+                apply(yield request("POST", "/download/cancel", 60));
+            } catch (Error e) {
+                yield refresh();
+                throw e;
+            }
         }
 
         public async void apply_live() throws Error {

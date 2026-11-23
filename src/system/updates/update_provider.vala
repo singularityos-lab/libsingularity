@@ -69,6 +69,7 @@ namespace Singularity.Updates {
         public bool can_download { get; protected set; default = false; }
         public bool can_schedule { get; protected set; default = false; }
         public bool can_unschedule { get; protected set; default = false; }
+        public bool can_cancel { get; protected set; default = false; }
         public bool has_history { get; protected set; default = false; }
 
         protected Gee.ArrayList<Package> _packages = new Gee.ArrayList<Package>();
@@ -85,6 +86,10 @@ namespace Singularity.Updates {
         public abstract async void schedule() throws Error;
         public abstract async void unschedule() throws Error;
         public abstract async Gee.List<HistoryEntry> history() throws Error;
+
+        public virtual async void cancel_download() throws Error {
+            throw new IOError.NOT_SUPPORTED(_("This download cannot be stopped"));
+        }
 
         protected void fail(Error e) {
             last_error = e.message;
