@@ -1359,6 +1359,10 @@ popover.dock-window-previews > contents {
     background-color: transparent;
 }
 
+.overview-scrim {
+    background-color: alpha(black, 0.6);
+}
+
 .workspace-strip-container {
     background-color: @overview_bg;
     padding: 24px 0 12px 0;
