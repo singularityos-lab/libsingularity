@@ -10,5 +10,9 @@
       <default>1.0</default>
       <summary>Animation duration multiplier</summary>
     </key>
+    <key name="animated-icons" type="b">
+      <default>true</default>
+      <summary>Animated Icons</summary>
+    </key>
   </schema>
 </schemalist>
