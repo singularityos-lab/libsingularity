@@ -354,6 +354,7 @@ libsingularity_sources = files(
   'src/ui/visual/chart_widgets.vala',
   'src/ui/visual/circular_progress.vala',
   'src/ui/visual/media_player_card.vala',
+  'src/ui/visual/media_artwork.vala',
   'src/ui/visual/led_matrix_view.vala',
   'src/led/led_font.vala',
   'src/led/led_scene.vala',

@@ -442,6 +442,38 @@ progressbar progress {
     border-radius: 4px;
 }
 .osd-pill progressbar progress { background-color: @accent_color; }
+.osd-pill.osd-level-pill,
+.osd-pill.osd-media-pill {
+    border-radius: 26px;
+    padding: 12px 20px 12px 14px;
+    min-width: 320px;
+}
+.osd-pill .osd-title { font-weight: 700; }
+.osd-pill .osd-value {
+    font-weight: 600;
+    color: alpha(@text_color, 0.75);
+}
+.osd-pill .osd-level-bar trough,
+.osd-pill .osd-level-bar progress {
+    min-height: 8px;
+    border-radius: 99px;
+}
+.osd-pill .osd-level.muted .osd-level-bar progress { opacity: 0; }
+.osd-pill .osd-level.muted > image { opacity: 0.55; }
+.osd-pill .osd-media-state { color: alpha(@text_color, 0.7); }
+
+media-artwork .media-artwork-cover {
+    border-radius: 10px;
+}
+media-artwork .media-artwork-cover.placeholder {
+    background-color: alpha(@text_color, 0.08);
+}
+media-artwork .media-artwork-badge {
+    border-radius: 6px;
+    padding: 1px;
+    background-color: alpha(@window_bg_color, 0.86);
+    box-shadow: 0 1px 4px alpha(black, 0.35), 0 0 0 1px alpha(white, 0.55);
+}
 .browser-progress > trough > progress { background-color: @accent_color; }
 
 /* Scale / slider */
@@ -1118,17 +1150,8 @@ window.singularity-glass .dock-window:backdrop .dock-box,
     font-size: 12px;
 }
 
-.dock-mpris-icon-cover {
+.dock-mpris-artwork .media-artwork-cover {
     border-radius: 8px;
-}
-
-.dock-mpris-app-badge {
-    min-width: 18px;
-    min-height: 18px;
-    border-radius: 5px;
-    padding: 1px;
-    background-color: alpha(@window_bg_color, 0.86);
-    box-shadow: 0 1px 4px alpha(black, 0.35), 0 0 0 1px alpha(white, 0.55);
 }
 
 @keyframes screen-flash-out {
