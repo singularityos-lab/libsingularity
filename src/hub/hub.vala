@@ -161,6 +161,8 @@ namespace Singularity.Hub {
         public string target { get; set; default = ""; }
         public string icon { get; set; default = ""; }
         public string body { get; set; default = ""; }
+        public string markup { get; set; default = ""; }
+        public string[] files { get; set; default = {}; }
         public string[] actions { get; set; default = {}; }
 
         public Item(string account, string id, ItemKind kind) {
@@ -189,6 +191,8 @@ namespace Singularity.Hub {
             b.add("{sv}", "target", new Variant.string(target));
             b.add("{sv}", "icon", new Variant.string(icon));
             b.add("{sv}", "body", new Variant.string(body));
+            b.add("{sv}", "markup", new Variant.string(markup));
+            b.add("{sv}", "files", new Variant.strv(files));
             b.add("{sv}", "actions", new Variant.strv(actions));
             return b.end();
         }
@@ -215,8 +219,9 @@ namespace Singularity.Hub {
             item.target = lookup_string(dict, "target");
             item.icon = lookup_string(dict, "icon");
             item.body = lookup_string(dict, "body");
-            Variant? acts = dict.lookup_value("actions", VariantType.STRING_ARRAY);
-            if (acts != null) item.actions = acts.dup_strv();
+            item.markup = lookup_string(dict, "markup");
+            item.files = lookup_strv(dict, "files");
+            item.actions = lookup_strv(dict, "actions");
             return item;
         }
     }
@@ -224,6 +229,19 @@ namespace Singularity.Hub {
     private static string lookup_string(VariantDict dict, string key) {
         Variant? v = dict.lookup_value(key, VariantType.STRING);
         return v != null ? v.get_string() : "";
+    }
+
+    private static string[] lookup_strv(VariantDict dict, string key) {
+        Variant? v = dict.lookup_value(key, null);
+        if (v == null) return {};
+        if (v.is_of_type(VariantType.STRING_ARRAY)) return v.dup_strv();
+        if (!v.is_of_type(new VariantType("av"))) return {};
+        string[] list = {};
+        for (size_t i = 0; i < v.n_children(); i++) {
+            Variant inner = v.get_child_value(i).get_variant();
+            if (inner.is_of_type(VariantType.STRING)) list += inner.get_string();
+        }
+        return list;
     }
 
     private static bool lookup_bool(VariantDict dict, string key, bool fallback) {
