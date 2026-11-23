@@ -10,13 +10,14 @@ namespace Singularity.Animation {
             image.set_data<GLib.File?>(SOURCE, file);
         }
 
-        public static bool play(Gtk.Image image, uint limit_ms = 0, double detail = 1.0) {
+        public static bool play(Gtk.Image image, uint limit_ms = 0, double detail = 1.0, uint delay_ms = 0) {
 #if IRIDE
             if (image.get_data<IconPlayback>(PLAYING) != null) return true;
             if (!image.get_mapped() || !allowed()) return false;
             var playback = IconPlayback.open(image, limit_ms, detail);
             if (playback == null) return false;
             image.set_data<IconPlayback>(PLAYING, playback);
+            playback.delay = delay_ms;
             playback.done.connect(forget);
             playback.start();
             return true;

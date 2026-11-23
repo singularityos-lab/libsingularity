@@ -459,7 +459,6 @@ progressbar progress {
     border-radius: 99px;
 }
 .osd-pill .osd-level.muted .osd-level-bar progress { opacity: 0; }
-.osd-pill .osd-level.muted > image { opacity: 0.55; }
 .osd-pill .osd-media-state { color: alpha(@text_color, 0.7); }
 
 media-artwork .media-artwork-cover {

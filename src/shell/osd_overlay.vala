@@ -226,12 +226,21 @@ namespace Singularity.Shell {
             _level_note.label = note ?? "";
             _level_note.visible = note != null && note != "";
             reveal(OSD_HIDE_DELAY_MS);
-            if (!entering && (!was_visible || changed_icon)) play_icon();
+            if (was_visible && changed_icon) play_icon(entering ? (uint) Singularity.Motion.Duration.MEDIUM : 0);
         }
 
-        private void play_icon() {
+        private void play_icon(uint delay_ms) {
             Singularity.Animation.IconMotion.stop(_level_icon);
-            Singularity.Animation.IconMotion.play(_level_icon);
+            Singularity.Animation.IconMotion.play(_level_icon, 0, 1.0, delay_ms);
+        }
+
+        private void play_icon_after_enter() {
+            _level_icon.add_tick_callback((widget, clock) => {
+                if (leaving || !_level.visible) return Source.REMOVE;
+                if (!widget.get_mapped()) return Source.CONTINUE;
+                play_icon((uint) Singularity.Motion.Duration.MEDIUM);
+                return Source.REMOVE;
+            });
         }
 
         public void show_media(Gdk.Paintable? cover, string app_id, string title, string artist, bool playing) {
@@ -277,11 +286,9 @@ namespace Singularity.Shell {
             Singularity.Motion.tween(motion_bin, "opacity", 1.0,
                 Singularity.Motion.Duration.MEDIUM, Singularity.Motion.Curve.ENTER);
             entering = true;
+            play_icon_after_enter();
             Singularity.Motion.tween(motion_bin, "translate-y", 0.0,
-                Singularity.Motion.Duration.MEDIUM, Singularity.Motion.Curve.ENTER).done.connect(() => {
-                entering = false;
-                if (_level.visible && !leaving) play_icon();
-            });
+                Singularity.Motion.Duration.MEDIUM, Singularity.Motion.Curve.ENTER).done.connect(() => entering = false);
         }
 
         private void leave() {
