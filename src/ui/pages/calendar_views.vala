@@ -106,6 +106,86 @@ namespace Singularity.Widgets {
         }
     }
 
+    public class CalendarAgenda : Box {
+        public signal void event_activated (CalendarEvent evt, Widget source);
+
+        public bool compact { get; set; default = false; }
+
+        public CalendarAgenda () {
+            Object (orientation: Orientation.VERTICAL, spacing: 2);
+            add_css_class ("cal-agenda");
+        }
+
+        public void show_events (Gee.List<CalendarEvent?> events) {
+            Widget? c = get_first_child ();
+            while (c != null) {
+                var next = c.get_next_sibling ();
+                remove (c);
+                c = next;
+            }
+            string last_day = "";
+            foreach (var evt in events) {
+                string key = evt.start_time.format ("%Y-%m-%d");
+                if (key != last_day) {
+                    last_day = key;
+                    append (day_header (evt.start_time, compact));
+                }
+                var row = event_row (evt);
+                var cap = evt;
+                row.clicked.connect (() => event_activated (cap, row));
+                append (row);
+            }
+        }
+
+        public static Label day_header (DateTime day, bool compact = false) {
+            var now = new DateTime.now_local ();
+            string text;
+            if (compact) {
+                if (CalendarLayout.same_day (day, now)) text = _("Today");
+                else if (CalendarLayout.same_day (day, now.add_days (1))) text = _("Tomorrow");
+                else text = day.format ("%A %-d %B");
+            } else {
+                text = day.format ("%A %-d %B %Y");
+                if (CalendarLayout.same_day (day, now)) text = _("Today") + ", " + text;
+            }
+            var header = new Label (text);
+            header.add_css_class ("cal-agenda-day");
+            header.xalign = 0;
+            return header;
+        }
+
+        public static Button event_row (CalendarEvent evt) {
+            var row = new Button ();
+            row.add_css_class ("flat");
+            row.add_css_class ("cal-agenda-row");
+            var hbox = new Box (Orientation.HORIZONTAL, 10);
+            var swatch = new Box (Orientation.HORIZONTAL, 0);
+            swatch.add_css_class ("cal-color-swatch");
+            swatch.valign = Align.CENTER;
+            CalendarLayout.tint (swatch, evt.color);
+            hbox.append (swatch);
+            var time = new Label (evt.all_day ? _("All day") : CalendarLayout.time_label (evt.start_time));
+            time.width_chars = 8;
+            time.xalign = 0;
+            time.add_css_class ("dim-label");
+            hbox.append (time);
+            var title = new Label (evt.title);
+            title.xalign = 0;
+            title.hexpand = true;
+            title.ellipsize = Pango.EllipsizeMode.END;
+            hbox.append (title);
+            if (evt.location != null && evt.location != "") {
+                var loc = new Label (evt.location);
+                loc.add_css_class ("dim-label");
+                loc.ellipsize = Pango.EllipsizeMode.END;
+                loc.max_width_chars = 30;
+                hbox.append (loc);
+            }
+            row.child = hbox;
+            return row;
+        }
+    }
+
     public class CalendarEventChip : Button {
         public CalendarEvent event_data { get; private set; }
 

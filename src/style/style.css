@@ -2692,6 +2692,24 @@ button.segmented-button.active:checked {
     opacity: 0.55;
 }
 
+.cal-color-swatch {
+    border-radius: 999px;
+    min-width: 10px;
+    min-height: 10px;
+}
+.cal-agenda-day {
+    font-weight: bold;
+    font-size: 13px;
+    margin-top: 12px;
+}
+.cal-agenda-row {
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+.cal-agenda-row:hover {
+    background-color: alpha(@window_fg_color, 0.05);
+}
+
 .cal-nav-picker {
     padding: 8px 6px;
 }
