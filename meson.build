@@ -293,6 +293,7 @@ libsingularity_sources = files(
   'src/migration/widget_state.vala',
   'src/migration/session.vala',
   'src/migration/service.vala',
+  'src/migration/preview.vala',
   'src/core/action_accels.vala',
   'src/core/shell_application.vala',
   'src/core/settings_contract.vala',

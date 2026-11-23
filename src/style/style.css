@@ -8551,6 +8551,10 @@ window.game-overlay.shown .game-overlay-stage {
     box-shadow: 0 12px 34px alpha(black, 0.34);
 }
 
+.edge-chooser picture.edge-window {
+    border-radius: 12px;
+}
+
 .edge-chooser-device {
     padding: 6px 8px;
     border-radius: 12px;

@@ -150,6 +150,7 @@ namespace Singularity {
         public signal void transfer_requested(string batch_id, string device_id, string summary, int64 size);
         public signal void received_files_changed();
         public signal void edge_pushed(string output, string side, double position, double length);
+        public signal void app_dragged(string device_id, string app_id, string state, bool movable, string output, string side, double position);
 
         public static NearbyClient get_default() {
             if (instance == null) instance = new NearbyClient();
@@ -242,6 +243,12 @@ namespace Singularity {
                     break;
                 case "ReceivedFilesChanged":
                     received_files_changed();
+                    break;
+                case "AppDragged":
+                    app_dragged(parameters.get_child_value(0).dup_string(), parameters.get_child_value(1).dup_string(),
+                        parameters.get_child_value(2).dup_string(), parameters.get_child_value(3).get_boolean(),
+                        parameters.get_child_value(4).dup_string(), parameters.get_child_value(5).dup_string(),
+                        parameters.get_child_value(6).get_double());
                     break;
                 case "EdgePushed":
                     edge_pushed(parameters.get_child_value(0).dup_string(), parameters.get_child_value(1).dup_string(),
