@@ -3974,8 +3974,8 @@ window.singularity.dialog {
 }
 
 .singularity.run-dialog.dialog-overlay .dialog-content .run-ai-input,
-.run-ai-input textview,
-.run-ai-input textview text {
+.run-ai-input textview.view,
+.run-ai-input textview.view > text {
     background-color: transparent;
 }
 
