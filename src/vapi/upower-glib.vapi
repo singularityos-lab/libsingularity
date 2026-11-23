@@ -12,12 +12,13 @@ namespace UPower {
         public bool get_lid_is_present ();
         
         public signal void device_added (UPower.Device device);
-        public signal void device_removed (UPower.Device device);
+        public signal void device_removed (string object_path);
         public signal void device_changed (UPower.Device device);
     }
 
     [CCode (cname = "UpDevice", cprefix = "up_device_", type_id = "up_device_get_type ()")]
     public class Device : GLib.Object {
+        public unowned string get_object_path ();
         [NoAccessorMethod]
         public double percentage { get; }
         [NoAccessorMethod]
