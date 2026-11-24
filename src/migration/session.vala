@@ -45,6 +45,7 @@ namespace Singularity.Migration {
         public const string TYPE = "(usvasa(svvi))";
         public const uint VERSION = 1;
         private const uint SETTLE_MS = 4000;
+        private const uint ACTIVATE_MS = 1000;
 
         public static bool supported(GLib.Application app) {
             return app is Migratable && text_history_available();
@@ -135,6 +136,45 @@ namespace Singularity.Migration {
             yield;
         }
 
+        private static async void repainted(Gtk.Window w) {
+            var clock = w.get_frame_clock();
+            if (clock == null) return;
+            ulong id = clock.after_paint.connect(() => repainted.callback());
+            uint timeout = Timeout.add(ACTIVATE_MS, () => {
+                repainted.callback();
+                return Source.REMOVE;
+            });
+            w.queue_draw();
+            yield;
+            clock.disconnect(id);
+            Source.remove(timeout);
+        }
+
+        private static async Bytes? painted(Gtk.Window w) {
+            int64 deadline = get_monotonic_time() + SETTLE_MS * 1000;
+            while (true) {
+                var pixels = picture(w);
+                if (pixels != null || get_monotonic_time() > deadline) return pixels;
+                Timeout.add(16, painted.callback);
+                yield;
+            }
+        }
+
+        private static async void activated(Gtk.Application app) {
+            int64 deadline = get_monotonic_time() + ACTIVATE_MS * 1000;
+            while (get_monotonic_time() < deadline) {
+                foreach (var w in windows_of(app)) {
+                    if (w.is_active) {
+                        Idle.add(activated.callback, Priority.LOW);
+                        yield;
+                        return;
+                    }
+                }
+                Timeout.add(16, activated.callback);
+                yield;
+            }
+        }
+
         private static async void settle(Gee.List<Gtk.Window> windows, Gee.List<WidgetState> states) {
             int64 deadline = get_monotonic_time() + SETTLE_MS * 1000;
             while (true) {
@@ -154,22 +194,29 @@ namespace Singularity.Migration {
             settings.gtk_enable_animations = false;
             app.hold();
             try {
+                foreach (var w in windows_of(app)) {
+                    if (w.visible) yield repainted(w);
+                }
                 var before = capture(app);
                 var pictures = new Gee.ArrayList<Bytes?>();
+                var active = new Gee.ArrayList<bool>();
                 foreach (var w in windows_of(app)) {
-                    if (w.visible) pictures.add(picture(w));
+                    if (!w.visible) continue;
+                    pictures.add(picture(w));
+                    active.add(w.is_active);
                 }
                 var originals = windows_of(app);
                 foreach (var w in originals) w.destroy();
                 var report = yield restore(app, before);
+                if (true in active) yield activated(app);
                 var after = capture(app);
                 var differences = new Gee.ArrayList<string>.wrap(report.differences);
                 compare(before, after, differences);
                 int index = 0;
                 foreach (var w in windows_of(app)) {
                     if (!w.visible) continue;
-                    if (index < pictures.size) {
-                        var now = picture(w);
+                    if (index < pictures.size && active[index] == w.is_active) {
+                        var now = yield painted(w);
                         if (pictures[index] == null || now == null || pictures[index].compare(now) != 0) {
                             differences.add("window %d looks different".printf(index));
                         }

@@ -20,10 +20,15 @@ namespace Singularity.Migration {
         public const string TYPE = "a{sa{sv}}";
 
         private Gee.ArrayList<string> missing_paths = new Gee.ArrayList<string>();
+        private Gee.ArrayList<string> adapted_paths = new Gee.ArrayList<string>();
         private Gee.ArrayList<string> unsupported_paths = new Gee.ArrayList<string>();
         private Gee.HashMap<Gtk.ScrolledWindow, Variant> pending_scroll = new Gee.HashMap<Gtk.ScrolledWindow, Variant>();
         private Gee.ArrayList<Gtk.Popover> pending_popovers = new Gee.ArrayList<Gtk.Popover>();
         private Gee.HashSet<Gtk.TextBuffer> seen_buffers = new Gee.HashSet<Gtk.TextBuffer>();
+
+        public string[] adapted {
+            owned get { return adapted_paths.to_array(); }
+        }
 
         public string[] missing {
             owned get { return missing_paths.to_array(); }
@@ -100,6 +105,7 @@ namespace Singularity.Migration {
                 d.insert_value("maximized", new Variant.boolean(w.maximized));
                 d.insert_value("fullscreened", new Variant.boolean(w.fullscreened));
                 d.insert_value("focus-visible", new Variant.boolean(w.focus_visible));
+                d.insert_value("form-factor", new Variant.string(FormFactor.get_default().kind.to_id()));
                 string? focus = path_of(w, w.get_focus());
                 if (focus != null) d.insert_value("focus", new Variant.string(focus));
                 any = true;
@@ -107,6 +113,11 @@ namespace Singularity.Migration {
             if (widget is Gtk.TextView && !(widget is Stateful)) {
                 var buffer = ((Gtk.TextView) widget).buffer;
                 if (seen_buffers.add(buffer)) any |= capture_buffer(buffer, d, path);
+            } else if (widget is Gtk.Label && ((Gtk.Label) widget).selectable) {
+                int start, end;
+                bool selected = ((Gtk.Label) widget).get_selection_bounds(out start, out end);
+                d.insert_value("selection", new Variant("(bii)", selected, start, end));
+                any = true;
             } else if (widget is Gtk.Text) {
                 var t = (Gtk.Text) widget;
                 int start, end;
@@ -299,12 +310,19 @@ namespace Singularity.Migration {
 
         public void apply(Gtk.Window window, Variant state) {
             missing_paths.clear();
+            adapted_paths.clear();
             var wanted = new Gee.HashMap<string, Variant>();
             var iter = state.iterator();
             string path;
             Variant dict;
             while (iter.next("{s@a{sv}}", out path, out dict)) wanted[path] = dict;
             var found = new Gee.HashSet<string>();
+            bool same_form = true;
+            var root = wanted["/"];
+            if (root != null) {
+                var form = new VariantDict(root).lookup_value("form-factor", VariantType.STRING);
+                same_form = form == null || form.get_string() == FormFactor.get_default().kind.to_id();
+            }
             string? focus = null;
             Variant? focus_visible = null;
             walk(window, "", (widget, p) => {
@@ -320,14 +338,36 @@ namespace Singularity.Migration {
                 apply_widget(widget, lookup);
             });
             foreach (var p in wanted.keys) {
-                if (!found.contains(p)) missing_paths.add(p);
+                if (found.contains(p)) continue;
+                if (same_form) missing_paths.add(p);
+                else adapted_paths.add(p);
             }
             if (focus != null) {
                 walk(window, "", (widget, p) => {
-                    if (p == focus) widget.grab_focus();
+                    if (p != focus) return;
+                    widget.grab_focus();
+                    var d = wanted[p];
+                    if (d != null) apply_text_selection(widget, new VariantDict(d));
                 });
+            } else if (focus_visible != null) {
+                window.set_focus(null);
             }
             if (focus_visible != null) window.focus_visible = focus_visible.get_boolean();
+        }
+
+        private static void apply_text_selection(Gtk.Widget widget, VariantDict d) {
+            var v = d.lookup_value("selection", new VariantType("(bii)"));
+            bool selected = false;
+            int start = 0, end = 0;
+            if (v != null) v.get("(bii)", out selected, out start, out end);
+            if (widget is Gtk.Label) {
+                if (v != null) ((Gtk.Label) widget).select_region(start, end);
+            } else if (widget is Gtk.Text) {
+                var t = (Gtk.Text) widget;
+                var position = d.lookup_value("position", VariantType.INT32);
+                if (selected) t.select_region(start, end);
+                else if (position != null) t.set_position(position.get_int32());
+            }
         }
 
         public bool settle() {
@@ -376,14 +416,8 @@ namespace Singularity.Migration {
                 if (v != null && t.get_text() != v.get_string()) t.set_text(v.get_string());
                 v = d.lookup_value("history", null);
                 if (v != null) restore_text_history(t, v);
-                v = d.lookup_value("selection", new VariantType("(bii)"));
-                bool selected = false;
-                int start = 0, end = 0;
-                if (v != null) v.get("(bii)", out selected, out start, out end);
-                v = d.lookup_value("position", VariantType.INT32);
-                if (selected) t.select_region(start, end);
-                else if (v != null) t.set_position(v.get_int32());
             }
+            apply_text_selection(widget, d);
             v = d.lookup_value("scroll", new VariantType("(dd)"));
             if (v != null && widget is Gtk.ScrolledWindow) pending_scroll[(Gtk.ScrolledWindow) widget] = v;
             v = d.lookup_value("value", VariantType.DOUBLE);
