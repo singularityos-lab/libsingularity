@@ -8,6 +8,33 @@ class OrgService : Object {
     public string token = "";
 
     public signal void account_removed(string id);
+    public signal void sign_in_finished(string flow_id, string account_id, string error_message);
+
+    [DBus (visible = false)]
+    public string helper = "";
+    [DBus (visible = false)]
+    public string asked = "";
+    [DBus (visible = false)]
+    public string refuse = "";
+
+    public async void begin_sign_in(string provider, HashTable<string, Variant> settings, out string flow_id, out string url) throws DBusError, IOError {
+        asked = provider + " " + settings.lookup("account").get_string() + " " + settings.lookup("acr").get_string();
+        flow_id = "flow-" + Random.next_int().to_string();
+        url = "https://id.example.test/authorize";
+        string id = flow_id;
+        string message = refuse;
+        Timeout.add(100, () => {
+            sign_in_finished(id, message == "" ? "org" : "", message);
+            return false;
+        });
+    }
+
+    public async void cancel_sign_in(string flow_id) throws DBusError, IOError {
+    }
+
+    public async string get_sign_in_helper() throws DBusError, IOError {
+        return helper;
+    }
 
     public async HashTable<string, Variant>[] list_accounts() throws DBusError, IOError {
         var data = new HashTable<string, Variant>(str_hash, str_equal);
@@ -272,6 +299,54 @@ async void check_drive(string url, string token) throws Error {
     connection.unregister_object(registration);
 }
 
+async void check_step_up() throws Error {
+    var connection = yield Bus.get(BusType.SESSION);
+    var service = new OrgService();
+    string dir = DirUtils.make_tmp("step-up-XXXXXX");
+    service.helper = Path.build_filename(dir, "window");
+    FileUtils.set_contents(service.helper, "#!/bin/sh\nexit 3\n");
+    FileUtils.chmod(service.helper, 0755);
+    uint registration = connection.register_object(Manager.OBJECT_PATH, service);
+    var manager = Manager.get_default();
+    yield manager.reload();
+    var account = manager.get_account("org");
+    assert(account != null);
+    yield account.step_up("sinty:3");
+    assert(service.asked == "sinty org sinty:3");
+    service.refuse = "The device did not confirm";
+    bool refused = false;
+    try {
+        yield account.step_up("sinty:3");
+    } catch (AccountsError.AUTH_FAILED e) {
+        refused = e.message == "The device did not confirm";
+    }
+    assert(refused);
+    var headers = new Soup.MessageHeaders(Soup.MessageHeadersType.RESPONSE);
+    headers.append("WWW-Authenticate", "Bearer error=\"insufficient_user_authentication\", acr_values=\"sinty:3\"");
+    assert(new HttpResponse(403, new Bytes(null), headers, "").step_up_acr() == "sinty:3");
+    assert(new HttpResponse(401, new Bytes(null), headers, "").step_up_acr() == null);
+    var plain = new Soup.MessageHeaders(Soup.MessageHeadersType.RESPONSE);
+    plain.append("WWW-Authenticate", "Bearer error=\"invalid_token\"");
+    assert(new HttpResponse(403, new Bytes(null), plain, "").step_up_acr() == null);
+    connection.unregister_object(registration);
+    FileUtils.unlink(service.helper);
+    DirUtils.remove(dir);
+}
+
+void test_step_up() {
+    var loop = new MainLoop();
+    check_step_up.begin((obj, res) => {
+        try {
+            check_step_up.end(res);
+        } catch (Error e) {
+            stderr.printf("FAILED: %s\n", e.message);
+            assert_not_reached();
+        }
+        loop.quit();
+    });
+    loop.run();
+}
+
 void test_drive() {
     string? url = Environment.get_variable("SINTY_CLOUD_URL");
     string token = Environment.get_variable("SINTY_CLOUD_TOKEN") ?? "";
@@ -313,6 +388,7 @@ int main(string[] args) {
         string? address = output.read_line();
         assert(address != null);
         Test.add_func("/accounts/sinty-cloud-drive", test_drive);
+        Test.add_func("/accounts/step-up", test_step_up);
         int result = Test.run();
         daemon.force_exit();
         daemon.wait();

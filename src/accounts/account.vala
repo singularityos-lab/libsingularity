@@ -212,6 +212,43 @@ namespace Singularity.Accounts {
             forget_tokens();
         }
 
+        public async void step_up(string acr, Cancellable? cancellable = null) throws Error {
+            var owner = manager;
+            if (owner == null) throw new AccountsError.UNAVAILABLE(_("The accounts service is not available"));
+            var settings = new HashTable<string, Variant>(str_hash, str_equal);
+            settings.insert("account", id);
+            if (acr != "") settings.insert("acr", acr);
+            string url;
+            string flow = yield owner.begin_sign_in(provider, settings, out url);
+            string? failure = null;
+            bool finished = false;
+            SourceFunc resume = step_up.callback;
+            ulong done_id = owner.sign_in_finished.connect((f, account_id, message) => {
+                if (f != flow || finished) return;
+                finished = true;
+                failure = message != "" ? message : null;
+                Idle.add((owned) resume);
+            });
+            ulong closed_id = owner.sign_in_window_closed.connect((f, switched) => {
+                if (f == flow && !finished && !switched) owner.cancel_sign_in.begin(flow);
+            });
+            ulong cancel_id = 0;
+            if (cancellable != null) cancel_id = cancellable.connect(() => owner.cancel_sign_in.begin(flow));
+            if (!yield owner.open_sign_in_window(flow, url, display_name, icon_name)) {
+                try {
+                    AppInfo.launch_default_for_uri(url, null);
+                } catch (Error e) {
+                    owner.cancel_sign_in.begin(flow);
+                }
+            }
+            yield;
+            owner.disconnect(done_id);
+            owner.disconnect(closed_id);
+            if (cancellable != null) cancellable.disconnect(cancel_id);
+            if (failure != null) throw new AccountsError.AUTH_FAILED(failure);
+            forget_tokens();
+        }
+
         /**
          * Tells the service that a server rejected this account's
          * credentials, so Settings can ask the user to sign in again.

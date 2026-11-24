@@ -96,6 +96,14 @@ namespace Singularity.Accounts {
             return headers.get_one(name);
         }
 
+        public string? step_up_acr() {
+            string? challenge = status == 403 ? header("WWW-Authenticate") : null;
+            if (challenge == null || !challenge.contains("insufficient_user_authentication")) return null;
+            MatchInfo match;
+            if (/acr_values="([^"]*)"/.match(challenge, 0, out match)) return match.fetch(1);
+            return "";
+        }
+
         /** Parses the body as JSON and returns the root object. */
         public Json.Object json_object() throws Error {
             var parser = new Json.Parser();
