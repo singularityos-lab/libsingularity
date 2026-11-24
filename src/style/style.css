@@ -186,7 +186,7 @@ button.destructive-action {
     background-color: @destructive_hover;
     background-image: none;
     border-color: @destructive_hover;
-    color: @text_color;
+    color: @destructive_fg;
 }
 
 button.destructive-action:active { background-color: shade(@destructive_color, 0.7); }
