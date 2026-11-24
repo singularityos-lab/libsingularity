@@ -13,6 +13,19 @@ namespace Singularity.Migration {
 
         public virtual void prepare_move() throws MigrationError {
         }
+
+        public virtual void release_window(Gtk.Window window) {
+        }
+    }
+
+    public static void mark_live(Gtk.Widget widget) {
+        widget.set_data<bool>("singularity-migration-live", true);
+    }
+
+    public static void discard_window(Gtk.Application app, Gtk.Window window) {
+        var owner = app as Migratable;
+        if (owner != null) owner.release_window(window);
+        window.destroy();
     }
 
     public static string portable_path(File file) {
@@ -53,9 +66,30 @@ namespace Singularity.Migration {
             return app is Migratable && text_history_available();
         }
 
+        private static uint created = 0;
+
+        public static void track(Gtk.Application app) {
+            var existing = app.get_windows().copy();
+            existing.reverse();
+            foreach (var w in existing) number(w);
+            app.window_added.connect(number);
+        }
+
+        private static void number(Gtk.Window window) {
+            if (window.get_data<uint>("singularity-migration-order") == 0) {
+                window.set_data<uint>("singularity-migration-order", ++created);
+            }
+        }
+
         private static Gee.List<Gtk.Window> windows_of(Gtk.Application app) {
             var list = new Gee.ArrayList<Gtk.Window>();
             foreach (var w in app.get_windows()) list.insert(0, w);
+            foreach (var w in list) number(w);
+            list.sort((a, b) => {
+                uint x = a.get_data<uint>("singularity-migration-order");
+                uint y = b.get_data<uint>("singularity-migration-order");
+                return x < y ? -1 : (x > y ? 1 : 0);
+            });
             return list;
         }
 
@@ -162,7 +196,7 @@ namespace Singularity.Migration {
         private static async Bytes? painted(Gtk.Window w) {
             int64 deadline = get_monotonic_time() + SETTLE_MS * 1000;
             while (true) {
-                var pixels = picture(w);
+                var pixels = compared(w);
                 if (pixels != null || get_monotonic_time() > deadline) return pixels;
                 Timeout.add(16, painted.callback);
                 yield;
@@ -218,7 +252,7 @@ namespace Singularity.Migration {
                     active.add(w.is_active);
                 }
                 var originals = windows_of(app);
-                foreach (var w in originals) w.destroy();
+                foreach (var w in originals) discard_window(app, w);
                 var report = yield restore(app, before);
                 if (true in active) yield activated(app);
                 var after = capture(app);
@@ -279,14 +313,47 @@ namespace Singularity.Migration {
             return ByteArray.free_to_bytes(packed);
         }
 
+        private static Bytes? compared(Gtk.Window w) {
+            var raw = picture(w);
+            if (raw == null) return null;
+            int width = w.get_width(), height = w.get_height();
+            var packed = new ByteArray.sized((uint) raw.get_size());
+            packed.append(raw.get_data());
+            var transient = new Gee.ArrayList<Graphene.Rect?>();
+            transient_areas(w, w, transient);
+            foreach (var area in transient) {
+                int x0 = int.max(0, (int) Math.floor(area.get_x()));
+                int y0 = int.max(0, (int) Math.floor(area.get_y()));
+                int x1 = int.min(width, (int) Math.ceil(area.get_x() + area.get_width()));
+                int y1 = int.min(height, (int) Math.ceil(area.get_y() + area.get_height()));
+                if (x1 <= x0) continue;
+                for (int y = y0; y < y1; y++) Memory.set(&packed.data[(y * width + x0) * 4], 0, (x1 - x0) * 4);
+            }
+            return ByteArray.free_to_bytes(packed);
+        }
+
+        private static void transient_areas(Gtk.Widget widget, Gtk.Window window, Gee.List<Graphene.Rect?> areas) {
+            if (!widget.get_mapped()) return;
+            var parent = widget.get_parent() as Gtk.ScrolledWindow;
+            bool indicator = widget is Gtk.Scrollbar && parent != null && parent.overlay_scrolling;
+            if (indicator || widget.get_data<bool>("singularity-migration-live")) {
+                Graphene.Rect bounds;
+                if (widget.compute_bounds(window, out bounds)) areas.add(bounds);
+                return;
+            }
+            for (var child = widget.get_first_child(); child != null; child = child.get_next_sibling()) {
+                transient_areas(child, window, areas);
+            }
+        }
+
         private static async Bytes? sampled(Gtk.Window w, Gee.Set<int> live) {
-            var first = picture(w);
+            var first = compared(w);
             Timeout.add(LIVE_MS, () => {
                 sampled.callback();
                 return Source.REMOVE;
             });
             yield;
-            var second = picture(w);
+            var second = compared(w);
             mark_live(first, second, w.get_width(), live);
             return second;
         }
@@ -339,6 +406,7 @@ namespace Singularity.Migration {
                         continue;
                     }
                     var others = new VariantDict(other);
+                    if (others.contains("live")) continue;
                     var kit = dict.iterator();
                     string key;
                     Variant value;

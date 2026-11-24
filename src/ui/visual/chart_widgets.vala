@@ -28,7 +28,7 @@ namespace Singularity.Widgets {
      * null the system accent colour is used (re-read on every draw so
      * runtime accent changes propagate automatically).
      */
-    public class SparkLine : DrawingArea {
+    public class SparkLine : DrawingArea, Singularity.Migration.Stateful {
         public double[] history;
         public int      history_size;
         private string?  color_hex;
@@ -76,6 +76,20 @@ namespace Singularity.Widgets {
          *
          * @param val Normalised value in the range [0, 1].
          */
+        public Variant? save_widget_state() {
+            var points = new VariantBuilder(new VariantType("ad"));
+            for (int i = 0; i < _count; i++) points.add("d", history[(_head + i) % history_size]);
+            return points.end();
+        }
+
+        public void restore_widget_state(Variant state) {
+            if (!state.is_of_type(new VariantType("ad"))) return;
+            _head = 0;
+            _count = 0;
+            foreach (var v in (double[]) state) push(v);
+            queue_draw();
+        }
+
         public void push(double val) {
             if (_count < history_size) {
                 history[_count] = val.clamp(0, 1);
@@ -138,7 +152,7 @@ namespace Singularity.Widgets {
      * A vertical bar chart widget for displaying a single normalised value,
      * intended for per-core CPU or per-partition usage visualisations.
      */
-    public class MiniBar : DrawingArea {
+    public class MiniBar : DrawingArea, Singularity.Migration.Stateful {
         private double  _value = 0;
         private string? _color;
         private Gdk.RGBA _col_rgba;
@@ -173,6 +187,14 @@ namespace Singularity.Widgets {
          *
          * @param v Normalised value in the range [0, 1].
          */
+        public Variant? save_widget_state() {
+            return new Variant.double(_value);
+        }
+
+        public void restore_widget_state(Variant state) {
+            if (state.is_of_type(VariantType.DOUBLE)) set_value(state.get_double());
+        }
+
         public void set_value(double v) {
             _value = v.clamp(0, 1);
             queue_draw();

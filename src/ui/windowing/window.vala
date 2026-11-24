@@ -85,7 +85,7 @@ namespace Singularity.Widgets {
      * - `sidebar_area`  - optional side panel; hidden by default.
      * - `main_container` - horizontal box containing sidebar + content.
      */
-    public class Window : Gtk.ApplicationWindow {
+    public class Window : Gtk.ApplicationWindow, Singularity.Migration.Stateful {
 
         /** Priority that keeps a bubble in the row at any width. */
         public const int BUBBLE_PRIORITY_PINNED = int.MAX;
@@ -1015,6 +1015,24 @@ namespace Singularity.Widgets {
                     _sidebar_user_hidden = false;
                     _set_drawer_open(false);
                 }
+            }
+            _sync_sidebar_toggle();
+        }
+
+        public Variant? save_widget_state() {
+            return new Variant("(bbb)", _sidebar_wanted, _sidebar_user_hidden, _drawer_open);
+        }
+
+        public void restore_widget_state(Variant state) {
+            if (!state.is_of_type(new VariantType("(bbb)"))) return;
+            bool wanted, user_hidden, drawer;
+            state.get("(bbb)", out wanted, out user_hidden, out drawer);
+            _sidebar_wanted = wanted;
+            _sidebar_user_hidden = user_hidden;
+            if (!_narrow) {
+                sidebar_revealer.reveal_child = wanted;
+            } else if (drawer != _drawer_open) {
+                _set_drawer_open(drawer);
             }
             _sync_sidebar_toggle();
         }

@@ -2,7 +2,7 @@ using Gtk;
 
 namespace Singularity.Widgets {
 
-    public class ChoiceButton : Button {
+    public class ChoiceButton : Button, Singularity.Migration.Stateful {
         private const int SCROLL_AFTER = 12;
         private const int MAX_MENU_HEIGHT = 360;
 
@@ -36,6 +36,14 @@ namespace Singularity.Widgets {
         public uint selected {
             get { return _selected; }
             set { apply_selected(value, false); }
+        }
+
+        public Variant? save_widget_state() {
+            return new Variant.uint32(_selected);
+        }
+
+        public void restore_widget_state(Variant state) {
+            if (state.is_of_type(VariantType.UINT32) && state.get_uint32() != _selected) selected = state.get_uint32();
         }
 
         public Object? selected_item {

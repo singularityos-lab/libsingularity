@@ -12,6 +12,7 @@ namespace Singularity.Migration {
 
         public Service(Gtk.Application app) {
             this.app = app;
+            Session.track(app);
         }
 
         public Variant capture() throws DBusError, IOError, MigrationError {
@@ -36,7 +37,7 @@ namespace Singularity.Migration {
         public void release() throws DBusError, IOError {
             var owner = app as Migratable;
             foreach (var w in app.get_windows()) {
-                if (owner == null || owner.window_kind(w) != "") w.destroy();
+                if (owner == null || owner.window_kind(w) != "") discard_window(app, w);
             }
         }
 

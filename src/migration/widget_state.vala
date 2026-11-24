@@ -72,9 +72,19 @@ namespace Singularity.Migration {
             seen_buffers.clear();
             walk(window, "", (widget, path) => {
                 var dict = new VariantDict();
-                if (capture_widget(widget, dict, path)) all.add("{s@a{sv}}", path, dict.end());
+                if (capture_widget(widget, dict, path)) {
+                    if (live(widget)) dict.insert_value("live", new Variant.boolean(true));
+                    all.add("{s@a{sv}}", path, dict.end());
+                }
             });
             return all.end();
+        }
+
+        private static bool live(Gtk.Widget widget) {
+            for (Gtk.Widget? w = widget; w != null; w = w.get_parent()) {
+                if (w.get_data<bool>("singularity-migration-live")) return true;
+            }
+            return false;
         }
 
         private delegate void Visit(Gtk.Widget widget, string path);
@@ -106,7 +116,8 @@ namespace Singularity.Migration {
                 d.insert_value("fullscreened", new Variant.boolean(w.fullscreened));
                 d.insert_value("focus-visible", new Variant.boolean(w.focus_visible));
                 d.insert_value("form-factor", new Variant.string(FormFactor.get_default().kind.to_id()));
-                string? focus = path_of(w, w.get_focus());
+                var focused = w.get_focus();
+                string? focus = focused != null && focused.is_drawable() ? path_of(w, focused) : null;
                 if (focus != null) d.insert_value("focus", new Variant.string(focus));
                 any = true;
             }
@@ -308,6 +319,14 @@ namespace Singularity.Migration {
             return rows.end();
         }
 
+        private static bool same_rows(Variant current, int[] wanted) {
+            var have = new Gee.TreeSet<int>();
+            foreach (var i in (int[]) current) have.add(i);
+            var want = new Gee.TreeSet<int>();
+            foreach (var i in wanted) want.add(i);
+            return have.size == want.size && have.contains_all(want);
+        }
+
         public void apply(Gtk.Window window, Variant state) {
             missing_paths.clear();
             adapted_paths.clear();
@@ -466,19 +485,24 @@ namespace Singularity.Migration {
             if (v != null && widget is Gtk.Video) apply_media(((Gtk.Video) widget).media_stream, v);
             v = d.lookup_value("rows", new VariantType("ai"));
             if (v != null) {
+                int[] wanted_rows = (int[]) v;
                 if (widget is Gtk.ListBox) {
                     var box = (Gtk.ListBox) widget;
-                    box.unselect_all();
-                    foreach (var i in (int[]) v) {
-                        var row = box.get_row_at_index(i);
-                        if (row != null) box.select_row(row);
+                    if (!same_rows(selected_rows(box), wanted_rows)) {
+                        box.unselect_all();
+                        foreach (var i in wanted_rows) {
+                            var row = box.get_row_at_index(i);
+                            if (row != null) box.select_row(row);
+                        }
                     }
                 } else if (widget is Gtk.FlowBox) {
                     var box = (Gtk.FlowBox) widget;
-                    box.unselect_all();
-                    foreach (var i in (int[]) v) {
-                        var child = box.get_child_at_index(i);
-                        if (child != null) box.select_child(child);
+                    if (!same_rows(selected_children(box), wanted_rows)) {
+                        box.unselect_all();
+                        foreach (var i in wanted_rows) {
+                            var child = box.get_child_at_index(i);
+                            if (child != null) box.select_child(child);
+                        }
                     }
                 }
             }
