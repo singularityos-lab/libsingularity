@@ -268,7 +268,7 @@ namespace Singularity.Migration {
                     if (!w.visible) continue;
                     var tiles = new Gee.HashSet<int>();
                     yield painted(w);
-                    pictures.add(yield sampled(w, tiles));
+                    pictures.add(yield steady(w, tiles));
                     live.add(tiles);
                     active.add(w.is_active);
                 }
@@ -379,6 +379,30 @@ namespace Singularity.Migration {
             var second = compared(w);
             mark_live(first, second, w.get_width(), live);
             return second;
+        }
+
+        private static async Bytes? steady(Gtk.Window w, Gee.Set<int> live) {
+            int64 deadline = get_monotonic_time() + SETTLE_MS * 1000;
+            var moving = new Gee.HashSet<int>();
+            var last = compared(w);
+            while (true) {
+                Timeout.add(LIVE_MS, () => {
+                    steady.callback();
+                    return Source.REMOVE;
+                });
+                yield;
+                var now = compared(w);
+                var changed = new Gee.HashSet<int>();
+                mark_live(last, now, w.get_width(), changed);
+                bool repeating = changed.size > 0 && moving.contains_all(changed);
+                moving.add_all(changed);
+                if (changed.size == 0 && last != null && now != null && last.get_size() == now.get_size()) return now;
+                if (repeating || get_monotonic_time() > deadline) {
+                    live.add_all(moving);
+                    return now;
+                }
+                last = now;
+            }
         }
 
         private static void mark_live(Bytes? a, Bytes? b, int width, Gee.Set<int> live) {
