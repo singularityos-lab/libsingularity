@@ -134,6 +134,15 @@ namespace Singularity.Migration {
             Variant windows = state.get_child_value(4);
             if (version != VERSION) throw new MigrationError.INVALID("app state version %u is not supported".printf(version));
             if (app_id != app.application_id) throw new MigrationError.INVALID("this state belongs to %s".printf(app_id));
+            app.hold();
+            try {
+                return yield rebuild(app, model, windows);
+            } finally {
+                app.release();
+            }
+        }
+
+        private static async Report rebuild(Gtk.Application app, Variant model, Variant windows) throws Error {
             var owner = (Migratable) app;
             yield Singularity.Startup.Boot.of(app).wait(Singularity.Startup.Milestone.CONTENT_READY);
             yield owner.restore_model(model);
