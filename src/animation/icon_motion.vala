@@ -4,6 +4,7 @@ namespace Singularity.Animation {
         public const uint DOCK_LIMIT = 500;
 
         private const string PLAYING = "singularity-icon-motion";
+        private const string ANIMATED_KEY = "animated-icons";
         internal const string SOURCE = "singularity-icon-source";
 
         public static void set_source(Gtk.Image image, GLib.File? file) {
@@ -28,6 +29,7 @@ namespace Singularity.Animation {
 
         public static bool animated(Gtk.Image image) {
 #if IRIDE
+            if (!animated_icons_enabled()) return false;
             int size = image.pixel_size > 0 ? image.pixel_size : int.min(image.get_width(), image.get_height());
             return size > 0 && IconPlayback.sibling_of(image, size, image.get_scale_factor()) != null;
 #else
@@ -69,9 +71,26 @@ namespace Singularity.Animation {
 
         private static bool allowed() {
             if (Singularity.Motion.reduced()) return false;
+            if (!animated_icons_enabled()) return false;
             return !GLib.PowerProfileMonitor.dup_default().power_saver_enabled;
         }
 #endif
+
+        // The "animated-icons" switch in the desktop settings. Read once and cached,
+        // like Motion reads reduce-motion: a missing schema or key means ON.
+        private static GLib.Settings? _animated_settings = null;
+
+        public static bool animated_icons_enabled() {
+            if (_animated_settings == null) {
+                var source = GLib.SettingsSchemaSource.get_default();
+                string schema_id = Singularity.Runtime.desktop_settings_schema;
+                var schema = source != null ? source.lookup(schema_id, true) : null;
+                if (schema != null && schema.has_key(ANIMATED_KEY)) {
+                    _animated_settings = new GLib.Settings(schema_id);
+                }
+            }
+            return _animated_settings == null || _animated_settings.get_boolean(ANIMATED_KEY);
+        }
     }
 
 #if IRIDE

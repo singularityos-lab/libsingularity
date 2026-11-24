@@ -1,3 +1,4 @@
+using Gtk;
 using Singularity;
 using Singularity.Animation;
 
@@ -354,6 +355,17 @@ void test_reduce_motion() {
     assert("--motion-duration-scene: 600ms;" in motion.css());
 }
 
+void test_animated_icons_gate() {
+    fresh_clock();
+    var settings = new GLib.Settings("dev.sinty.motiontest");
+    assert(settings.get_boolean("animated-icons") == true);
+    assert(IconMotion.animated_icons_enabled());
+    settings.set_boolean("animated-icons", false);
+    assert(!IconMotion.animated_icons_enabled());
+    settings.set_boolean("animated-icons", true);
+    assert(IconMotion.animated_icons_enabled());
+}
+
 void test_reduce_motion_setting() {
     fresh_clock();
     var settings = new GLib.Settings("dev.sinty.motiontest");
@@ -526,6 +538,7 @@ int main(string[] args) {
     Test.add_func("/motion/stagger", test_stagger);
     Test.add_func("/motion/groups", test_groups);
     Test.add_func("/motion/reduce-motion", test_reduce_motion);
+    Test.add_func("/motion/animated-icons-gate", test_animated_icons_gate);
     Test.add_func("/motion/reduce-motion-setting", test_reduce_motion_setting);
     Test.add_func("/motion/skip-all", test_skip_all);
     Test.add_func("/motion/morph-math", test_morph_math);
