@@ -503,8 +503,11 @@ namespace Singularity.Startup {
         private static extern int malloc_trim(size_t pad);
 
         private void release_startup_memory() {
-            malloc_trim(0);
-            observer.mark("memory-trimmed");
+            Idle.add_full(Priority.LOW, () => {
+                malloc_trim(0);
+                observer.mark("memory-trimmed");
+                return Source.REMOVE;
+            });
         }
 
         private void maybe_settle() {

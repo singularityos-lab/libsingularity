@@ -225,6 +225,7 @@ namespace Singularity {
 
             string fallback_accent = detect_system_accent();
             bool fallback_dark = false;
+            observer.mark("accent-detected");
 
             desktop_settings = Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
             if (desktop_settings != null) {
@@ -258,10 +259,12 @@ namespace Singularity {
                         desktop_settings.get_string("singularity-theme"));
                 });
                 update_accent_color();
+                observer.mark("accent-applied");
                 has_desktop_settings = true;
                 // Load user theme after accent/dark mode so CSS variables are ready.
                 Singularity.Style.StyleManager.get_default().load_user_theme(
                     desktop_settings.get_string("singularity-theme"));
+                observer.mark("user-theme-loaded");
             } else {
                 Singularity.Style.StyleManager.get_default().apply_accent_color(fallback_accent);
             }
@@ -298,6 +301,7 @@ namespace Singularity {
                 Singularity.Style.StyleManager.get_default().apply_accent_color(fallback_accent);
             }
 
+            observer.mark("color-scheme-applied");
             var quit_action = new SimpleAction("quit", null);
             quit_action.activate.connect(() => {
                 var windows = new Gee.ArrayList<Gtk.Window>();
