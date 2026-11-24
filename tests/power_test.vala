@@ -239,6 +239,33 @@ private void test_upower_charge_limit() {
     bus.down();
 }
 
+private void test_lock_screen_single_instance() {
+    string count = Path.build_filename(fixture_root, "lock-starts");
+    string release = Path.build_filename(fixture_root, "lock-release");
+    script("singularity-lockscreen",
+        "echo x >> '%s'\nwhile [ ! -e '%s' ]; do sleep 0.05; done\n".printf(count, release));
+    Environment.set_variable("PATH",
+        Path.build_filename(fixture_root, "bin") + ":" + (Environment.get_variable("PATH") ?? "/usr/bin:/bin"), true);
+
+    var session = Singularity.SessionManager.get_default();
+    session.lock_screen();
+    session.lock_screen();
+    assert(session.locked);
+    wait_for(() => read_file(count) != "");
+    assert(read_file(count) == "x");
+
+    write_file(release, "");
+    wait_for(() => !session.locked);
+    assert(!session.locked);
+    FileUtils.remove(release);
+
+    session.lock_screen();
+    wait_for(() => read_file(count) == "x\nx");
+    assert(read_file(count) == "x\nx");
+    write_file(release, "");
+    wait_for(() => !session.locked);
+}
+
 public static int main(string[] args) {
     Test.init(ref args);
     try {
@@ -251,5 +278,6 @@ public static int main(string[] args) {
     Test.add_func("/power/battery-scan", test_battery_scan);
     Test.add_func("/power/charge-limit", test_charge_limit);
     Test.add_func("/power/upower-charge-limit", test_upower_charge_limit);
+    Test.add_func("/power/lock-screen-single-instance", test_lock_screen_single_instance);
     return Test.run();
 }
