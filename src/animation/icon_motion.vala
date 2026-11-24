@@ -76,8 +76,6 @@ namespace Singularity.Animation {
         }
 #endif
 
-        // The "animated-icons" switch in the desktop settings. Read once and cached,
-        // like Motion reads reduce-motion: a missing schema or key means ON.
         private static GLib.Settings? _animated_settings = null;
 
         public static bool animated_icons_enabled() {
