@@ -69,7 +69,7 @@ namespace Singularity.Accounts {
 
     /**
      * Files of an online account: WebDAV (Nextcloud, ownCloud, generic),
-     * Google Drive or OneDrive, behind one interface.
+     * Google Drive, OneDrive or Sinty Cloud, behind one interface.
      */
     public interface CloudDrive : Object {
         /** The account the drive belongs to. */
@@ -147,6 +147,11 @@ namespace Singularity.Accounts {
                         account.get_endpoint("google-drive-upload") ?? "https://www.googleapis.com/upload/drive/v3/");
                 case "onedrive":
                     return new OneDrive(account, http, account.get_endpoint("graph") ?? "https://graph.microsoft.com/v1.0/");
+                case "sinty-cloud": {
+                    string? root = account.get_endpoint("sinty-cloud");
+                    if (root == null) return null;
+                    return new SintyCloudDrive(account, http, root);
+                }
                 default:
                     return null;
             }

@@ -206,6 +206,7 @@ libsingularity_sources = files(
   'src/accounts/synced_collection.vala',
   'src/accounts/collections.vala',
   'src/accounts/cloud_drive.vala',
+  'src/accounts/sinty_cloud_drive.vala',
   'src/accounts/cloud_file.vala',
   'src/accounts/cloud_mounts.vala',
   'src/accounts/share_links.vala',
@@ -1323,6 +1324,13 @@ account_tokens_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('account-tokens', account_tokens_test, env: ['TMPDIR=' + meson.current_build_dir()])
+
+sinty_cloud_drive_test = executable(
+  'sinty-cloud-drive-test',
+  files('tests/sinty_cloud_drive_test.vala'),
+  dependencies: [libsingularity_dep, soup_dep],
+)
+test('sinty-cloud-drive', sinty_cloud_drive_test, env: ['TMPDIR=' + meson.current_build_dir()])
 
 web_tokens_test = executable(
   'web-tokens-test',
