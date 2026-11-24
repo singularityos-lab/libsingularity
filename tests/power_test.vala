@@ -207,8 +207,10 @@ private void test_upower_charge_limit() {
     Environment.set_variable("DBUS_SYSTEM_BUS_ADDRESS", bus.get_bus_address(), true);
     string root = Path.build_filename(fixture_root, "power_supply");
     string end_file = Path.build_filename(root, "BAT0", "charge_control_end_threshold");
+    DBusConnection conn = null;
     try {
-        var conn = Bus.get_sync(BusType.SYSTEM);
+        conn = Bus.get_sync(BusType.SYSTEM);
+        conn.exit_on_close = false;
         conn.register_object("/org/freedesktop/UPower", new MockUPower());
         conn.register_object("/org/freedesktop/UPower/devices/line_power_AC", new MockUPowerDevice("AC", ""));
         conn.register_object("/org/freedesktop/UPower/devices/battery_BAT0", new MockUPowerDevice("BAT0", end_file));
@@ -235,6 +237,11 @@ private void test_upower_charge_limit() {
         wait_for(() => done);
         assert(read_file(end_file) == (limited ? "80" : "100"));
         assert(manager.charge_limit_active == limited);
+    }
+    try {
+        conn.close_sync();
+    } catch (Error e) {
+        error("close: %s", e.message);
     }
     bus.down();
 }
