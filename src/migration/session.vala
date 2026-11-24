@@ -45,6 +45,8 @@ namespace Singularity.Migration {
         public const string TYPE = "(usvasa(svvi))";
         public const uint VERSION = 1;
         private const uint SETTLE_MS = 4000;
+        private const uint LIVE_MS = 300;
+        private const int TILE = 16;
         private const uint ACTIVATE_MS = 1000;
 
         public static bool supported(GLib.Application app) {
@@ -207,9 +209,12 @@ namespace Singularity.Migration {
                 var before = capture(app);
                 var pictures = new Gee.ArrayList<Bytes?>();
                 var active = new Gee.ArrayList<bool>();
+                var live = new Gee.ArrayList<Gee.HashSet<int>>();
                 foreach (var w in windows_of(app)) {
                     if (!w.visible) continue;
-                    pictures.add(picture(w));
+                    var tiles = new Gee.HashSet<int>();
+                    pictures.add(yield sampled(w, tiles));
+                    live.add(tiles);
                     active.add(w.is_active);
                 }
                 var originals = windows_of(app);
@@ -224,7 +229,8 @@ namespace Singularity.Migration {
                     if (!w.visible) continue;
                     if (index < pictures.size && active[index] == w.is_active) {
                         var now = yield painted(w);
-                        if (pictures[index] == null || now == null || pictures[index].compare(now) != 0) {
+                        mark_live(now, yield sampled(w, live[index]), w.get_width(), live[index]);
+                        if (!same_picture(pictures[index], now, w.get_width(), live[index])) {
                             differences.add("window %d looks different".printf(index));
                         }
                     }
@@ -267,11 +273,46 @@ namespace Singularity.Migration {
             downloader.set_format(Gdk.MemoryFormat.R8G8B8A8);
             size_t stride;
             var bytes = downloader.download_bytes(out stride);
-            if (stride == (size_t) width * 4) return bytes;
             var packed = new ByteArray.sized(width * height * 4);
             unowned uint8[] data = bytes.get_data();
             for (int y = 0; y < height; y++) packed.append(data[y * stride : y * stride + width * 4]);
             return ByteArray.free_to_bytes(packed);
+        }
+
+        private static async Bytes? sampled(Gtk.Window w, Gee.Set<int> live) {
+            var first = picture(w);
+            Timeout.add(LIVE_MS, () => {
+                sampled.callback();
+                return Source.REMOVE;
+            });
+            yield;
+            var second = picture(w);
+            mark_live(first, second, w.get_width(), live);
+            return second;
+        }
+
+        private static void mark_live(Bytes? a, Bytes? b, int width, Gee.Set<int> live) {
+            if (a == null || b == null || a.get_size() != b.get_size() || width <= 0) return;
+            unowned uint8[] x = a.get_data(), y = b.get_data();
+            int columns = (width + TILE - 1) / TILE;
+            for (int i = 0; i < x.length; i += 4) {
+                if (Memory.cmp(&x[i], &y[i], 4) == 0) continue;
+                int pixel = i / 4;
+                live.add((pixel / width / TILE) * columns + (pixel % width) / TILE);
+            }
+        }
+
+        private static bool same_picture(Bytes? a, Bytes? b, int width, Gee.Set<int> live) {
+            if (a == null || b == null || a.get_size() != b.get_size()) return false;
+            if (live.size == 0) return a.compare(b) == 0;
+            unowned uint8[] x = a.get_data(), y = b.get_data();
+            int columns = (width + TILE - 1) / TILE;
+            for (int i = 0; i < x.length; i += 4) {
+                if (Memory.cmp(&x[i], &y[i], 4) == 0) continue;
+                int pixel = i / 4;
+                if (!live.contains((pixel / width / TILE) * columns + (pixel % width) / TILE)) return false;
+            }
+            return true;
         }
 
         public static void compare(Variant before, Variant after, Gee.List<string> differences) {
