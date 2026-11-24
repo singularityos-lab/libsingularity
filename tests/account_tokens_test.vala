@@ -454,8 +454,21 @@ void test_token_routes() {
     loop.run();
 }
 
+void test_capability_ids() {
+    var seen = new GenericSet<string>(str_hash, str_equal);
+    foreach (var cap in Capability.all()) {
+        Capability parsed;
+        assert(Capability.try_parse(cap.to_id(), out parsed) && parsed == cap);
+        assert(!seen.contains(cap.to_id()));
+        seen.add(cap.to_id());
+    }
+    Capability devices;
+    assert(Capability.try_parse("devices", out devices) && devices == Capability.DEVICES && devices.label() != Capability.NOTES.label());
+}
+
 int main(string[] args) {
     Test.init(ref args);
+    Test.add_func("/accounts/capability-ids", test_capability_ids);
     try {
         string dir = DirUtils.make_tmp("at-XXXXXX");
         string config = Path.build_filename(dir, "bus.conf");
