@@ -186,6 +186,10 @@ namespace Singularity {
             yield suspend_backend.suspend();
         }
 
+        public static bool lock_on_suspend() {
+            return lockscreen_flag("lock-on-suspend");
+        }
+
         public void lock_screen() {
             SessionManager.get_default().lock_screen();
         }
