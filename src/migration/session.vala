@@ -136,6 +136,13 @@ namespace Singularity.Migration {
             yield;
         }
 
+        private static void invalidate(Gtk.Widget widget) {
+            widget.queue_draw();
+            for (var child = widget.get_first_child(); child != null; child = child.get_next_sibling()) {
+                invalidate(child);
+            }
+        }
+
         private static async void repainted(Gtk.Window w) {
             var clock = w.get_frame_clock();
             if (clock == null) return;
@@ -144,7 +151,7 @@ namespace Singularity.Migration {
                 repainted.callback();
                 return Source.REMOVE;
             });
-            w.queue_draw();
+            invalidate(w);
             yield;
             clock.disconnect(id);
             Source.remove(timeout);
