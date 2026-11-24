@@ -224,6 +224,7 @@ namespace Singularity {
             observer.mark("startup-begin");
             base.startup();
             observer.mark("toolkit-ready");
+            if ((flags & ApplicationFlags.IS_SERVICE) != 0 && inactivity_timeout == 0) inactivity_timeout = 10000;
 
             if (Singularity.Core.WebKitSockets.webkit_loaded())
                 Singularity.Core.WebKitSockets.clear_stale_bus_proxies();
