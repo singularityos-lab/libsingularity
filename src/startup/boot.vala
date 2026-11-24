@@ -60,7 +60,15 @@ namespace Singularity.Startup {
                 begin(bootable, request);
                 return;
             }
-            if (runner.failed) return;
+            if (runner.failed) {
+                if (runner.running) {
+                    pending.add(request);
+                    return;
+                }
+                runner = null;
+                begin(bootable, request);
+                return;
+            }
             if (!runner.has_reached(Milestone.INTERACTIVE) || (request.kind != RequestKind.SERVICE && runner.context.request.kind == RequestKind.SERVICE && !runner.has_reached(Milestone.SETTLED))) {
                 pending.add(request);
                 return;
@@ -114,7 +122,7 @@ namespace Singularity.Startup {
             if (profile != null && !runner.failed) profile.record(runner);
             Observer.get_default().attach(this);
             app.release();
-            if (runner.context.request.kind == RequestKind.SERVICE && pending.size > 0) {
+            if ((runner.failed || runner.context.request.kind == RequestKind.SERVICE) && pending.size > 0) {
                 var bootable = app as Bootable;
                 var queued = pending;
                 pending = new Gee.ArrayList<Request>();

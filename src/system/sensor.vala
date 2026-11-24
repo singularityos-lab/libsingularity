@@ -539,6 +539,7 @@ namespace Singularity {
         private const string[] IDLE_FAN_CHIPS = { "thinkpad", "dell_smm", "applesmc" };
 
         private uint _timer_id = 0;
+        private bool _refresh_in_flight = false;
         private int _interval_sec = DEFAULT_INTERVAL_SEC;
         private SensorReading[] _readings = {};
         // Sysfs-derived readings only, without the NVIDIA set merged in.
@@ -599,9 +600,9 @@ namespace Singularity {
         public void start(int interval_sec = DEFAULT_INTERVAL_SEC) {
             if (_timer_id != 0) return;
             _interval_sec = interval_sec > 0 ? interval_sec : DEFAULT_INTERVAL_SEC;
-            refresh();
+            refresh_in_background();
             _timer_id = Timeout.add_seconds(_interval_sec, () => {
-                refresh();
+                refresh_in_background();
                 return Source.CONTINUE;
             });
         }
@@ -1257,12 +1258,22 @@ namespace Singularity {
         }
 
         internal void sample_gpu_utilization(int64 now_us) {
+            gather_gpu(now_us);
+            publish_gpu();
+        }
+
+        private void publish_gpu() {
+            update_vram();
+            gpu_utilization = _base_gpu_utilization > _nvidia_gpu_utilization
+                ? _base_gpu_utilization : _nvidia_gpu_utilization;
+        }
+
+        private void gather_gpu(int64 now_us) {
             double best = collect_amd_gpu_utilization();
             collect_amd_vram();
             var counters = new Gee.HashMap<string, uint64?>();
             var capacities = new Gee.HashMap<string, uint64?>();
             collect_drm_clients(counters, capacities);
-            update_vram();
 
             if (counters.size > 0) {
                 var deltas = new Gee.HashMap<string, uint64?>();
@@ -1304,8 +1315,6 @@ namespace Singularity {
             _drm_counters = counters;
             _last_gpu_sample_us = now_us;
             _base_gpu_utilization = best;
-            gpu_utilization = _base_gpu_utilization > _nvidia_gpu_utilization
-                ? _base_gpu_utilization : _nvidia_gpu_utilization;
         }
 
 
@@ -1451,7 +1460,7 @@ namespace Singularity {
                     }
                     apply_nvidia(samples);
                     _nvidia_in_flight = false;
-                    publish_state();
+                    if (!_refresh_in_flight) publish_state();
                     return Source.REMOVE;
                 });
                 return true;
@@ -1473,10 +1482,52 @@ namespace Singularity {
         }
 
         public void refresh() {
+            if (_refresh_in_flight) return;
             refresh_internal(true);
         }
 
+        private void refresh_in_background() {
+            if (_refresh_in_flight) return;
+            _refresh_in_flight = true;
+            new Thread<bool>("sensors", () => {
+                var snapshot = collect();
+                Idle.add(() => {
+                    _refresh_in_flight = false;
+                    apply(snapshot);
+                    if (gpu_sampling) refresh_nvidia();
+                    publish_state();
+                    return Source.REMOVE;
+                });
+                return true;
+            });
+        }
+
         private void refresh_internal(bool query_nvidia) {
+            apply(collect());
+            if (query_nvidia && gpu_sampling) refresh_nvidia();
+            publish_state();
+        }
+
+        private class Snapshot {
+            public SensorReading[] readings;
+            public FanReading[] fans;
+            public PowerReading[] power;
+            public ClockReading[] clocks;
+            public int[] clocks_khz;
+            public bool gpu;
+        }
+
+        private void apply(Snapshot snapshot) {
+            _base_readings = snapshot.readings;
+            _fans = snapshot.fans;
+            _power = snapshot.power;
+            _clocks = snapshot.clocks;
+            _clocks_khz = snapshot.clocks_khz;
+            if (snapshot.gpu) publish_gpu();
+        }
+
+        private Snapshot collect() {
+            var snapshot = new Snapshot();
             // BOTH sources, always -- not hwmon-with-thermal-as-fallback.
             // MEASURED on an NVIDIA IGX Thor dev kit: hwmon exists there, but
             // contains only a Super-I/O chip, INA power monitors, the NIC and
@@ -1625,19 +1676,13 @@ namespace Singularity {
             // Keep the sysfs-derived set separate from the NVIDIA set: when the
             // async query lands, publish_state() can merge the two again without
             // re-walking every hwmon and thermal node.
-            SensorReading[] base_found = found;
+            snapshot.readings = found;
 
-            // NVIDIA readings arrive asynchronously, so this merges whatever the
-            // last query returned rather than waiting for a fresh one.
-            if (query_nvidia && gpu_sampling) {
-                refresh_nvidia();
-            }
-            _base_readings = base_found;
-
-            _fans = collect_fans();
-            _power = collect_power();
-            if (gpu_sampling) {
-                sample_gpu_utilization(GLib.get_monotonic_time());
+            snapshot.fans = collect_fans();
+            snapshot.power = collect_power();
+            snapshot.gpu = gpu_sampling;
+            if (snapshot.gpu) {
+                gather_gpu(GLib.get_monotonic_time());
             }
 
             ClockReading[] clocks = collect_clocks();
@@ -1656,14 +1701,13 @@ namespace Singularity {
                     }
                 }
             }
-            _clocks = clocks;
+            snapshot.clocks = clocks;
             int[] khz_only = {};
             foreach (ClockReading clock in clocks) {
                 khz_only += clock.khz;
             }
-            _clocks_khz = khz_only;
-
-            publish_state();
+            snapshot.clocks_khz = khz_only;
+            return snapshot;
         }
 
         /**

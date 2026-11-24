@@ -382,6 +382,24 @@ namespace Singularity.Startup {
         }
 
         private void run_main(Task t) {
+            if (t.category == Category.DEFERRED && t.step_work == null) {
+                Idle.add_full(Priority.LOW, () => {
+                    if (cancellable.is_cancelled()) {
+                        begin_task(t);
+                        end_task(t, new PlanError.CANCELLED("start-up was cancelled"));
+                        main_busy = false;
+                        pump();
+                        return Source.REMOVE;
+                    }
+                    run_main_now(t);
+                    return Source.REMOVE;
+                });
+                return;
+            }
+            run_main_now(t);
+        }
+
+        private void run_main_now(Task t) {
             begin_task(t);
             if (t.step_work != null) {
                 run_steps(t);

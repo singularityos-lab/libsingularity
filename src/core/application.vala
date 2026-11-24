@@ -93,7 +93,10 @@ namespace Singularity {
         }
 
         private bool _menubar_queued = false;
+        private GLib.MenuModel? _watched_menubar = null;
+        private ulong _menubar_items_handler = 0;
         private GLib.Menu? _auto_about_section = null;
+        private GLib.Menu? _auto_help_menu = null;
         private AppInfo? _desktop_info_cache = null;
         private bool _desktop_info_done = false;
         private bool _extending_menubar = false;
@@ -134,7 +137,22 @@ namespace Singularity {
                 GLib.Environment.set_variable("GTK_CSD", "0", true);
             }
 
-            notify["menubar"].connect(_queue_menubar_update);
+            notify["menubar"].connect(_watch_menubar);
+            action_added.connect((name) => {
+                if (name == "about" || name == "shortcuts") _queue_menubar_update();
+            });
+        }
+
+        private void _watch_menubar() {
+            if (_watched_menubar != null && _menubar_items_handler != 0) {
+                _watched_menubar.disconnect(_menubar_items_handler);
+            }
+            _watched_menubar = menubar;
+            _menubar_items_handler = 0;
+            if (_watched_menubar != null) {
+                _menubar_items_handler = _watched_menubar.items_changed.connect(() => _queue_menubar_update());
+            }
+            _queue_menubar_update();
         }
 
         /**
@@ -490,6 +508,16 @@ namespace Singularity {
                 _auto_about_section = new GLib.Menu();
                 help.append_section(null, _auto_about_section);
                 menu.append_submenu(_("Help"), help);
+                _auto_help_menu = help;
+            } else if (_auto_help_menu != null) {
+                int last = menu.get_n_items() - 1;
+                for (int i = 0; i < last; i++) {
+                    if (menu.get_item_link(i, Menu.LINK_SUBMENU) == _auto_help_menu) {
+                        menu.remove(i);
+                        menu.append_submenu(_("Help"), _auto_help_menu);
+                        break;
+                    }
+                }
             }
             if (_auto_about_section != null) {
                 string label = _("About %s").printf(_display_name());
