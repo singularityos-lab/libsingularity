@@ -61,10 +61,10 @@ namespace Singularity.Style {
         private static string _desired_icon_theme = BRAND_ICON_THEME;
         private static bool _icon_theme_pinned = false;
 
-        private const string[] ACCENT_NAMES = {
+        internal const string[] ACCENT_NAMES = {
             "blue", "teal", "green", "yellow", "orange", "red", "pink", "purple", "slate"
         };
-        private const string[] ACCENT_HEXES = {
+        internal const string[] ACCENT_HEXES = {
             "#3584e4", "#2190a4", "#3a944a", "#e5a50a", "#e66100", "#e01b24", "#d56199", "#9141ac", "#787878"
         };
 

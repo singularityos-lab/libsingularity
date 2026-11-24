@@ -357,6 +357,7 @@ libsingularity_sources = files(
   'src/style/accent_icons.vala',
   'src/style/icon_color.vala',
   'src/style/style_manager.vala',
+  'src/style/web_tokens.vala',
   'src/text/spell_checker.vala',
   'src/text/spell_integration.vala',
   'src/style/theme_mode.vala',
@@ -1322,6 +1323,19 @@ account_tokens_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('account-tokens', account_tokens_test, env: ['TMPDIR=' + meson.current_build_dir()])
+
+web_tokens_test = executable(
+  'web-tokens-test',
+  files('tests/web_tokens_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('web-tokens', web_tokens_test)
+
+executable(
+  'singularity-web-tokens',
+  files('tools/web_tokens.vala'),
+  dependencies: [libsingularity_dep],
+)
 
 tile_tree_test = executable(
   'tile-tree-test',
