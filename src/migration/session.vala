@@ -22,6 +22,10 @@ namespace Singularity.Migration {
         widget.set_data<bool>("singularity-migration-live", true);
     }
 
+    public static string address_of(string app_id) {
+        return app_id + ".Migration";
+    }
+
     public static void discard_window(Gtk.Application app, Gtk.Window window) {
         var owner = app as Migratable;
         if (owner != null) owner.release_window(window);
@@ -238,6 +242,12 @@ namespace Singularity.Migration {
             app.hold();
             try {
                 foreach (var w in windows_of(app)) {
+                    var focused = w.get_focus();
+                    if (focused == null) continue;
+                    w.set_focus(null);
+                    w.set_focus(focused);
+                }
+                foreach (var w in windows_of(app)) {
                     if (w.visible) yield repainted(w);
                 }
                 var before = capture(app);
@@ -247,6 +257,7 @@ namespace Singularity.Migration {
                 foreach (var w in windows_of(app)) {
                     if (!w.visible) continue;
                     var tiles = new Gee.HashSet<int>();
+                    yield painted(w);
                     pictures.add(yield sampled(w, tiles));
                     live.add(tiles);
                     active.add(w.is_active);
@@ -264,7 +275,9 @@ namespace Singularity.Migration {
                     if (index < pictures.size && active[index] == w.is_active) {
                         var now = yield painted(w);
                         mark_live(now, yield sampled(w, live[index]), w.get_width(), live[index]);
-                        if (!same_picture(pictures[index], now, w.get_width(), live[index])) {
+                        if (pictures[index] == null) {
+                            differences.add("window %d had not been painted before the move".printf(index));
+                        } else if (!same_picture(pictures[index], now, w.get_width(), live[index])) {
                             differences.add("window %d looks different".printf(index));
                         }
                     }

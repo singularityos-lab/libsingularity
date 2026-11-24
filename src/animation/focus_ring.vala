@@ -61,7 +61,10 @@ namespace Singularity.Animation {
             ring._window = window;
             overlay.add_overlay(ring);
             overlay.set_measure_overlay(ring, false);
-            window.notify["focus-widget"].connect(ring.refresh);
+            window.notify["focus-widget"].connect(() => {
+                ring._retries = 0;
+                ring.refresh();
+            });
             window.notify["focus-visible"].connect(ring.refresh);
             window.notify["is-active"].connect(ring.refresh);
             window.add_css_class("singularity-focus-ring-motion");
@@ -98,12 +101,18 @@ namespace Singularity.Animation {
             }
             Graphene.Rect bounds;
             double area = (double) get_width() * get_height();
-            if (!measure_target(target, out bounds)
-                    || (area > 0 && bounds.size.width * bounds.size.height > area * 0.5)) {
+            if (!measure_target(target, out bounds)) {
+                set_target(null);
+                hide_ring();
+                retry_when_laid_out();
+                return;
+            }
+            if (area > 0 && bounds.size.width * bounds.size.height > area * 0.5) {
                 set_target(null);
                 hide_ring();
                 return;
             }
+            _retries = 0;
             set_target(target);
             if (!_shown) {
                 _shown = true;
@@ -180,6 +189,20 @@ namespace Singularity.Animation {
                 (float) (from.get_width() + (to.get_width() - from.get_width()) * t),
                 (float) (from.get_height() + (to.get_height() - from.get_height()) * t));
             return result;
+        }
+
+        private const int MAX_RETRIES = 60;
+        private uint _retry_id = 0;
+        private int _retries = 0;
+
+        private void retry_when_laid_out() {
+            if (_retry_id != 0 || _retries >= MAX_RETRIES) return;
+            _retries++;
+            _retry_id = add_tick_callback(() => {
+                _retry_id = 0;
+                refresh();
+                return false;
+            });
         }
 
         private void ensure_tick() {

@@ -99,6 +99,7 @@ namespace Singularity {
         private bool _extending_menubar = false;
         private SimpleAction? _window_path_action = null;
         private Singularity.Migration.Service? migration = null;
+        private uint migration_name = 0;
 
         /**
          * Creates a new Singularity application.
@@ -160,6 +161,8 @@ namespace Singularity {
             migration = new Singularity.Migration.Service(this);
             try {
                 migration.export(connection, object_path);
+                if ((flags & ApplicationFlags.NON_UNIQUE) != 0 && application_id != null)
+                    migration_name = Bus.own_name_on_connection(connection, Singularity.Migration.address_of(application_id), BusNameOwnerFlags.DO_NOT_QUEUE);
             } catch (IOError e) {
                 warning("Migration: cannot export %s: %s", object_path, e.message);
             }
@@ -168,6 +171,8 @@ namespace Singularity {
         }
 
         public override void dbus_unregister(DBusConnection connection, string object_path) {
+            if (migration_name != 0) Bus.unown_name(migration_name);
+            migration_name = 0;
             dbus_unregistered(connection, object_path);
             ActionAccels.for_application(this).unexport();
             agent.unexport();

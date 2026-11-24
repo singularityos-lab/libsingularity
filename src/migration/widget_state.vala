@@ -24,6 +24,9 @@ namespace Singularity.Migration {
         private Gee.ArrayList<string> unsupported_paths = new Gee.ArrayList<string>();
         private Gee.HashMap<Gtk.ScrolledWindow, Variant> pending_scroll = new Gee.HashMap<Gtk.ScrolledWindow, Variant>();
         private Gee.ArrayList<Gtk.Popover> pending_popovers = new Gee.ArrayList<Gtk.Popover>();
+        private weak Gtk.Window? focus_window = null;
+        private string? pending_focus = null;
+        private Variant? pending_focus_state = null;
         private Gee.HashSet<Gtk.TextBuffer> seen_buffers = new Gee.HashSet<Gtk.TextBuffer>();
 
         public string[] adapted {
@@ -361,17 +364,29 @@ namespace Singularity.Migration {
                 if (same_form) missing_paths.add(p);
                 else adapted_paths.add(p);
             }
+            pending_focus = null;
+            pending_focus_state = null;
+            focus_window = null;
             if (focus != null) {
-                walk(window, "", (widget, p) => {
-                    if (p != focus) return;
-                    widget.grab_focus();
-                    var d = wanted[p];
-                    if (d != null) apply_text_selection(widget, new VariantDict(d));
-                });
+                if (!grab_path(window, focus, wanted[focus])) {
+                    focus_window = window;
+                    pending_focus = focus;
+                    pending_focus_state = wanted[focus];
+                }
             } else if (focus_visible != null) {
                 window.set_focus(null);
             }
             if (focus_visible != null) window.focus_visible = focus_visible.get_boolean();
+        }
+
+        private bool grab_path(Gtk.Window window, string focus, Variant? state) {
+            bool grabbed = false;
+            walk(window, "", (widget, p) => {
+                if (grabbed || p != focus || !widget.get_mapped()) return;
+                grabbed = widget.grab_focus();
+                if (grabbed && state != null) apply_text_selection(widget, new VariantDict(state));
+            });
+            return grabbed;
         }
 
         private static void apply_text_selection(Gtk.Widget widget, VariantDict d) {
@@ -402,6 +417,15 @@ namespace Singularity.Migration {
             if (done) {
                 foreach (var p in pending_popovers) p.popup();
                 pending_popovers.clear();
+            }
+            if (pending_focus != null) {
+                if (focus_window == null || grab_path(focus_window, pending_focus, pending_focus_state)) {
+                    pending_focus = null;
+                    pending_focus_state = null;
+                    focus_window = null;
+                } else {
+                    done = false;
+                }
             }
             return done;
         }
