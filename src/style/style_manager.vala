@@ -360,7 +360,7 @@ namespace Singularity.Style {
                         Gtk.STYLE_PROVIDER_PRIORITY_USER + 2);
                 }
             }
-            density_provider.load_from_string(css);
+            load_css(density_provider, css);
         }
 
         private void setup_material_style() {
@@ -504,7 +504,7 @@ namespace Singularity.Style {
                 }
             }
             try {
-                material_provider.load_from_string(css);
+                load_css(material_provider, css);
             } catch (Error e) {
                 warning("StyleManager: failed to apply material style: %s", e.message);
             }
@@ -523,6 +523,12 @@ namespace Singularity.Style {
          * @param wallpaper_path Filesystem path to the wallpaper image; only
          *                      used when `color_name` is `"wallpaper"`.
          */
+        private static void load_css(CssProvider provider, string css) {
+            if (provider.get_data<string>("singularity-loaded-css") == css) return;
+            provider.load_from_string(css);
+            provider.set_data<string>("singularity-loaded-css", css);
+        }
+
         public void apply_accent_color(string color_name, string? wallpaper_path = null) {
             string accent = color_name;
             string? wall = wallpaper_path;
@@ -728,40 +734,27 @@ namespace Singularity.Style {
             }
 
             var display = Gdk.Display.get_default();
-            if (display != null && accent_provider != null) {
-                StyleContext.remove_provider_for_display(display, accent_provider);
-            }
-            if (display != null && base_provider != null) {
-                StyleContext.remove_provider_for_display(display, base_provider);
-            }
-            base_provider = null;
             if (base_css != "") {
-                base_provider = new CssProvider();
-                base_provider.load_from_string(base_css);
-                if (display != null) {
-                    StyleContext.add_provider_for_display(display, base_provider,
-                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION - 1);
+                if (base_provider == null) {
+                    base_provider = new CssProvider();
+                    load_css(base_provider, base_css);
+                    if (display != null) StyleContext.add_provider_for_display(display, base_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION - 1);
+                } else {
+                    load_css(base_provider, base_css);
                 }
-            }
-            
-            accent_provider = new CssProvider();
-            try {
-                // message("StyleManager: applying hex color %s", hex_color);
-                accent_provider.load_from_string(combined);
-            } catch (Error e) {
-                warning("StyleManager: failed to apply accent color: %s", e.message);
+            } else if (base_provider != null) {
+                if (display != null) StyleContext.remove_provider_for_display(display, base_provider);
+                base_provider = null;
             }
 
-            if (display != null) {
-                StyleContext.add_provider_for_display(
-                    display, accent_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_USER
-                );
+            if (accent_provider == null) {
+                accent_provider = new CssProvider();
+                load_css(accent_provider, combined);
+                if (display != null) StyleContext.add_provider_for_display(display, accent_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER);
+            } else {
+                load_css(accent_provider, combined);
             }
-            
-            // Extra switch/toggle overrides to ensure they use the accent in the shell
-            // Loaded at PRIORITY_USER + 1, so these win without needing the
-            // (GTK-unsupported) !important keyword.
+
             string switch_css = """
                 /* Generic toggles */
                 switch:checked { background-color: {HEX}; border-color: {HEX}; }
@@ -778,11 +771,13 @@ namespace Singularity.Style {
             """
             .replace("{HEX}", hex_color)
             .replace("{A20}", alpha20);
-            
-            var switch_provider = new CssProvider();
-            switch_provider.load_from_string(switch_css);
-            if (display != null) {
-                StyleContext.add_provider_for_display(display, switch_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1);
+
+            if (switch_provider == null) {
+                switch_provider = new CssProvider();
+                load_css(switch_provider, switch_css);
+                if (display != null) StyleContext.add_provider_for_display(display, switch_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1);
+            } else {
+                load_css(switch_provider, switch_css);
             }
             // Propagate accent to GTK4/3 config files so installed GTK themes
             // (e.g. Kids) can use @accent_color without hardcoding a value.
@@ -1073,6 +1068,7 @@ namespace Singularity.Style {
 
         private CssProvider? accent_provider;
         private CssProvider? base_provider;
+        private CssProvider? switch_provider;
         private CssProvider? material_provider;
         private GLib.Settings? material_settings;
         private CssProvider? user_theme_provider;
@@ -1294,7 +1290,7 @@ namespace Singularity.Style {
                 StyleContext.add_provider_for_display(display, recolor_provider,
                     Gtk.STYLE_PROVIDER_PRIORITY_USER + 2);
             }
-            recolor_provider.load_from_string(css.str);
+            load_css(recolor_provider, css.str);
             recolored();
         }
 
@@ -1384,7 +1380,7 @@ namespace Singularity.Style {
                 StyleContext.add_provider_for_display(display, large_text_provider,
                     Gtk.STYLE_PROVIDER_PRIORITY_USER + 5);
             }
-            large_text_provider.load_from_string(scaled_font_css(css, factor));
+            load_css(large_text_provider, scaled_font_css(css, factor));
         }
 
         private static string scaled_font_css(string css, double factor) {
