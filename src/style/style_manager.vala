@@ -1317,7 +1317,7 @@ namespace Singularity.Style {
                         StyleContext.add_provider_for_display(
                             Gdk.Display.get_default(),
                             high_contrast_provider,
-                            Gtk.STYLE_PROVIDER_PRIORITY_USER + 3
+                            Gtk.STYLE_PROVIDER_PRIORITY_USER + 5
                         );
                     } catch (Error e) {
                         warning("StyleManager: failed to load high-contrast theme: %s", e.message);
@@ -1382,7 +1382,7 @@ namespace Singularity.Style {
             if (large_text_provider == null) {
                 large_text_provider = new CssProvider();
                 StyleContext.add_provider_for_display(display, large_text_provider,
-                    Gtk.STYLE_PROVIDER_PRIORITY_USER + 3);
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER + 5);
             }
             large_text_provider.load_from_string(scaled_font_css(css, factor));
         }
