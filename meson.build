@@ -298,6 +298,11 @@ libsingularity_sources = files(
   'src/migration/session.vala',
   'src/migration/service.vala',
   'src/migration/preview.vala',
+  'src/startup/observer.vala',
+  'src/startup/plan.vala',
+  'src/startup/runner.vala',
+  'src/startup/profile.vala',
+  'src/startup/boot.vala',
   'src/core/action_accels.vala',
   'src/core/shell_application.vala',
   'src/core/settings_contract.vala',
@@ -1172,6 +1177,13 @@ async_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('async', async_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory'])
+
+startup_test = executable(
+  'startup-test',
+  files('tests/startup_test.vala'),
+  dependencies: [libsingularity_dep],
+)
+test('startup', startup_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory'])
 
 background_work_test = executable(
   'background-work-test',

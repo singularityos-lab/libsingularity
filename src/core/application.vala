@@ -112,6 +112,7 @@ namespace Singularity {
         }
 
         construct {
+            Singularity.Startup.Observer.get_default().watch(this);
             // Bind libsingularity's own translation domain (its widgets ship
             // user-facing strings); resolve the locale dir from the install
             // prefix so it works whatever the prefix.
@@ -158,6 +159,11 @@ namespace Singularity {
             } catch (Error e) {
                 warning("AppAgent: cannot export %s: %s", object_path, e.message);
             }
+            try {
+                Singularity.Startup.Boot.of(this).export(connection, object_path);
+            } catch (IOError e) {
+                warning("Startup: cannot export %s: %s", object_path, e.message);
+            }
             migration = new Singularity.Migration.Service(this);
             try {
                 migration.export(connection, object_path);
@@ -177,12 +183,29 @@ namespace Singularity {
             ActionAccels.for_application(this).unexport();
             agent.unexport();
             if (migration != null) migration.unexport();
+            Singularity.Startup.Boot.of(this).unexport();
             migration = null;
             base.dbus_unregister(connection, object_path);
         }
 
+        protected override void activate() {
+            Singularity.Startup.Boot.of(this).request(new Singularity.Startup.Request(Singularity.Startup.RequestKind.ACTIVATE));
+        }
+
+        protected override void open(File[] files, string hint) {
+            Singularity.Startup.Boot.of(this).request(new Singularity.Startup.Request(Singularity.Startup.RequestKind.OPEN, files, hint));
+        }
+
+        protected override void shutdown() {
+            Singularity.Startup.Boot.of(this).cancel();
+            base.shutdown();
+        }
+
         protected override void startup() {
+            var observer = Singularity.Startup.Observer.get_default();
+            observer.mark("startup-begin");
             base.startup();
+            observer.mark("toolkit-ready");
 
             if (Singularity.Core.WebKitSockets.webkit_loaded())
                 Singularity.Core.WebKitSockets.clear_stale_bus_proxies();
@@ -195,8 +218,10 @@ namespace Singularity {
             Singularity.Style.StyleManager.pin_brand_themes();
 
             Singularity.Style.StyleManager.get_default().load_theme();
+            observer.mark("theme-loaded");
             Singularity.Accessibility.AccessibilityManager.get_default();
             Singularity.Text.SpellIntegration.install(this);
+            observer.mark("services-ready");
 
             string fallback_accent = detect_system_accent();
             bool fallback_dark = false;
@@ -302,6 +327,7 @@ namespace Singularity {
             window_added.connect(_watch_suspended);
 
             _queue_menubar_update();
+            observer.mark("library-startup-end");
         }
 
         [CCode (cname = "prctl", cheader_filename = "sys/prctl.h")]

@@ -135,6 +135,7 @@ namespace Singularity.Migration {
             if (version != VERSION) throw new MigrationError.INVALID("app state version %u is not supported".printf(version));
             if (app_id != app.application_id) throw new MigrationError.INVALID("this state belongs to %s".printf(app_id));
             var owner = (Migratable) app;
+            yield Singularity.Startup.Boot.of(app).wait(Singularity.Startup.Milestone.CONTENT_READY);
             yield owner.restore_model(model);
             var built = new Gee.ArrayList<Gtk.Window>();
             var states = new Gee.ArrayList<WidgetState>();
