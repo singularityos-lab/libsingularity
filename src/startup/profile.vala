@@ -83,11 +83,16 @@ namespace Singularity.Startup {
             b.end_object();
             var gen = new Json.Generator();
             gen.set_root(b.get_root());
-            try {
-                DirUtils.create_with_parents(file.get_parent().get_path(), 0700);
-                FileUtils.set_contents(file.get_path(), gen.to_data(null));
-            } catch (Error e) {
-            }
+            string data = gen.to_data(null);
+            string path = file.get_path();
+            Async.dispatch(null, Async.Qos.UTILITY, (c) => {
+                try {
+                    DirUtils.create_with_parents(Path.get_dirname(path), 0700);
+                    FileUtils.set_contents(path, data);
+                } catch (Error e) {
+                }
+                return null;
+            });
         }
     }
 }
