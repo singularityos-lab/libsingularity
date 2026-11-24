@@ -305,9 +305,24 @@ void test_ipv4_changes () throws Error {
     assert (failure != null);
 }
 
+void test_network_kind () {
+    var wifi = new NmConnection.detached (NmImport.wifi ("Cafe", "secret99"));
+    assert (!wifi.home_network);
+    assert (!wifi.metered);
+    var home = new NmConnection.detached (NmImport.kind_changes (wifi, true, false));
+    assert (home.home_network);
+    assert (!home.metered);
+    assert (home.wifi_ssid () == "Cafe");
+    var hotspot = new NmConnection.detached (NmImport.kind_changes (home, false, true));
+    assert (!hotspot.home_network);
+    assert (hotspot.metered);
+    assert (setting (hotspot.changed ("connection", new HashTable<string, Variant?> (str_hash, str_equal)), "connection", "zone").get_string () == "public");
+}
+
 int main (string[] args) {
     Test.init (ref args);
     Test.add_func ("/nm/addresses", test_addresses);
+    Test.add_func ("/nm/network-kind", test_network_kind);
     Test.add_func ("/nm/wireguard-conf", () => { try { test_wireguard_conf (); } catch (Error e) { error (e.message); } });
     Test.add_func ("/nm/wireguard-errors", test_wireguard_errors);
     Test.add_func ("/nm/wireguard-manual", () => { try { test_wireguard_manual (); } catch (Error e) { error (e.message); } });

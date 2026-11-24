@@ -540,6 +540,13 @@ namespace Singularity {
             return s.build();
         }
 
+        public static Variant kind_changes(NmConnection conn, bool home, bool metered) {
+            var changes = new HashTable<string, Variant?>(str_hash, str_equal);
+            changes.insert("zone", new Variant.string(home ? "home" : "public"));
+            changes.insert("metered", new Variant.int32((int32) (metered ? NM_METERED_YES : NM_METERED_NO)));
+            return conn.changed("connection", changes);
+        }
+
         public static Variant ipv4_changes(NmConnection conn, bool manual, string address, string gateway,
                                            string[] dns, bool only_dns, bool autoconnect,
                                            out string? failure) {

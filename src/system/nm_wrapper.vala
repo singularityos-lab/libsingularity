@@ -585,6 +585,15 @@ namespace Singularity {
             return null;
         }
 
+        public async string? save_network_kind(NmConnection conn, bool home, bool metered) {
+            try {
+                yield conn.commit(NmImport.kind_changes(conn, home, metered));
+            } catch (Error e) {
+                return e.message;
+            }
+            return null;
+        }
+
         public async void deactivate_connection(NmConnection conn) {
             bool ok = yield deactivate_vpn(conn, true);
             if (ok) vpn_action_result(true, "VPN disconnected");

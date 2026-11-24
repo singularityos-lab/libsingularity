@@ -43,6 +43,8 @@ namespace Singularity {
     public const uint NM_CONNECTIVITY_PORTAL = 2;
     public const uint NM_METERED_YES = 1;
     public const uint NM_METERED_GUESS_YES = 3;
+    public const uint NM_METERED_NO = 2;
+    public const uint NM_METERED_GUESS_NO = 4;
 
     public class NmConnection : GLib.Object {
         public string path { get; construct; }
@@ -88,6 +90,26 @@ namespace Singularity {
             get {
                 var v = value("connection", "autoconnect");
                 return v == null || !v.is_of_type(VariantType.BOOLEAN) || v.get_boolean();
+            }
+        }
+
+        public bool home_network {
+            get {
+                string zone = text("connection", "zone");
+                return zone == "home" || zone == "trusted";
+            }
+        }
+
+        public bool metered {
+            get {
+                var v = value("connection", "metered");
+                if (v != null && v.is_of_type(VariantType.INT32)) {
+                    uint m = (uint) v.get_int32();
+                    if (m == NM_METERED_YES || m == NM_METERED_GUESS_YES) return true;
+                    if (m == NM_METERED_NO || m == NM_METERED_GUESS_NO) return false;
+                }
+                string type = get_connection_type();
+                return type == "gsm" || type == "cdma" || type == "bluetooth";
             }
         }
 
