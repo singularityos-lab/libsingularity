@@ -85,7 +85,8 @@ namespace Singularity.Style {
             // the desired pack, not a hardcoded brand, so picking another pack
             // applies to Singularity apps too.
             var src = GLib.SettingsSchemaSource.get_default();
-            if (src != null && src.lookup("dev.sinty.desktop", true) != null) {
+            var schema = src != null ? src.lookup("dev.sinty.desktop", true) : null;
+            if (schema != null && schema.has_key("icon-theme")) {
                 var ds = new GLib.Settings("dev.sinty.desktop");
                 string it = ds.get_string("icon-theme");
                 if (it != "") _desired_icon_theme = it;
