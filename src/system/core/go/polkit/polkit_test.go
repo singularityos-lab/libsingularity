@@ -41,3 +41,33 @@ func TestCheck(t *testing.T) {
 		t.Fatal("polkit was asked about root")
 	}
 }
+
+func TestConfirm(t *testing.T) {
+	uids := map[dbus.Sender]uint32{":1.1": 0, ":1.2": 1000}
+	caller := func(s dbus.Sender) (uint32, error) {
+		uid, ok := uids[s]
+		if !ok {
+			return 0, errors.New("gone")
+		}
+		return uid, nil
+	}
+	admin := func(uint32) bool { return true }
+	cases := []struct {
+		name   string
+		polkit func(dbus.Sender, string) (bool, bool)
+		sender dbus.Sender
+		ok     bool
+	}{
+		{"root", func(dbus.Sender, string) (bool, bool) { return false, false }, ":1.1", true},
+		{"confirmed", func(dbus.Sender, string) (bool, bool) { return true, true }, ":1.2", true},
+		{"dismissed", func(dbus.Sender, string) (bool, bool) { return false, true }, ":1.2", false},
+		{"no polkit, administrator", func(dbus.Sender, string) (bool, bool) { return false, false }, ":1.2", false},
+		{"unknown caller", func(dbus.Sender, string) (bool, bool) { return true, true }, ":1.9", false},
+	}
+	for _, c := range cases {
+		a := &Authorizer{Caller: caller, IsAdmin: admin, Polkit: c.polkit}
+		if err := a.Confirm(c.sender, "dev.sinty.test"); (err == nil) != c.ok {
+			t.Errorf("%s: %v", c.name, err)
+		}
+	}
+}

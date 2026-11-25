@@ -48,6 +48,23 @@ func (a *Authorizer) Check(sender dbus.Sender, action string) *dbus.Error {
 	return Denied("not authorized")
 }
 
+// Confirm returns nil only when polkit ran and authorized sender for action,
+// so the person confirmed with their PIN or password. Without polkit it
+// refuses: administrator groups are not a confirmation. root always may.
+func (a *Authorizer) Confirm(sender dbus.Sender, action string) *dbus.Error {
+	uid, err := a.caller(sender)
+	if err != nil {
+		return Denied("the caller could not be identified")
+	}
+	if uid == 0 {
+		return nil
+	}
+	if ok, ran := a.polkit(sender, action); ran && ok {
+		return nil
+	}
+	return Denied("not confirmed")
+}
+
 func (a *Authorizer) caller(sender dbus.Sender) (uint32, error) {
 	if a.Caller != nil {
 		return a.Caller(sender)
