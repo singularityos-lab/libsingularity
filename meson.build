@@ -286,6 +286,7 @@ libsingularity_sources = files(
   'src/core/form_factor.vala',
   'src/core/capabilities.vala',
   'src/core/async.vala',
+  'src/core/durable_file.vala',
   'src/core/background_work.vala',
   'src/core/async_loads.vala',
   'src/core/async_tile_cache.vala',
@@ -1181,6 +1182,14 @@ async_test = executable(
   dependencies: [libsingularity_dep],
 )
 test('async', async_test, env: ['GTK_A11Y=none', 'GSETTINGS_BACKEND=memory'])
+
+durable_file_test = executable(
+  'durable-file-test',
+  files('tests/durable_file_test.vala'),
+  dependencies: [libsingularity_dep],
+  vala_args: ['--pkg', 'posix'],
+)
+test('durable-file', durable_file_test, env: ['TMPDIR=' + meson.current_build_dir()])
 
 startup_test = executable(
   'startup-test',
