@@ -47,8 +47,8 @@ namespace Singularity {
 
             _name_watch_id = connection.signal_subscribe(
                 "org.freedesktop.DBus", "org.freedesktop.DBus",
-                "NameOwnerChanged", "/org/freedesktop/DBus", null,
-                DBusSignalFlags.NONE,
+                "NameOwnerChanged", "/org/freedesktop/DBus", "org.mpris.MediaPlayer2",
+                DBusSignalFlags.MATCH_ARG0_NAMESPACE,
                 (conn, sender, obj_path, iface, sig, pars) => {
                     string? name      = (string?) pars.get_child_value(0);
                     string? new_owner = (string?) pars.get_child_value(2);

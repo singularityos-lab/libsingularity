@@ -294,8 +294,8 @@ namespace Singularity.Widgets {
                     "org.freedesktop.DBus",
                     "NameOwnerChanged",
                     "/org/freedesktop/DBus",
-                    null,
-                    DBusSignalFlags.NONE,
+                    "org.mpris.MediaPlayer2",
+                    DBusSignalFlags.MATCH_ARG0_NAMESPACE,
                     (conn, sender, obj_path, iface, sig, pars) => {
                         string? name      = (string?) pars.get_child_value(0);
                         string? old_owner = (string?) pars.get_child_value(1);
