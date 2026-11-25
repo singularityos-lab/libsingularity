@@ -26,6 +26,14 @@ namespace Singularity {
         public string cover_path { get; private set; default = ""; }
         public uint cover_serial { get; private set; default = 0; }
         public bool active { get { return current_player_name != null; } }
+        public int64 length_us { get; private set; default = 0; }
+        private int64 _position_us = 0;
+        private int64 _sampled_us = 0;
+
+        public int64 position_us() {
+            int64 p = _position_us + (playing ? GLib.get_monotonic_time() - _sampled_us : 0);
+            return length_us > 0 ? p.clamp(0, length_us) : int64.max(p, 0);
+        }
 
         public signal void changed();
 
@@ -131,6 +139,8 @@ namespace Singularity {
             app_id = "";
             playing = false;
             cover_path = "";
+            length_us = 0;
+            _position_us = 0;
             changed();
         }
 
@@ -166,7 +176,11 @@ namespace Singularity {
                 var metadata = props.lookup_value("Metadata", null);
                 string new_title = "";
                 string new_artist = "";
+                int64 new_length = 0;
                 if (metadata != null) {
+                    var len = metadata.lookup_value("mpris:length", null);
+                    if (len != null && len.is_of_type(VariantType.INT64)) new_length = len.get_int64();
+                    else if (len != null && len.is_of_type(VariantType.UINT64)) new_length = (int64) len.get_uint64();
                     var t = metadata.lookup_value("xesam:title", VariantType.STRING);
                     if (t != null) new_title = t.get_string();
                     var a = metadata.lookup_value("xesam:artist", null);
@@ -174,10 +188,14 @@ namespace Singularity {
                     else if (a != null && a.is_of_type(VariantType.STRING)) new_artist = a.get_string();
                     update_art(metadata);
                 }
-                if (now_playing != playing || new_title != title || new_artist != artist) {
+                var pos = props.lookup_value("Position", VariantType.INT64);
+                _position_us = pos != null ? pos.get_int64() : 0;
+                _sampled_us = GLib.get_monotonic_time();
+                if (now_playing != playing || new_title != title || new_artist != artist || new_length != length_us) {
                     playing = now_playing;
                     title = new_title;
                     artist = new_artist;
+                    length_us = new_length;
                     changed();
                 }
             } catch (Error e) { }
