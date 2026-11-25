@@ -183,12 +183,25 @@ namespace Singularity.Style {
          * Also loads dark color variables by default. Call
          * apply_color_scheme() afterwards to switch to light.
          */
+        /**
+         * Sets the scheme and accent that the first {@link load_theme} call
+         * parses, so an application that knows its appearance at startup parses
+         * the stylesheet once instead of again for each later correction.
+         * Ignored once a theme is loaded.
+         */
+        public void preset(bool dark, string accent, string? wallpaper_path = null) {
+            if (accent_provider != null) return;
+            current_dark_mode = dark;
+            current_accent = accent;
+            current_accent_wallpaper = wallpaper_path;
+        }
+
         public void load_theme() {
             install_bubble_buttons();
             Singularity.Motion.get_default().install_css();
             Singularity.Animation.WidgetMotion.install();
             if (accent_provider != null) return;
-            apply_accent_color("blue");
+            apply_accent_color(current_accent, current_accent_wallpaper);
             setup_material_style();
             setup_density_style();
         }

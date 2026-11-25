@@ -236,16 +236,6 @@ namespace Singularity {
             // with the shell via the same helper so the policy lives in one place.
             Singularity.Style.StyleManager.pin_brand_themes();
 
-            Singularity.Style.StyleManager.get_default().load_theme();
-            observer.mark("theme-loaded");
-            Singularity.Accessibility.AccessibilityManager.get_default();
-            Singularity.Text.SpellIntegration.install(this);
-            observer.mark("services-ready");
-
-            string fallback_accent = detect_system_accent();
-            bool fallback_dark = false;
-            observer.mark("accent-detected");
-
             desktop_settings = Core.safe_settings(Singularity.Runtime.desktop_settings_schema);
             if (desktop_settings != null) {
                 var oobe_theme_file = Path.build_filename(
@@ -262,6 +252,21 @@ namespace Singularity {
                     // overwrite the user's later theme choice.
                     FileUtils.unlink(oobe_theme_file);
                 }
+                string? wallpaper_path;
+                string accent = accent_from_settings(out wallpaper_path);
+                Singularity.Style.StyleManager.get_default().preset(app_dark(), accent, wallpaper_path);
+            }
+
+            Singularity.Style.StyleManager.get_default().load_theme();
+            observer.mark("theme-loaded");
+            Singularity.Accessibility.AccessibilityManager.get_default();
+            Singularity.Text.SpellIntegration.install(this);
+            observer.mark("services-ready");
+
+            string fallback_accent = "blue";
+            bool fallback_dark = false;
+
+            if (desktop_settings != null) {
                 desktop_settings.changed["accent-color"].connect(() => {
                     update_accent_color();
                 });
@@ -285,6 +290,8 @@ namespace Singularity {
                     desktop_settings.get_string("singularity-theme"));
                 observer.mark("user-theme-loaded");
             } else {
+                fallback_accent = detect_system_accent();
+                observer.mark("accent-detected");
                 Singularity.Style.StyleManager.get_default().apply_accent_color(fallback_accent);
             }
             // React to system color-scheme changes only as a fallback when
@@ -594,10 +601,9 @@ namespace Singularity {
             return "blue";
         }
 
-        private void update_accent_color() {
-            if (desktop_settings == null) return;
+        private string accent_from_settings(out string? wallpaper_path) {
             string color_name = desktop_settings.get_string("accent-color");
-            string? wallpaper_path = null;
+            wallpaper_path = null;
             if (color_name == "wallpaper") {
                 string uri = desktop_settings.get_string("background-picture-uri");
                 if (uri != "") {
@@ -609,13 +615,24 @@ namespace Singularity {
                 if (hex == "" || hex == null) hex = "#3584e4";
                 color_name = hex;
             }
+            return color_name;
+        }
+
+        private void update_accent_color() {
+            if (desktop_settings == null) return;
+            string? wallpaper_path;
+            string color_name = accent_from_settings(out wallpaper_path);
             Singularity.Style.StyleManager.get_default().apply_accent_color(color_name, wallpaper_path);
         }
 
-        private void update_theme_mode() {
+        private bool app_dark() {
             // Applications follow the app tone: light unless the effective mode
             // is full Dark. The shell chrome follows a different (shell) tone.
-            bool dark = force_dark || _tv_windows > 0 || Singularity.Style.ThemeMode.get_default().app_dark();
+            return force_dark || _tv_windows > 0 || Singularity.Style.ThemeMode.get_default().app_dark();
+        }
+
+        private void update_theme_mode() {
+            bool dark = app_dark();
             Gtk.Settings.get_default().gtk_application_prefer_dark_theme = dark;
             Singularity.Style.StyleManager.get_default().apply_color_scheme(dark);
             // Re-apply accent so base tint colors use the correct light/dark base.
