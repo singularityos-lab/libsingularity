@@ -708,6 +708,7 @@ if get_option('system')
     'src/system/updates/firmware_client.vala',
     'src/system/updates/device_security.vala',
     'src/system/firewall.vala',
+    'src/system/organization.vala',
     'src/system/hostname_manager.vala',
     'src/system/equalizer.vala',
   )
