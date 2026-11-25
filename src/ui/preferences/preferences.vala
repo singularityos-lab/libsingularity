@@ -695,6 +695,12 @@ namespace Singularity.Widgets {
             set { entry.input_purpose = value; }
         }
 
+        /** Maximum number of characters, 0 for no limit. */
+        public int max_length {
+            get { return entry.max_length; }
+            set { entry.max_length = value; }
+        }
+
         public signal void entry_changed();
         public signal void entry_activated();
 
