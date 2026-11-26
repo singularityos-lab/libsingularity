@@ -1,3 +1,5 @@
+//go:build linux
+
 // Package uevent delivers device events to Sinty services. When a device
 // manager broadcasts libudev events, the subsystems a service asks for are
 // filtered in the kernel, so the service wakes only for its own devices;
