@@ -7682,7 +7682,6 @@ flowbox.tv-app-row > flowboxchild:focus-visible .tv-app-art.folder {
 }
 
 .tv-now-backdrop {
-    filter: blur(48px) saturate(1.4);
     opacity: 0.62;
 }
 

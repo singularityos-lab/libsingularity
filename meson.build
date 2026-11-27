@@ -447,6 +447,7 @@ libsingularity_sources += files(
   'src/imaging/transfer.vala',
   'src/imaging/float_image.vala',
   'src/imaging/filters.vala',
+  'src/imaging/backdrop.vala',
   'src/imaging/blend.vala',
   'src/imaging/icc.vala',
   'src/imaging/tracking.vala',
