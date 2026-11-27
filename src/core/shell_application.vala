@@ -34,6 +34,7 @@ namespace Singularity {
             // Pin the brand GTK and icon themes once, after Gtk.init. The notify
             // guards inside keep them pinned for the lifetime of the shell.
             Singularity.Style.StyleManager.pin_brand_themes();
+            Singularity.FrameProbe.install();
             Singularity.Text.SpellIntegration.install(this);
             Singularity.Accessibility.AccessibilityManager.get_default().manage_screen_reader();
         }

@@ -284,6 +284,7 @@ libsingularity_sources = files(
   'src/calendar/account_provider.vala',
   'src/core/environment.vala',
   'src/core/form_factor.vala',
+  'src/core/frame_probe.vala',
   'src/core/capabilities.vala',
   'src/core/async.vala',
   'src/core/durable_file.vala',
