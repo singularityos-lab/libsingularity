@@ -7681,6 +7681,73 @@ flowbox.tv-app-row > flowboxchild:focus-visible .tv-app-art.folder {
     background-color: alpha(white, 0.24);
 }
 
+.tv-now-backdrop {
+    filter: blur(48px) saturate(1.4);
+    opacity: 0.62;
+}
+
+.tv-now.no-cover .tv-now-backdrop {
+    opacity: 0;
+}
+
+.tv-now-scrim {
+    background-image: linear-gradient(to right, alpha(mix(#0b0b0f, @accent_color, 0.22), 0.9) 0%, alpha(mix(#0b0b0f, @accent_color, 0.16), 0.66) 46%, alpha(#0b0b0f, 0.35) 100%);
+}
+
+.tv-now-row {
+    margin: 0 72px 0 56px;
+}
+
+media-artwork.tv-now-cover > .media-artwork-cover {
+    border-radius: 22px;
+    box-shadow: 0 0 0 1px alpha(white, 0.08), 0 18px 44px alpha(black, 0.5);
+}
+
+media-artwork.tv-now-cover > .media-artwork-badge {
+    margin: 0 -18px -18px 0;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    -gtk-icon-shadow: 0 6px 16px alpha(black, 0.55);
+}
+
+.tv-now .tv-hero-title {
+    font-size: 48px;
+}
+
+.tv-now-timeline {
+    margin-top: 22px;
+}
+
+.tv-now-time {
+    font-size: 17px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+    color: alpha(white, 0.78);
+}
+
+progressbar.tv-now-progress > trough {
+    min-height: 6px;
+    border-radius: 999px;
+    background-color: alpha(white, 0.18);
+}
+
+progressbar.tv-now-progress > trough > progress {
+    min-height: 6px;
+    border-radius: 999px;
+    background-color: white;
+}
+
+.tv-now.playing progressbar.tv-now-progress > trough > progress {
+    background-color: @accent_color;
+}
+
+.singularity button.tv-hero-details.tv-now-round {
+    min-width: 54px;
+    padding: 0;
+}
+
 .tv-hero-dots {
     margin: 0 40px 30px 0;
 }
