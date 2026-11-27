@@ -7585,6 +7585,23 @@ flowbox.tv-app-row > flowboxchild:focus-visible .tv-app-art.folder {
     margin-bottom: 22px;
 }
 
+.tv-widget {
+    border-radius: 20px;
+}
+
+.tv-widget:focus-visible {
+    box-shadow: 0 0 0 3px @accent_color, 0 0 32px 4px alpha(@accent_color, 0.55);
+}
+
+.tv-tile-check {
+    margin: 8px;
+    padding: 6px;
+    border-radius: 999px;
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+    box-shadow: 0 2px 8px alpha(black, 0.4);
+}
+
 .tv-hero {
     border-radius: 28px;
     background-color: mix(#16161a, @accent_color, 0.18);
