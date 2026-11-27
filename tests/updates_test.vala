@@ -68,6 +68,7 @@ private void test_state() {
     assert(State.parse("up-to-date") == State.UP_TO_DATE);
     assert(State.parse(" Scheduled ") == State.SCHEDULED);
     assert(State.parse("bogus") == State.UNKNOWN);
+    assert(State.parse("held") == State.HELD);
     assert(State.DOWNLOADING.is_busy());
     assert(!State.READY.is_busy());
 }
@@ -273,6 +274,8 @@ private class FakeUpdated : Object {
             } else if (last_request.has_prefix("POST /download")) {
                 status = "409 Conflict";
                 body = "{\"state\":\"idle\",\"error\":\"no update\"}";
+            } else if (state == "held") {
+                body = "{\"state\":\"held\",\"latest\":\"v185\",\"product_name\":\"Sinty OS Event Horizon\",\"product_version\":\"26\",\"product_build\":\"26A019\",\"held_until\":1795000000}";
             } else if (state == "available") {
                 body = "{\"state\":\"available\",\"latest\":\"v184\",\"product_name\":\"Sinty OS Event Horizon\",\"product_version\":\"26\",\"product_build\":\"26A018\",\"consent_token\":\"%s\",\"percent\":0}".printf(string.nfill(64, 'a'));
             } else {
@@ -415,6 +418,15 @@ private void test_updated_provider() {
     loop.run();
     assert(failure != null);
     assert(!UpdatedProvider.valid_token("xyz"));
+    fake.state = "held";
+    provider.probe.begin((obj, res) => {
+        provider.probe.end(res);
+        loop.quit();
+    });
+    loop.run();
+    assert(provider.state == State.HELD);
+    assert(provider.held_until == 1795000000);
+    assert(provider.available_version == "Sinty OS Event Horizon 26 (26A019)");
     fake.stop();
     FileUtils.unlink(path);
 }

@@ -11,7 +11,8 @@ namespace Singularity.Updates {
         DOWNLOADING,
         READY,
         SCHEDULED,
-        ERROR;
+        ERROR,
+        HELD;
 
         public static State parse(string value) {
             switch (value.strip().down()) {
@@ -23,6 +24,7 @@ namespace Singularity.Updates {
                 case "ready": return READY;
                 case "scheduled": return SCHEDULED;
                 case "error": return ERROR;
+                case "held": return HELD;
             }
             return UNKNOWN;
         }
@@ -66,6 +68,7 @@ namespace Singularity.Updates {
         public double progress { get; protected set; default = -1; }
         public string last_error { get; protected set; default = ""; }
         public int64 last_check { get; protected set; default = 0; }
+        public int64 held_until { get; protected set; default = 0; }
         public bool can_download { get; protected set; default = false; }
         public bool can_schedule { get; protected set; default = false; }
         public bool can_unschedule { get; protected set; default = false; }

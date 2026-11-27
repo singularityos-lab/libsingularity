@@ -108,6 +108,7 @@ namespace Singularity.Updates {
             current_version = HardwareInfo.os_name();
             last_error = "";
             progress = -1;
+            held_until = 0;
             switch (value) {
                 case "available":
                     state = State.AVAILABLE;
@@ -119,6 +120,10 @@ namespace Singularity.Updates {
                 case "ready":
                     state = State.SCHEDULED;
                     break;
+                case "held":
+                    state = State.HELD;
+                    held_until = status.get_int_member_with_default("held_until", 0);
+                    break;
                 case "error":
                     state = State.ERROR;
                     last_error = status.get_string_member_with_default("error", "");
@@ -127,7 +132,7 @@ namespace Singularity.Updates {
                     state = State.UP_TO_DATE;
                     break;
             }
-            if (state == State.AVAILABLE || state == State.DOWNLOADING || state == State.SCHEDULED) {
+            if (state == State.AVAILABLE || state == State.DOWNLOADING || state == State.SCHEDULED || state == State.HELD) {
                 string label = product != "" ? product : latest;
                 if (product != "" && product_version != "") label = product + " " + product_version;
                 if (build != "") label = "%s (%s)".printf(label, build);
